@@ -157,6 +157,40 @@ The same thing shows up as a white flash if a script stops one flowgraph
 and starts another, because the pins idle between the two. One
 flowgraph that never stops has no gap to flash in.
 
+## The holder and the optical path
+
+The fourth PCB in the kit has no electrical function and is easy to
+dismiss, but it is what makes two photodiodes mean anything. It is a
+40 mm plate with **two 13.2 mm square cuvette wells set at right angles
+to each other**, silkscreened `Sample` and `Reference`, and a **2 mm
+slot running diagonally at 45 degrees across the elbow between them**.
+
+The slot is the beam splitter. One LED fires along one axis; the
+splitter passes part of the beam straight through to the `Reference`
+well and reflects the rest through 90 degrees into the `Sample` well.
+Each well has its own photodiode riser behind it. That is the CN0363's
+optical arrangement, which the kit's readme says the holder was adapted
+from -- the optics are inherited even though none of the electronics is.
+
+The slot is not a sample position. Nothing goes in it but the splitter.
+
+Measured 2026-09-15 by loading the `Sample` well opaque and leaving an
+empty cuvette in `Reference`:
+
+| | red | green | blue |
+|---|---|---|---|
+| analog 1 keeps | 87.8% | 87.2% | 89.0% |
+| analog 2 keeps | 0.87% | 0.59% | 0.96% |
+
+So **analog 2 is the sample and analog 1 is the reference**, matching
+what Thoren's script assumed.
+
+The reference channel losing 12% is the empty cuvette itself, about 4%
+of Fresnel reflection at each of two interfaces. It is the reason a
+colorimeter blanks against an empty cuvette rather than against an empty
+slot. The 0.8% left on the sample channel is still 80 times the noise
+floor, so there is about 2 OD of range before the measurement runs out.
+
 ## Two traps
 
 **V+ powers the LEDs, not just the op-amp.** The LED common anodes sit

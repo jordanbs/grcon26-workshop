@@ -167,7 +167,13 @@ silkscreen says.
 
 `run` assumes analog 1 is the reference and analog 2 the sample, which
 is what Thoren's script assumes. `channels` is how you find out whether
-it is true of the board in front of you.
+it is true of the board in front of you. It was true on 2026-09-15:
+block the `Sample` well and analog 2 keeps 0.8% of its signal while
+analog 1 keeps 88%.
+
+The cuvette goes in the square well silkscreened `Sample`. The thin
+diagonal slot beside it is the beam splitter, not a second sample
+position. See the optical path section of `docs/colorimeter-board.md`.
 
 ## Still open
 
