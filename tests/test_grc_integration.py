@@ -599,6 +599,49 @@ def test_the_ultrasonic_flowgraph_builds(repo_root):
 
 
 @needs_gnuradio
+def test_the_colorimeter_flowgraph_builds(repo_root):
+    """Every number in this one came off the bench.
+
+    The three bins are not round frequencies; they are the whole-cycle
+    counts that make a rectangular window correct. The sink idles HIGH
+    because a DIO bit on that board steers rather than gates. And the
+    Goertzel length has to match the capture buffer, or a measurement
+    straddles two buffers and whatever gap sits between them.
+    """
+    path = os.path.join(repo_root, "flowgraphs", "m2k_colorimeter.grc")
+    result = json.loads(run_in_gr(BUILD, path,
+                                  os.path.join(repo_root, M2K_GRC)))
+    assert result["valid"], result["errors"]
+    make = result["make"]
+    # 205, 246 and 287 whole cycles in 4096 samples at 100 kS/s.
+    assert "samp_rate = 100000" in make
+    assert "nfft = 4096" in make
+    assert "bin_hz = samp_rate / nfft" in make
+    for name, cycles in (("red", 205), ("green", 246), ("blue", 287)):
+        assert "%s_bin = %d" % (name, cycles) in make
+    # Chop and capture share one clock, which is what the whole demo rests on.
+    # sample_rate on the M2K blocks is a dropdown, so it is a literal here.
+    # A variable name in it reverts to 1 MS/s without complaining.
+    assert make.count("sample_rate=100000,") == 2
+    assert make.count("buffer_size=nfft,") == 2
+    assert "sample_rate=1000000" not in make
+    # The bit steers between risers; only J5 exists, so idle high is dark.
+    assert "pins=[13, 14, 15]" in make
+    assert "cyclic=True" in make and "idle_level='high'" in make
+    # A square short source is 0/1, which is exactly a DIO line.
+    assert "analog.GR_SQR_WAVE, (red_bin * bin_hz), 1, 0" in make
+    # One bin, computed over exactly one capture buffer.
+    assert make.count("fft.goertzel_fc(samp_rate, nfft,") == 6
+    # No window to taper, because nothing lands between bins.
+    assert "window.WIN_RECTANGULAR" in make
+    # The empty beam is not 1.0, and the blank is folded into the display.
+    assert "blank_red = 1.0053" in make
+    assert "blank_green = 0.9757" in make
+    assert "blank_blue = 0.9911" in make
+    assert "100.0 / blank_red" in make
+
+
+@needs_gnuradio
 def test_the_sync_word_finds_the_byte_boundary(repo_root):
     """The receive chain, on synthetic FSK, started mid-bit.
 

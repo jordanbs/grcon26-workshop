@@ -226,4 +226,7 @@ value. It is worth about 3 OD of usable range.
 - R11 has no value in the schematic, so the LED drive current is
   unknown, so the optical power is unknown. It only matters if the
   photodiode saturates or the signal is too small to see.
-- The `.grc` participants will open does not exist yet.
+- `flowgraphs/m2k_colorimeter.grc` has never been run on the board.
+  It validates in GRC and every constant in it came off the bench,
+  but the bench proved them through `bench/colorimeter.py`, not
+  through this flowgraph. Run it at a station before the workshop.

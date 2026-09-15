@@ -378,6 +378,123 @@ Also not checked: range, off-axis falloff, and how many stations can run at
 once in one room. Twenty pairs of transducers on the same three tones is a
 question the bench cannot answer.
 
+# Colorimeter
+
+`m2k_colorimeter.grc` — the M2k Colorimeter Accessory Board on the digital
+header. LED riser in J5, photodiode risers in J3 and J4, V+ and V- powering
+the board's op amp. Put a cuvette in the well silkscreened `Sample`.
+
+It measures red, green and blue **at the same time**. Not one after another.
+
+## Three colors, one beam, one FFT
+
+Each color is chopped at its own frequency and all three shine through the
+cuvette together. The photodiode sees one messy sum. An FFT pulls the three
+apart again, because they were never actually mixed — they were only added.
+
+That is the whole idea, and the frequency sink shows it directly: three
+spikes on the reference trace, three on the sample trace. Slide a colored
+filter into the sample well and one of the sample spikes drops while the
+reference stays where it is.
+
+The alternative — switch on red, measure, switch on green, measure — takes
+three times as long and drifts in between. Frequency multiplexing is not a
+trick to save time here. It is what makes the three numbers simultaneous.
+
+## Why the frequencies are not round numbers
+
+Red chops at 5004.9 Hz, green at 6005.9, blue at 7006.8.
+
+The buffer is 4096 samples at 100 kS/s. 205, 246 and 287 whole cycles fit in
+it exactly, which puts each tone on exactly bin 205, 246 and 287 of a
+4096-point FFT at the same rate. Nothing lands between bins, so nothing
+leaks, so the window is **rectangular** — the one place in this repo where
+that is the right answer rather than the lazy one.
+
+This only works because the pattern generator and the ADC run off one clock.
+That was measured, not assumed: `bench/colorimeter.py coherence` puts every
+peak on its own bin and holds phase to better than **0.02 ppm** over eight
+consecutive blocks. Section 14 of `docs/bench-checklist.md` has the numbers.
+
+Because each tone is periodic in exactly 4096 samples, *any* 4096-sample
+window is coherent. There is no alignment to get right and no trigger.
+
+## Goertzel is a lock-in amplifier
+
+A lock-in multiplies the incoming signal by a reference at the chop
+frequency and integrates. A single DFT bin is
+
+    X[k] = sum over n of x[n] * exp(-j2*pi*k*n/N)
+
+which is multiply-by-a-reference-and-integrate, written out. They are the
+same operation. The `Goertzel` block computes one bin without computing the
+other 2047, so six of them — three colors times two photodiodes — replace
+two whole FFTs.
+
+The frequency sink is there to *see* the idea. The Goertzels are there to
+*use* it.
+
+`buffer_size` on the analog source equals the Goertzel length on purpose.
+Each measurement is then exactly one capture buffer and never straddles two.
+
+## The blank is not 1.0
+
+Transmittance is sample over reference, and with nothing in the beam that
+ratio is **not** one: the beam splitter does not split evenly and the two
+photodiodes are not the same part twice. Measured on this board:
+
+| | red | green | blue |
+|---|---|---|---|
+| empty-beam ratio | 1.0053 | 0.9757 | 0.9911 |
+
+The `blank_` variables divide that out, folded into the number sink's
+per-input `factor` along with the 100 for percent. Blanked, an empty beam
+reads 100.0% and holds it to about 0.06% peak to peak — roughly three
+decades of usable range. Re-measure with `bench/colorimeter.py run` if the
+optics get moved.
+
+## Idle high, because the bit steers rather than gates
+
+DIO13/14/15 are not on/off switches. They are the select lines of a triple
+SPDT, and each one steers its color's current between LED riser 0 (J5) and
+riser 1 (J6). Only J5 is populated on this board, so select low is lit and
+select high is dark.
+
+Which means `idle_level` must be **high**. Idling low parks all three colors
+on J5 and leaves the LED sitting on white whenever the flowgraph is not
+running. `docs/colorimeter-board.md` has the schematic detail.
+
+## What has been checked, and what has not
+
+At the bench, with `bench/colorimeter.py`:
+
+- every tone peaks on its own bin, phase stable to 0.02 ppm
+- DIO13 is red, DIO14 green, DIO15 blue, confirmed by eye
+- analog 1 is the reference path and analog 2 is the sample path — blocking
+  the sample well drops channel 2 to 0.8% and leaves channel 1 at 88%
+- a green filter strip reads red 9.3% / green 66.0% / blue 24.4%, repeatable
+  to 0.3% across half a dozen insertions
+
+In the test suite, without hardware (`tests/test_grc_integration.py`):
+
+- the flowgraph validates in GRC and generates Python that parses
+- the three bin numbers, the rate and the buffer size are still what the
+  coherence measurement said they had to be
+- the sink is cyclic and idles high, on pins 13/14/15
+- the Goertzel window is the same length as the capture buffer
+- the blanks reach the number sink's scale factors
+
+Not checked: **this exact flowgraph on the board.** The bench script proves
+the arithmetic and every constant in the file; the `.grc` wires the same
+numbers through stock blocks. Run it at a station first.
+
+## The exercise
+
+Replace the six `Goertzel` blocks with an explicit lock-in — multiply by a
+complex exponential at the chop frequency, low-pass, take the magnitude —
+and get the same three numbers. It is more blocks and more arithmetic for
+an identical answer, which is the point worth arriving at yourself.
+
 ## Running the tests
 
 `uv run pytest` puts the project venv first on `PATH`, and the venv has no
