@@ -6,7 +6,7 @@ diagram of a flowgraph is a second copy of it: it drifts the moment a
 parameter changes, and it teaches a participant to recognise a picture rather
 than the canvas they are about to sit in front of. These images come out of
 GRC's own canvas code, so what is on the slide is what is on their screen --
-same fonts, same colours, same port labels, same rounded corners.
+same fonts, same colors, same port labels, same rounded corners.
 
 No hardware and no running flowgraph: GRC parses the .grc and the block
 definitions, and Cairo draws them. It never constructs a block's Python
@@ -270,7 +270,7 @@ def _shrink(path):
     """Palette-encode the PNG, if Pillow is here to do it.
 
     Cairo writes 32-bit RGBA. A GRC canvas is flat fills, black strokes and
-    antialiased text, so an adaptive 256-colour palette is visually identical
+    antialiased text, so an adaptive 256-color palette is visually identical
     and about a third of the size -- 248 kB to 91 kB on the signal-path
     figure, which is the difference between a deck that is mostly pictures of
     itself and one that is not. Skipped silently where Pillow is absent: the

@@ -7,10 +7,10 @@ and why it is the last one in the deck.
 
 Shine red, green and blue light through a cuvette, compare what comes
 out against a reference beam that does not pass through it, and you have
-the transmittance of the liquid at three wavelengths. Food colouring is
+the transmittance of the liquid at three wavelengths. Food coloring is
 a sharp enough demonstration; so is tea.
 
-The interesting part is not the chemistry. It is that the three colours
+The interesting part is not the chemistry. It is that the three colors
 are measured **at the same time, on one photodiode**, by giving each one
 its own chop frequency and separating them afterwards. Room light,
 sunlight through a window, the 120 Hz from the ceiling fixture and the
@@ -49,12 +49,12 @@ and that the frequency plan is chosen rather than inherited.
 ## The frequency plan
 
 The excitation buffer is **4096 samples at 100 kS/s**, pushed once as a
-cyclic buffer so the hardware repeats it forever. A colour driven at
+cyclic buffer so the hardware repeats it forever. A color driven at
 exactly *K* whole cycles per buffer is therefore a tone at
 `K * 100000 / 4096` Hz, and a 4096-point FFT of the captured signal at
 the same rate puts it in **bin K exactly**.
 
-| colour | DIO | cycles per buffer | frequency | bin |
+| color | DIO | cycles per buffer | frequency | bin |
 |---|---|---|---|---|
 | red | 13 | 205 | 5004.9 Hz | 205 |
 | green | 14 | 246 | 6005.9 Hz | 246 |
@@ -63,8 +63,8 @@ the same rate puts it in **bin K exactly**.
 4096/205 is not an integer, so the square wave's duty cycle wobbles by a
 sample from period to period. That puts a little extra energy in the odd
 harmonics and none at all near any of the three fundamentals, which are
-the only bins that get read. No harmonic of any colour lands on another
-colour's fundamental.
+the only bins that get read. No harmonic of any color lands on another
+color's fundamental.
 
 Bin width is 24.4 Hz and the record is 41 ms long, so each measurement
 is a lock-in with a 41 ms integration time.
@@ -100,7 +100,7 @@ block diagram settles it.
 **Measured 2026-09-15: they are the same clock.** Every tone peaks at
 exactly the bin it was generated for, and the phase of that bin is
 constant to about 2e-4 radians across a third of a second — a drift
-below 0.02 ppm on all three colours, on both channels. Section 14 of
+below 0.02 ppm on all three colors, on both channels. Section 14 of
 `docs/bench-checklist.md` has the numbers.
 
 So the FFT here really is a lock-in, with no window and no bin summing,
@@ -132,16 +132,26 @@ With 1 MOhm and the 2 pF feedback cap the pole is about 80 kHz, ten
 times the highest chop frequency. Dropping to 100 kOhm costs a factor of
 ten in signal and buys nothing here.
 
-Then: one LED riser, two photodiode risers, cuvette holder, and the
-board pressed onto the M2K header. **Do not drive DIO 4--7** — they are
-shorted together on this board.
+Then: the LED riser in **J5**, the photodiode risers, the cuvette
+holder, and the board pressed onto the M2K header. **Do not drive DIO
+4--7** — they are shorted together on this board.
+
+J5 matters. A select bit does not switch its color on and off, it steers
+that color's current sink to riser 0 (J5, select low) or riser 1 (J6,
+select high). With J6 empty, high is dark and the square wave chops, so
+the frequency plan above works as written. Put the LED in J6 instead and
+every color inverts. Fit both and nothing is ever dark.
+
+That also means **idle low is not off**: at rest the sink holds every
+select at 0 and the LED sits white. `bench/colorimeter.py` idles the
+pins high for exactly this reason.
 
 ## Running it
 
 From the repo root, with a GNU Radio interpreter:
 
     python3 bench/colorimeter.py coherence   # is an FFT a lock-in here?
-    python3 bench/colorimeter.py pins        # which pin is which colour
+    python3 bench/colorimeter.py pins        # which pin is which color
     python3 bench/colorimeter.py channels    # which channel is the sample
     python3 bench/colorimeter.py run         # transmittance, continuously
     python3 bench/colorimeter.py supply      # rails against a meter
@@ -151,6 +161,9 @@ because two of the four things this demo depends on cannot be read out
 of a schematic: the LED riser is a separate board on a symmetric 6-pin
 connector, and which photodiode sees the cuvette is a matter of which
 slot it is in.
+
+`pins` passed on 2026-09-15 — DIO13 red, DIO14 green, DIO15 blue, as the
+silkscreen says.
 
 `run` assumes analog 1 is the reference and analog 2 the sample, which
 is what Thoren's script assumes. `channels` is how you find out whether

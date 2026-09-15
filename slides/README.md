@@ -67,7 +67,7 @@ xvfb-run -a ./slides/render_grc.py --list   # block ids per flowgraph
 ```
 
 It loads the same `.grc` a participant opens, asks GRC to lay it out, and
-draws it to Cairo. Same fonts, same colours, same port shapes, same wire
+draws it to Cairo. Same fonts, same colors, same port shapes, same wire
 routing — so the slide and their screen match, and a changed parameter shows
 up by re-running the script rather than by somebody noticing.
 

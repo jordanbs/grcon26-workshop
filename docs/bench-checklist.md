@@ -829,11 +829,11 @@ python3 bench/colorimeter.py coherence
 Three square waves at 205, 246 and 287 cycles per 4096-sample cyclic
 buffer, played at 100 kS/s and captured at 100 kS/s. One contiguous
 32768-sample capture, split into eight blocks, tracking the phase of
-each colour's bin from block to block.
+each color's bin from block to block.
 
 - [x] every tone peaks at exactly the bin it was generated for
 - [x] phase is constant across all eight blocks
-- [x] drift below 0.02 ppm on all six colour/channel pairs
+- [x] drift below 0.02 ppm on all six color/channel pairs
 
 Measured 2026-09-15, analog 1 (analog 2 identical):
 

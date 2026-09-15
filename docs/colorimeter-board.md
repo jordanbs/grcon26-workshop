@@ -70,7 +70,22 @@ V+ --> LED common anode (J5.1 / J6.1)
 | **14** | 10 (B) | Y | `Gsw` -> Q3.C | Y0 = `G0` | Y1 = `G1` |
 | **15** | 9 (C) | Z | `Bsw` -> Q4.C | Z0 = `B0` | Z1 = `B1` |
 
-Silkscreen 13/14/15 = R/G/B is therefore correct.
+Silkscreen 13/14/15 = R/G/B is therefore correct, and confirmed by eye
+on 2026-09-15: hold one select low and the other two high and the LED
+shows exactly the color the silkscreen names.
+
+**Our board has only riser 0 (J5) populated.** Verified by driving all
+three selects together at about 0.1 Hz for 45 seconds: the light blinks
+on and off at J5 and never appears at J6. So on this board a select low
+is lit, a select high is dark, and a square wave chops that color --
+which is what the demo's frequency plan assumes. A board with both
+risers fitted would be a dual-beam instrument and nothing would ever be
+dark; the plan would still work, but the two channels would then be two
+beams rather than one beam and one reference.
+
+Riser numbering is a place to trip: this document indexes them 0 and 1
+to match the MAX4619's X0/X1, so **riser 0 is J5 and riser 1 is J6**,
+while anyone at the bench counts them 1 and 2.
 
 **The DIO bit does not switch an LED on and off -- it steers that
 color's current sink between the two LED risers.** Select low picks
@@ -129,6 +144,18 @@ Which TIA is the reference and which is the sample is **mechanical, not
 electrical** -- it depends on which riser sits behind the cuvette.
 Thoren's scripts assume channel 1 = reference, channel 2 = sample.
 Confirm it on the bench rather than inheriting the assumption.
+
+### Idle is not dark
+
+`digital_sink(idle_level="low")` parks all three selects at 0 between
+runs, which steers all three colors to J5 and leaves the LED white
+whenever the flowgraph is not running. It looks like the board is stuck
+on. Use `idle_level="high"` on this board -- it puts every color on the
+empty riser, which is off.
+
+The same thing shows up as a white flash if a script stops one flowgraph
+and starts another, because the pins idle between the two. One
+flowgraph that never stops has no gap to flash in.
 
 ## Two traps
 

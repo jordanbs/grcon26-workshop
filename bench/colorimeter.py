@@ -9,7 +9,7 @@ things those two documents are not allowed to guess at.
                 and sampling share a clock. On this board that claim is
                 either true or it is a slide. Measures it in ppm.
 
-    pins        Which DIO pin lights which colour, asked of a human
+    pins        Which DIO pin lights which color, asked of a human
                 rather than read off a silkscreen.
 
     channels    Which TIA is the reference and which is the sample.
@@ -54,7 +54,7 @@ RATE = 100000              # both the ADC and the pattern generator
 PINS = [13, 14, 15]        # red, green, blue -- until `pins` says otherwise
 
 # The excitation buffer is 4096 samples long and repeats in hardware, so
-# a colour driven at exactly K cycles per buffer is a tone at K * RATE /
+# a color driven at exactly K cycles per buffer is a tone at K * RATE /
 # 4096 Hz and lands in bin K of a 4096-point FFT taken at the same rate.
 # Nothing has to be windowed and nothing leaks -- IF the two clocks
 # agree, which is what `coherence` is for.
@@ -66,7 +66,7 @@ PINS = [13, 14, 15]        # red, green, blue -- until `pins` says otherwise
 # nearest frequencies that fall exactly on a bin.
 NFFT = 4096
 CYCLES = {"red": 205, "green": 246, "blue": 287}   # 5004.9 / 6005.9 / 7006.8 Hz
-COLOURS = ["red", "green", "blue"]
+COLORS = ["red", "green", "blue"]
 
 CAPTURE = NFFT * 8         # one ADC buffer, sliced into 8 blocks
 SETTLE = CAPTURE * 4       # samples thrown away before the one we keep
@@ -131,13 +131,19 @@ class Rig(object):
 
         self.tb = gr.top_block()
 
+        # idle_level HIGH, not low. The DIO bit does not gate a color,
+        # it steers that color's current sink between LED riser 0 (J5,
+        # select low) and riser 1 (J6, select high). Only J5 is
+        # populated, so low is lit and high is dark -- and idling low
+        # would leave all three colors on and the LED white whenever the
+        # flowgraph is not running.
         self.sink = digital_sink(uri=URI, pins=PINS, sample_rate=RATE,
                                  buffer_size=NFFT, cyclic=True,
-                                 idle_level="low")
+                                 idle_level="high")
         self.sources = []
-        for index, colour in enumerate(COLOURS):
-            k = self.cycles.get(colour, 0)
-            wave = square(k) if k else [0] * NFFT
+        for index, color in enumerate(COLORS):
+            k = self.cycles.get(color, 0)
+            wave = square(k) if k else [1] * NFFT   # not driven -> dark
             self.sources.append(blocks.vector_source_s(wave, True))
             self.tb.connect(self.sources[-1], (self.sink, index))
 
@@ -221,12 +227,12 @@ def cmd_coherence():
         blocks_ = [samples[i * NFFT:(i + 1) * NFFT] for i in range(nblocks)]
         spectra = [np.fft.rfft(b - b.mean()) for b in blocks_]
 
-        for colour in COLOURS:
-            k = CYCLES[colour]
+        for color in COLORS:
+            k = CYCLES[color]
             mags = [abs(s[k]) for s in spectra]
             if max(mags) < 1e-6:
                 print("  %-5s bin %3d (%7.1f Hz)  nothing there"
-                      % (colour, k, bin_hz(k)))
+                      % (color, k, bin_hz(k)))
                 continue
 
             # How much of the local energy is in the one bin.
@@ -247,7 +253,7 @@ def cmd_coherence():
             verdict.append(ok)
             print("  %-5s bin %3d (%7.1f Hz)  peak at %3d  leak %5.1f%%  "
                   "drift %+8.1f ppm  %s"
-                  % (colour, k, bin_hz(k), peak, 100 * leak, ppm,
+                  % (color, k, bin_hz(k), peak, 100 * leak, ppm,
                      "coherent" if ok else "NOT coherent"))
 
     if not verdict:
@@ -265,26 +271,31 @@ def cmd_coherence():
 # -------------------------------------------------------------------- pins
 
 def cmd_pins():
-    """Light one pin at a time and let a human name the colour.
+    """Light one pin at a time and let a human name the color.
 
     The silkscreen says 13/14/15 is R/G/B and the schematic agrees, but
     the LED riser is a separate board on a 6-pin connector and can be
-    seated the other way round.
+    seated the other way round. Confirmed by eye 2026-09-15: it is not.
+
+    The two colors that are not under test sit at 1, not 0. A select bit
+    steers its color to riser 0 (low) or riser 1 (high), and only riser
+    0 is populated -- so 0 is lit and a color left at 0 would wash out
+    the one being tested.
     """
     seen = {}
     for index, pin in enumerate(PINS):
         cycles = {c: (CYCLES[c] if i == index else 0)
-                  for i, c in enumerate(COLOURS)}
+                  for i, c in enumerate(COLORS)}
         print("\ndriving DIO%d only, at %.0f Hz."
-              % (pin, bin_hz(CYCLES[COLOURS[index]])))
+              % (pin, bin_hz(CYCLES[COLORS[index]])))
         with Rig(cycles=cycles):
-            answer = input("  what colour is the LED? ").strip().lower()
+            answer = input("  what color is the LED? ").strip().lower()
         seen[pin] = answer
         print("  DIO%d -> %s" % (pin, answer))
 
     print("\nRESULT")
     for index, pin in enumerate(PINS):
-        expected = COLOURS[index]
+        expected = COLORS[index]
         mark = "" if seen[pin].startswith(expected[0]) else "   <-- NOT the silkscreen"
         print("  DIO%-3d %-8s (expected %s)%s" % (pin, seen[pin], expected, mark))
     return 0
@@ -306,9 +317,9 @@ def cmd_channels():
         out = []
         for ch, samples in enumerate(data):
             s = np.fft.rfft(samples[:NFFT] - samples[:NFFT].mean())
-            out.append({c: abs(s[CYCLES[c]]) for c in COLOURS})
+            out.append({c: abs(s[CYCLES[c]]) for c in COLORS})
             print("  analog %d  %s" % (ch + 1, "  ".join(
-                "%s %8.4f" % (c, out[ch][c]) for c in COLOURS)))
+                "%s %8.4f" % (c, out[ch][c]) for c in COLORS)))
         return out
 
     print("clear light path:")
@@ -320,7 +331,7 @@ def cmd_channels():
     drop = []
     for ch in range(2):
         ratios = [blocked[ch][c] / clear[ch][c] if clear[ch][c] > 1e-9 else 1.0
-                  for c in COLOURS]
+                  for c in COLORS]
         drop.append(float(np.mean(ratios)))
         print("\nanalog %d keeps %.1f%% of its signal when blocked"
               % (ch + 1, 100 * drop[ch]))
@@ -359,10 +370,10 @@ def cmd_run(ref_ch=0, sample_ch=1):
                 ref = np.fft.rfft(data[ref_ch] - data[ref_ch].mean())
                 sam = np.fft.rfft(data[sample_ch] - data[sample_ch].mean())
                 out = []
-                for colour in COLOURS:
-                    k = CYCLES[colour]
+                for color in COLORS:
+                    k = CYCLES[color]
                     t = 100.0 * abs(sam[k]) / abs(ref[k]) if abs(ref[k]) > 1e-9 else 0.0
-                    out.append("%s %6.1f%%" % (colour, t))
+                    out.append("%s %6.1f%%" % (color, t))
                 print("  ".join(out))
         except KeyboardInterrupt:
             print("\nstopped")
