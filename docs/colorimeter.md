@@ -175,9 +175,44 @@ The cuvette goes in the square well silkscreened `Sample`. The thin
 diagonal slot beside it is the beam splitter, not a second sample
 position. See the optical path section of `docs/colorimeter-board.md`.
 
+## What it reads
+
+First end-to-end run, 2026-09-15, empty cuvettes in both wells:
+
+```
+red  100.1%   green  97.4%   blue  98.8%
+```
+
+Steady to about 0.1% from one reading to the next. That flatness is the
+coherence result being spent: one bin, no window, no averaging across
+neighbours.
+
+A green filter strip dropped into the `Sample` well:
+
+```
+red    9.3%   green  66.0%   blue  24.4%
+```
+
+Repeatable to 0.3% across half a dozen insertions. It passes green,
+attenuates blue, and kills red — which is what a green filter is. Pull
+it out and the reading returns to the baseline above. Readings taken
+while the strip is moving are meaningless and occasionally exceed 100%.
+
+**The baseline is not 100/100/100, and that is the next thing to fix.**
+Green sits 2.6% low and blue 1.2% low with nothing in the beam. That is
+fixed imbalance between the two optical paths and the two
+transimpedance amplifiers, not the sample, and `run` currently reports
+the raw ratio so it is folded into every number it prints. A real
+instrument blanks: measure the empty-cuvette ratio once, keep it, and
+divide everything afterwards by it. Then a blank reads 100.0 and the
+strip's numbers are transmittance rather than transmittance times a
+path error.
+
 ## Still open
 
 - R11 has no value in the schematic, so the LED drive current is
   unknown, so the optical power is unknown. It only matters if the
   photodiode saturates or the signal is too small to see.
+- `run` does not blank. See the end of the section above; the fix is a
+  stored baseline, not a change to the measurement.
 - The `.grc` participants will open does not exist yet.
