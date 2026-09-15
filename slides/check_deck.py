@@ -104,23 +104,48 @@ class Deck(HTMLParser):
 
 
 # The deck's prose follows ECE 444's voice guide, which is a calibration set
-# built from Neil's own review corrections rather than a style opinion. Only
-# the unambiguous rules are gated here; passive voice and verbless sentences
-# need a reader, and a grep that flags them would cry wolf until somebody
-# turned it off.
+# built from Neil's own review corrections rather than a style opinion. What
+# is gated here is the part a regex can decide on its own. General passive
+# voice is not: `\b(is|are|was|were)\s+\w+(ed|en)\b` matches "is silent",
+# "are different devices" and "is seven times out of eight" as readily as it
+# matches a real one, and a check that cries wolf gets turned off. Verbless
+# sentences need a reader for the same reason. Both still apply -- see the
+# guide's own self-check list -- they are just enforced by reading.
 BANNED = {
     # Rule 2 -- never vouch for the material's own honesty or rigor. Claiming
     # it implies the surrounding material is not.
     r"\b(honest|honestly|genuinely|truly|rigorous)\b": "self-praise",
     r"\bno hand-waving\b": "self-praise",
+    r"\bdear reader\b": "self-praise",
     # Rule 1 -- do not narrate your own rhetorical moves. Say the thing.
     r"\bworth (pausing|dwelling|quoting|noting|more than)\b": "narration",
     r"\bit is worth\b": "narration",
     r"\bthe single most\b": "narration",
     r"\bthe interesting part\b": "narration",
-    # Rule 3 -- no cost-and-payment metaphors.
+    # Rule 20 -- no cost-and-payment metaphors. A literal price is fine, so
+    # the amount-bearing forms are excluded rather than the words.
     r"\bis the price\b": "metaphor",
     r"\bthat is the trade\b": "metaphor",
+    r"\b(bought|buys|payoff)\b": "money metaphor",
+    r"\b(spends?|spent|earns?)\b": "money metaphor",
+    r"\b(cost|costs)\b(?!\s*\$)": "money metaphor",
+    r"\b(cheap|expensive)\b": "money metaphor",
+    # Rule 20 -- and no framing that stands outside the material describing it.
+    r"\bthe shape of\b": "flowery framing",
+    r"\bin one (line|slide)\b": "flowery framing",
+    r"\bthe whole of it\b": "flowery framing",
+    # Rule 9 -- the passive constructions that are always passive. The
+    # general case is left to a reader; these six are not ambiguous.
+    r"\bis used\b": "passive",
+    r"\bis shown\b": "passive",
+    r"\bcan be seen\b": "passive",
+    r"\bwill be connected\b": "passive",
+    r"\bneeds? to be\b": "passive",
+    r"\bis referred to as\b": "passive",
+    # Rule 22 -- American English.
+    r"\b\w*(quantis|behaviour|colour|analys|generalis|normalis)\w*\b": "British spelling",
+    r"\b(centred|metre|metres|favour|realise|realised|recognise|organise)\b":
+        "British spelling",
 }
 
 
