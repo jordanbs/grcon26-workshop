@@ -198,21 +198,32 @@ attenuates blue, and kills red — which is what a green filter is. Pull
 it out and the reading returns to the baseline above. Readings taken
 while the strip is moving are meaningless and occasionally exceed 100%.
 
-**The baseline is not 100/100/100, and that is the next thing to fix.**
-Green sits 2.6% low and blue 1.2% low with nothing in the beam. That is
-fixed imbalance between the two optical paths and the two
-transimpedance amplifiers, not the sample, and `run` currently reports
-the raw ratio so it is folded into every number it prints. A real
-instrument blanks: measure the empty-cuvette ratio once, keep it, and
-divide everything afterwards by it. Then a blank reads 100.0 and the
-strip's numbers are transmittance rather than transmittance times a
-path error.
+Those are raw path ratios, and the baseline is not 100/100/100 — green
+sits 2.6% low, blue 1.2% low, with nothing in the beam. That is fixed
+imbalance between the two optical paths and the two transimpedance
+amplifiers, and it has nothing to do with the sample.
+
+So `run` blanks first, the way a real instrument does. It spends two
+seconds measuring the empty-cuvette ratio, prints it, and divides
+everything afterwards by it:
+
+```
+blank  red 1.0053  green 0.9757  blue 0.9911
+```
+
+It warns and tells you to redo it if the blank moves by more than 2%
+while it is being taken, which is what happens if something is in the
+beam or a riser is loose. `--raw` skips blanking and reports the path
+ratio directly.
+
+After blanking, an empty beam reads 100.0% on all three colors and
+**holds to 0.06% peak to peak over twenty readings** — the scatter falls
+on both sides of 100, so that is a real noise floor and not a pinned
+value. It is worth about 3 OD of usable range.
 
 ## Still open
 
 - R11 has no value in the schematic, so the LED drive current is
   unknown, so the optical power is unknown. It only matters if the
   photodiode saturates or the signal is too small to see.
-- `run` does not blank. See the end of the section above; the fix is a
-  stored baseline, not a change to the measurement.
 - The `.grc` participants will open does not exist yet.

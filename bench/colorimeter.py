@@ -349,32 +349,82 @@ def cmd_channels():
 
 # --------------------------------------------------------------------- run
 
+def ratios(data, ref_ch, sample_ch):
+    """Sample over reference, one number per color, straight from the bins."""
+    ref = np.fft.rfft(data[ref_ch] - data[ref_ch].mean())
+    sam = np.fft.rfft(data[sample_ch] - data[sample_ch].mean())
+    out = {}
+    for color in COLORS:
+        k = CYCLES[color]
+        out[color] = abs(sam[k]) / abs(ref[k]) if abs(ref[k]) > 1e-9 else 0.0
+    return out
+
+
+def take_blank(rig, ref_ch, sample_ch, n=8):
+    """The empty-cuvette ratio, which is what everything else divides by.
+
+    The two paths are not identical -- different lengths, different
+    surfaces, two transimpedance amplifiers with their own gains -- so
+    the ratio with nothing in the beam is not 1.000. Measured once and
+    divided out, it stops being an error. Measured never, it is folded
+    silently into every reading.
+    """
+    runs = []
+    while len(runs) < n:
+        data = rig.grab(0.25)
+        if min(len(d) for d in data) >= NFFT:
+            runs.append(ratios(data, ref_ch, sample_ch))
+
+    blank, spread = {}, 0.0
+    for color in COLORS:
+        values = [r[color] for r in runs]
+        blank[color] = sum(values) / len(values)
+        spread = max(spread, (max(values) - min(values)) / blank[color])
+
+    print("blank  " + "  ".join("%s %6.4f" % (c, blank[c]) for c in COLORS))
+    if spread > 0.02:
+        print("  WARNING the blank moved by %.1f%% while it was being taken."
+              % (100 * spread))
+        print("  Something is in the beam or something is loose. Redo it.")
+    return blank
+
+
 def cmd_run(ref_ch=0, sample_ch=1):
     """Transmittance, continuously, the way the demo shows it.
 
     Reference and sample default to analog 1 and 2, which is what
     Thoren's script assumes. `channels` is how you find out whether that
     is true of the board in front of you.
+
+    Blanks first unless `--raw` is given. Readings taken while the
+    cuvette is moving are meaningless and can exceed 100%.
     """
+    raw = "--raw" in sys.argv
     print("reference = analog %d, sample = analog %d"
           % (ref_ch + 1, sample_ch + 1))
-    print("ctrl-c to stop\n")
+
     with Rig(live=True) as rig:
         time.sleep(2.0)
         rig.grab(0.5)                     # throw away the start-up transient
+
+        if raw:
+            blank = {c: 1.0 for c in COLORS}
+            print("no blank -- raw path ratio\n")
+        else:
+            print("blanking: empty cuvettes in both wells, nothing moving")
+            blank = take_blank(rig, ref_ch, sample_ch)
+            print("")
+
+        print("ctrl-c to stop\n")
         try:
             while True:
                 data = rig.grab()
                 if min(len(d) for d in data) < NFFT:
                     continue
-                ref = np.fft.rfft(data[ref_ch] - data[ref_ch].mean())
-                sam = np.fft.rfft(data[sample_ch] - data[sample_ch].mean())
-                out = []
-                for color in COLORS:
-                    k = CYCLES[color]
-                    t = 100.0 * abs(sam[k]) / abs(ref[k]) if abs(ref[k]) > 1e-9 else 0.0
-                    out.append("%s %6.1f%%" % (color, t))
-                print("  ".join(out))
+                now = ratios(data, ref_ch, sample_ch)
+                print("  ".join(
+                    "%s %6.1f%%" % (c, 100.0 * now[c] / blank[c])
+                    for c in COLORS))
         except KeyboardInterrupt:
             print("\nstopped")
     return 0
