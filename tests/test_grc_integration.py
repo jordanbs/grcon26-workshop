@@ -571,3 +571,175 @@ def test_flowgraph_parameter_names_are_real(repo_root):
             for key in blk.get("parameters", {}):
                 assert key in known, "%s: %s has no parameter %r" % (
                     name, blk["id"], key)
+
+
+@needs_gnuradio
+def test_the_ultrasonic_flowgraph_builds(repo_root):
+    """The numbers in this one are measurements, not defaults.
+
+    f0 is the swept resonance and not 40 kHz; the two rates come off
+    different ladders and must not collapse to one `samp_rate`; the sink
+    is not cyclic because a repeating buffer cannot carry a message that
+    changes.
+    """
+    path = os.path.join(repo_root, "flowgraphs", "m2k_ultrasonic_fsk.grc")
+    result = json.loads(run_in_gr(BUILD, path,
+                                  os.path.join(repo_root, M2K_GRC)))
+    assert result["valid"], result["errors"]
+    make = result["make"]
+    assert "f0 = 40755.0" in make
+    assert "tx_rate = 750000" in make
+    assert "rx_rate = 1000000" in make
+    assert "rx_decim = 200" in make
+    assert "sample_rate=750000" in make and "cyclic=False" in make
+    assert "sample_rate=1000000" in make and "trigger_source='off'" in make
+    # Typing a new message must reach the wire, and must not resize the frame.
+    assert "self.blocks_vector_source_x_0.set_data(self.frame, [])" in make
+    assert "ljust(self.msg_capacity)" in make
+
+
+@needs_gnuradio
+def test_the_sync_word_finds_the_byte_boundary(repo_root):
+    """The receive chain, on synthetic FSK, started mid-bit.
+
+    Over the air the capture begins wherever it begins, so a chain that
+    only works from sample zero is a chain that works on a file. The
+    skew here is deliberately not a multiple of anything.
+    """
+    payload = json.loads(run_in_gr('''
+        import json, math, sys
+        import numpy as np
+        from gnuradio import gr, blocks, analog, digital
+        from gnuradio import filter as gr_filter
+        from gnuradio.filter import firdes
+
+        RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
+        CODE = "00011010110011111111110000011101"
+        FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+        SKEW = 1373
+
+        bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
+        n = int(round(RX * BITLEN))
+        f = np.where(np.repeat(bits, n) == 1, F0 + DEV, F0 - DEV)
+        x = 0.14 * np.sin(2 * np.pi * np.cumsum(f) / RX)
+        rng = np.random.default_rng(7)
+        x = x + rng.normal(0, 0.14 / math.sqrt(2) / 10 ** 0.5, x.size)
+        volts = np.concatenate([np.zeros(SKEW), x])
+
+        tb = gr.top_block()
+        rate = RX / DECIM
+        out = blocks.vector_sink_b()
+        tb.connect(blocks.vector_source_f(volts.tolist(), False),
+                   gr_filter.freq_xlating_fir_filter_fcf(
+                       DECIM, firdes.low_pass(1.0, RX, 600.0, 600.0), F0, RX),
+                   analog.quadrature_demod_cf(rate / (2 * math.pi * DEV)),
+                   digital.symbol_sync_ff(
+                       digital.TED_ZERO_CROSSING, rate * BITLEN, 0.045, 1.0,
+                       1.0, 1.5, 1, digital.constellation_bpsk().base(),
+                       digital.IR_MMSE_8TAP, 128, []),
+                   digital.binary_slicer_fb(),
+                   digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
+                   blocks.tagged_stream_align(gr.sizeof_char, "sync"),
+                   blocks.pack_k_bits_bb(8),
+                   blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
+                   out)
+        tb.run()
+        print(json.dumps(list(out.data())))
+    '''))
+    got = bytes(payload)
+    assert len(got) >= 8 * 8, len(got)
+    frames = [got[i:i + 8] for i in range(0, len(got) - 7, 8)]
+    assert all(f == b"GRCON26 " for f in frames), frames[:4]
+
+
+BUFFER_TAGS = '''
+import json, math, sys, time
+import numpy as np
+import pmt
+from gnuradio import gr, blocks, analog, digital, pdu
+from gnuradio import filter as gr_filter
+from gnuradio.filter import firdes
+
+RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
+CODE = "00011010110011111111110000011101"
+FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+BUF, SKEW = 16384, 1373
+
+bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
+n = int(round(RX * BITLEN))
+f = np.where(np.repeat(bits, n) == 1, F0 + DEV, F0 - DEV)
+x = 0.14 * np.sin(2 * np.pi * np.cumsum(f) / RX)
+rng = np.random.default_rng(7)
+x = x + rng.normal(0, 0.14 / math.sqrt(2) / 10 ** 0.5, x.size)
+volts = np.concatenate([np.zeros(SKEW), x])
+
+# What analog_source does to every buffer it hands over, via
+# set_len_tag_key("packet_len"). A vector source emits none on its own,
+# which is exactly why the chain looked fine until it met a board.
+tags = []
+for off in range(0, volts.size, BUF):
+    t = gr.tag_t()
+    t.offset = off
+    t.key = pmt.intern("packet_len")
+    t.value = pmt.from_long(BUF)
+    tags.append(t)
+
+tb = gr.top_block()
+rate = RX / DECIM
+gate = blocks.tag_gate(gr.sizeof_float, False)
+gate.set_single_key("packet_len")
+to_pdu = pdu.tagged_stream_to_pdu(gr.types.byte_t, "packet_len")
+sink = blocks.message_debug()
+
+chain = [blocks.vector_source_f(volts.tolist(), False, 1, tags)]
+if sys.argv[1] == "gate":
+    chain.append(gate)
+chain += [
+    gr_filter.freq_xlating_fir_filter_fcf(
+        DECIM, firdes.low_pass(1.0, RX, 600.0, 600.0), F0, RX),
+    analog.quadrature_demod_cf(rate / (2 * math.pi * DEV)),
+    digital.symbol_sync_ff(
+        digital.TED_ZERO_CROSSING, rate * BITLEN, 0.045, 1.0,
+        1.0, 1.5, 1, digital.constellation_bpsk().base(),
+        digital.IR_MMSE_8TAP, 128, []),
+    digital.binary_slicer_fb(),
+    digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
+    blocks.tagged_stream_align(gr.sizeof_char, "sync"),
+    blocks.pack_k_bits_bb(8),
+    blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
+    blocks.stream_to_tagged_stream(gr.sizeof_char, 1, 8, "packet_len"),
+    to_pdu,
+]
+tb.connect(*chain)
+tb.msg_connect(to_pdu, "pdus", sink, "store")
+tb.run()
+time.sleep(0.2)
+print(json.dumps([list(pmt.u8vector_elements(pmt.cdr(sink.get_message(i))))
+                  for i in range(sink.num_messages())]))
+'''
+
+
+@needs_gnuradio
+def test_the_sources_buffer_tags_do_not_reach_the_pdu():
+    """`packet_len` means two things, and one of them is 16384.
+
+    `analog_source` labels every buffer with a `packet_len` tag and
+    nothing in this repo reads it. `tagged_stream_to_pdu` keys on the
+    same string, so on a board it saw 16384 where the flowgraph meant 8
+    and waited eleven minutes for a message. On the bench the transducers
+    looked right, the demod looked right, and no PDU ever came out.
+
+    A vector source emits no tags, so the chain above this one cannot
+    reach the bug. This one injects the tags the hardware really sends.
+    """
+    gated = json.loads(run_in_gr(BUFFER_TAGS, "gate"))
+    assert gated, "no PDUs at all -- something other than the tags is wrong"
+    assert all(bytes(p) == b"GRCON26 " for p in gated), gated[:4]
+
+    # The other half of the claim: without the gate this does not work.
+    # If GNU Radio ever stops confusing the two, this fails and the gate
+    # in the flowgraph can go.
+    ungated = json.loads(run_in_gr(BUFFER_TAGS, "nogate"))
+    assert not any(bytes(p) == b"GRCON26 " for p in ungated), (
+        "the collision no longer happens -- recheck whether the tag gate "
+        "in m2k_ultrasonic_fsk.grc is still needed")
