@@ -87,6 +87,19 @@ def square(cycles, n=NFFT):
     return [1 if (i * cycles * 2) // n % 2 else 0 for i in range(n)]
 
 
+# Every rig ever built, kept alive on purpose, along with every block it
+# holds. A top_block keeps its blocks alive on the C++ side only. The
+# digital sink wraps a PYTHON block, and a Python block whose last
+# Python reference goes away is torn down underneath the C++ scheduler
+# that is still calling into it -- which shows up as an AttributeError
+# inside gr's own gateway.py and then a segfault in a worker thread,
+# some seconds after the flowgraph started and nowhere near the cause.
+#
+# Hold the blocks. `os._exit` at the end skips the teardown, so nothing
+# here leaks for longer than the process lives.
+_KEEP = []
+
+
 class Rig(object):
     """Rails up, excitation running, both scope channels captured.
 
@@ -106,24 +119,29 @@ class Rig(object):
         self.live = live
         self.tb = None
         self.rails = []
+        self.sink = None
+        self.src = None
+        self.sources = []
 
     def __enter__(self):
+        _KEEP.append(self)
         self.rails = [power_supply(uri=URI, rail="v+", voltage=5.0),
                       power_supply(uri=URI, rail="v-", voltage=-5.0)]
         time.sleep(0.5)                       # let the TIA settle at DC
 
         self.tb = gr.top_block()
 
-        sink = digital_sink(uri=URI, pins=PINS, sample_rate=RATE,
-                            buffer_size=NFFT, cyclic=True,
-                            idle_level="low")
+        self.sink = digital_sink(uri=URI, pins=PINS, sample_rate=RATE,
+                                 buffer_size=NFFT, cyclic=True,
+                                 idle_level="low")
+        self.sources = []
         for index, colour in enumerate(COLOURS):
             k = self.cycles.get(colour, 0)
             wave = square(k) if k else [0] * NFFT
-            self.tb.connect(blocks.vector_source_s(wave, True),
-                            (sink, index))
+            self.sources.append(blocks.vector_source_s(wave, True))
+            self.tb.connect(self.sources[-1], (self.sink, index))
 
-        src = analog_source(uri=URI, ch1_enabled=True, ch2_enabled=True,
+        self.src = src = analog_source(uri=URI, ch1_enabled=True, ch2_enabled=True,
                             sample_rate=RATE, ch1_range="high",
                             ch2_range="high", buffer_size=self.capture,
                             units="volts")

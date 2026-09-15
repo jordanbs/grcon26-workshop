@@ -145,8 +145,5 @@ board is a pin collision. Leave them as inputs.
 ## Still unknown
 
 - R11's value, so the LED current is unknown.
-- Whether M2K digital output and the ADC are genuinely coherent. The
-  whole "an FFT is a lock-in" argument depends on it. Measure whether a
-  chop tone lands in one bin or smears.
 - Reference vs sample channel, as above.
 - What J9 is for.

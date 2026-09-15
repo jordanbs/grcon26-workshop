@@ -79,7 +79,7 @@ the variable names claim. The five-bin sum is there because 5000 Hz
 falls at bin 204.8, between two bins, and leaks. Picking 205 instead
 removes the need for both the window and the sum.
 
-## Why an FFT is a lock-in here — and the part that is not yet proven
+## Why an FFT is a lock-in here
 
 A lock-in multiplies the input by a reference at the excitation
 frequency and integrates. The DFT at bin *k* is
@@ -92,20 +92,24 @@ the magnitude a lock-in would report and `arg X[k]` is its phase.
 
 This holds **only if the excitation really is exactly *k* cycles across
 the record** — that is, only if the clock generating the LED chop and
-the clock sampling the photodiode are the same clock. On the M2K the
-digital output is timed off the fabric clock and the ADC off its own
-divider from 100 MS/s. Whether those are coherent in practice is an open
-question, and the workshop is not allowed to assert it from a block
-diagram.
+the clock sampling the photodiode are the same clock. On the M2K those
+sit on different sides of the board: the digital output is timed off the
+fabric clock, the ADC off its own divider from 100 MS/s. Nothing in a
+block diagram settles it.
 
-`bench/colorimeter.py coherence` measures it: it takes one contiguous
-capture, splits it into eight blocks, and tracks the phase of each
-colour's bin from block to block. Constant phase means one clock. A
-steady slope is a frequency offset, reported in ppm.
+**Measured 2026-09-15: they are the same clock.** Every tone peaks at
+exactly the bin it was generated for, and the phase of that bin is
+constant to about 2e-4 radians across a third of a second — a drift
+below 0.02 ppm on all three colours, on both channels. Section 14 of
+`docs/bench-checklist.md` has the numbers.
 
-If it turns out they are not coherent, the demo still works -- it
-becomes Thoren's version, a Blackman window and a sum over five bins --
-but the slide has to say so.
+So the FFT here really is a lock-in, with no window and no bin summing,
+and the slide is allowed to say so.
+
+Rerun it with `bench/colorimeter.py coherence` if anything about the
+rates changes. Had it come out the other way, the demo would still work
+— it would just be Thoren's version, a Blackman window and a sum over
+five bins.
 
 ## Setting the board up
 
@@ -154,8 +158,6 @@ it is true of the board in front of you.
 
 ## Still open
 
-- Coherence, as above. Everything in this document downstream of the
-  frequency plan depends on it.
 - R11 has no value in the schematic, so the LED drive current is
   unknown, so the optical power is unknown. It only matters if the
   photodiode saturates or the signal is too small to see.
