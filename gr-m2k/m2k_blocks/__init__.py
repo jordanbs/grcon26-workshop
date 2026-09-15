@@ -22,11 +22,17 @@ on a machine with no GNU Radio at all.
 
 from .m2k_scale import (ADC_FILTER_COMP, BASE_RATE, DAC_FILTER_COMP,
                         RANGE_GAIN, RANGE_VOLTS, SAMPLE_RATES,
+                        SUPPLY_MAX_V, SUPPLY_RAW_MAX, SUPPLY_READ_COEFF,
+                        SUPPLY_RESET_RAW, SUPPLY_WRITE_COEFF,
                         adc_filter_compensation, check_sample_rate,
-                        dac_filter_compensation, divider_for, raw_to_volts,
-                        volts_per_count, volts_to_raw)
+                        check_supply_rail, dac_filter_compensation,
+                        divider_for, raw_to_volts, supply_raw_to_volts,
+                        supply_volts_to_raw, volts_per_count, volts_to_raw)
 
 __all__ = ["ADC_FILTER_COMP", "BASE_RATE", "DAC_FILTER_COMP", "RANGE_GAIN",
-           "RANGE_VOLTS", "SAMPLE_RATES", "adc_filter_compensation",
-           "check_sample_rate", "dac_filter_compensation", "divider_for",
-           "raw_to_volts", "volts_per_count", "volts_to_raw"]
+           "RANGE_VOLTS", "SAMPLE_RATES", "SUPPLY_MAX_V", "SUPPLY_RAW_MAX",
+           "SUPPLY_READ_COEFF", "SUPPLY_RESET_RAW", "SUPPLY_WRITE_COEFF",
+           "adc_filter_compensation", "check_sample_rate",
+           "check_supply_rail", "dac_filter_compensation", "divider_for",
+           "raw_to_volts", "supply_raw_to_volts", "supply_volts_to_raw",
+           "volts_per_count", "volts_to_raw"]

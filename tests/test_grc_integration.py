@@ -392,7 +392,8 @@ def test_every_instrument_block_loads(repo_root):
     loaded = json.loads(run_in_gr(LOAD, os.path.join(repo_root, M2K_GRC)))
     assert set(loaded) == {"m2k_analog_source", "m2k_analog_sink",
                            "m2k_digital_source", "m2k_digital_sink",
-                           "m2k_spi_decode", "m2k_spi_encode"}
+                           "m2k_spi_decode", "m2k_spi_encode",
+                           "m2k_power_supply"}
 
 
 @needs_gnuradio
