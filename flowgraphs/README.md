@@ -447,11 +447,14 @@ photodiodes are not the same part twice. Measured on this board:
 |---|---|---|---|
 | empty-beam ratio | 1.0053 | 0.9757 | 0.9911 |
 
-The `blank_` variables divide that out, folded into the number sink's
-per-input `factor` along with the 100 for percent. Blanked, an empty beam
-reads 100.0% and holds it to about 0.06% peak to peak — roughly three
-decades of usable range. Re-measure with `bench/colorimeter.py run` if the
-optics get moved.
+Three `Multiply Const` blocks divide that out and scale to percent —
+`100.0 / blank_red` and so on — so the wire past them carries percent
+transmittance rather than a raw ratio. Putting it there instead of in the
+number sink's display `factor` matters because the decision block reads the
+same wire and its thresholds are in percent. Blanked, an empty beam reads
+100.0% and holds it to about 0.06% peak to peak — roughly three decades of
+usable range. Re-measure with `bench/colorimeter.py run` if the optics get
+moved.
 
 ## Idle high, because the bit steers rather than gates
 
@@ -482,18 +485,54 @@ In the test suite, without hardware (`tests/test_grc_integration.py`):
   coherence measurement said they had to be
 - the sink is cyclic and idles high, on pins 13/14/15
 - the Goertzel window is the same length as the capture buffer
-- the blanks reach the number sink's scale factors
+- the blanks reach the scaling blocks, and those feed both the display and
+  the decision block
 
-Not checked: **this exact flowgraph on the board.** The bench script proves
-the arithmetic and every constant in the file; the `.grc` wires the same
-numbers through stock blocks. Run it at a station first.
+On the board, running the flowgraph itself: the three bars track the bench
+numbers and the verdict names the filter in the well.
 
-## The exercise
+Two things to know before opening it in GRC. Saving from the editor rewrites
+the file with every default spelled out, and in doing so resets the number
+sink's `color2` and `color3` to black — the green and blue bars go the color
+of the red one. And the whole file is hand-written and terse on purpose, so a
+save from GRC triples its length. Neither breaks anything; both are worth
+undoing before committing.
 
-Replace the six `Goertzel` blocks with an explicit lock-in — multiply by a
-complex exponential at the chop frequency, low-pass, take the magnitude —
-and get the same three numbers. It is more blocks and more arithmetic for
-an identical answer, which is the point worth arriving at yourself.
+## Naming the color
+
+Three percentages are a measurement. `Red` is a decision, and no block in
+the library makes it, because none of them knows what your thresholds mean.
+So the last block in the chain is an Embedded Python Block of about fifteen
+lines: three float inputs, one message output, publishing a word only when
+the word changes. It lands in a `QT GUI Message Edit Box` on its `val` port.
+
+The rule is *which one is largest*, with a guard either side:
+
+| reading | verdict |
+|---|---|
+| all three above `clear` (85%) | nothing in the beam |
+| all three below `opaque` (5%) | opaque |
+| winner under `margin` (1.3×) the runner-up | mixed |
+| otherwise | Red, Green or Blue |
+
+Without those guards an empty beam reports a color, and so does a closed
+shutter, because something is always largest. The three thresholds are
+block parameters, so they are adjustable from the flowgraph rather than
+buried in the source.
+
+## The exercises
+
+**Replace the six `Goertzel` blocks with an explicit lock-in** — multiply by
+a complex exponential at the chop frequency, low-pass, take the magnitude —
+and get the same three numbers. More blocks and more arithmetic for an
+identical answer, which is the point to arrive at yourself.
+
+**Then make it name seven colors instead of three.** Magenta passes red and
+blue and blocks green; yellow passes red and green; cyan passes green and
+blue. That is a three-bit pattern rather than a winner, and the decision
+rule becomes a lookup on which colors clear a threshold. The ADI exercise
+this board comes with stops at a `# Purple Detector` comment with nothing
+under it; this is that, finished.
 
 ## Running the tests
 

@@ -226,7 +226,9 @@ value. It is worth about 3 OD of usable range.
 - R11 has no value in the schematic, so the LED drive current is
   unknown, so the optical power is unknown. It only matters if the
   photodiode saturates or the signal is too small to see.
-- `flowgraphs/m2k_colorimeter.grc` has never been run on the board.
-  It validates in GRC and every constant in it came off the bench,
-  but the bench proved them through `bench/colorimeter.py`, not
-  through this flowgraph. Run it at a station before the workshop.
+- The seven-color version is not built. Magenta, yellow and cyan each
+  pass two of the three, so naming them is a three-bit pattern rather
+  than a winner-takes-all. The decision block does winner-takes-all.
+- No filter set has been characterized beyond the one green strip, so
+  the 85 / 5 / 1.3 thresholds in the decision block are a first guess
+  sized to that one reading.

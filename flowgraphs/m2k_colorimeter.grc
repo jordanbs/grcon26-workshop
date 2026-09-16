@@ -309,12 +309,32 @@ blocks:
   parameters: {type: float, num_inputs: '2'}
   states: {coordinate: [1088, 672], state: enabled}
 
+- name: red_pct
+  id: blocks_multiply_const_vxx
+  parameters:
+    comment: 'Divide out the blank and scale to percent here, on the wire, rather
+      than in the number sink''s display factor. Everything downstream then reads
+      percent transmittance and means it -- which the decision block relies on.'
+    type: float
+    const: 100.0 / blank_red
+  states: {coordinate: [1248, 480], state: enabled}
+
+- name: green_pct
+  id: blocks_multiply_const_vxx
+  parameters: {type: float, const: 100.0 / blank_green}
+  states: {coordinate: [1248, 576], state: enabled}
+
+- name: blue_pct
+  id: blocks_multiply_const_vxx
+  parameters: {type: float, const: 100.0 / blank_blue}
+  states: {coordinate: [1248, 672], state: enabled}
+
 - name: transmittance
   id: qtgui_number_sink
   parameters:
-    comment: 'factorN carries the blank and the percent together: 100 / blank. An
-      empty beam reads 100.0% and holds it to about 0.06%, which is roughly
-      three decades of usable range.'
+    comment: An empty beam reads 100.0% and holds it to about 0.06%, which is
+      roughly three decades of usable range. GRC resets color2 and color3 to
+      black if you save from the editor -- set them back by hand.
     type: float
     name: '"Transmittance"'
     nconnections: '3'
@@ -324,17 +344,101 @@ blocks:
     max: '110'
     label1: Red
     unit1: '%'
-    factor1: 100.0 / blank_red
     color1: ("black", "red")
     label2: Green
     unit2: '%'
-    factor2: 100.0 / blank_green
     color2: ("black", "green")
     label3: Blue
     unit3: '%'
-    factor3: 100.0 / blank_blue
     color3: ("black", "blue")
-  states: {coordinate: [1280, 560], state: enabled}
+  states: {coordinate: [1456, 432], state: enabled}
+
+# --- and one word for all three -----------------------------------------
+
+- name: decide
+  id: epy_block
+  parameters:
+    comment: 'Three numbers in, one word out. Naming the color is a policy, not a
+      measurement, so it is four lines of Python rather than a block: no block
+      in the library knows what your thresholds mean.'
+    _source_code: |
+      """Name the color the sample lets through."""
+
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      NAMES = ["Red", "Green", "Blue"]
+
+
+      class blk(gr.sync_block):
+          """Decide the color
+
+          Three transmittance percentages in, one word out on a message
+          port.
+
+          The rule is only "which one is largest", with a guard either
+          side of it so it does not name a winner picked out of noise.
+          An empty beam passes all three; something opaque passes none;
+          a filter that passes two of them almost equally is not one
+          color and says so.
+
+          clear   above this many percent, a color counts as unblocked
+          opaque  below this, nothing is getting through at all
+          margin  how far the winner has to clear the runner-up
+          """
+
+          def __init__(self, clear=85.0, opaque=5.0, margin=1.3):
+              gr.sync_block.__init__(
+                  self, name="Decide the color",
+                  in_sig=[np.float32, np.float32, np.float32],
+                  out_sig=None)
+              self.clear = clear
+              self.opaque = opaque
+              self.margin = margin
+              self._said = None
+              self.message_port_register_out(pmt.intern("decision"))
+
+          def verdict(self, t):
+              """t is [red, green, blue] in percent. A word, or a reason."""
+              if not all(np.isfinite(t)):
+                  return "no reference"
+              low, mid, high = sorted(t)
+              if low >= self.clear:
+                  return "nothing in the beam"
+              if high <= self.opaque:
+                  return "opaque"
+              if high < self.margin * mid:
+                  return "mixed"
+              return NAMES[t.index(high)]
+
+          def work(self, input_items, output_items):
+              for i in range(len(input_items[0])):
+                  said = self.verdict([float(c[i]) for c in input_items[:3]])
+                  if said != self._said:
+                      self._said = said
+                      self.message_port_pub(pmt.intern("decision"),
+                                            pmt.intern(said))
+              return len(input_items[0])
+    clear: '85.0'
+    opaque: '5.0'
+    margin: '1.3'
+  states:
+    _io_cache: ''
+    coordinate: [1456, 664]
+    state: enabled
+
+- name: verdict
+  id: qtgui_edit_box_msg
+  parameters:
+    comment: Static locks the type selector, not the text. The word still
+      arrives on the val port and lands in the box.
+    type: string
+    label: '"Sample is"'
+    value: '""'
+    is_pair: 'False'
+    is_static: 'True'
+  states: {coordinate: [1704, 664], state: enabled}
 
 connections:
 - [red_chop, '0', led, '0']
@@ -365,9 +469,18 @@ connections:
 - [sam_blue_mag, '0', blue_ratio, '0']
 - [ref_blue_mag, '0', blue_ratio, '1']
 
-- [red_ratio, '0', transmittance, '0']
-- [green_ratio, '0', transmittance, '1']
-- [blue_ratio, '0', transmittance, '2']
+- [red_ratio, '0', red_pct, '0']
+- [green_ratio, '0', green_pct, '0']
+- [blue_ratio, '0', blue_pct, '0']
+
+- [red_pct, '0', transmittance, '0']
+- [green_pct, '0', transmittance, '1']
+- [blue_pct, '0', transmittance, '2']
+
+- [red_pct, '0', decide, '0']
+- [green_pct, '0', decide, '1']
+- [blue_pct, '0', decide, '2']
+- [decide, decision, verdict, val]
 
 metadata:
   file_format: 1

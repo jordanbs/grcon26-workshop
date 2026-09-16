@@ -99,8 +99,12 @@ BUILD = '''
     errors = list(fg.iter_error_messages())
     out = tempfile.mkdtemp()
     p.Generator(fg, out).write()
-    name = [f for f in __import__("os").listdir(out) if f.endswith(".py")][0]
-    source = open(__import__("os").path.join(out, name)).read()
+    # An embedded Python block is written out as its own module beside the
+    # flowgraph, so there is more than one .py here and listdir has no order.
+    # Take the one named after the .grc.
+    import os
+    name = os.path.basename(sys.argv[1]).replace(".grc", ".py")
+    source = open(os.path.join(out, name)).read()
     ast.parse(source)          # a flowgraph that will not compile is not valid
     # A make template can span several lines, so take the whole
     # constructor call, not just the line its name appears on.
@@ -568,6 +572,11 @@ def test_flowgraph_parameter_names_are_real(repo_root):
             known = out.get(blk["id"])
             if known is None:                 # a generated block, not loaded here
                 continue
+            if blk["id"] == "epy_block":
+                # Its parameters are whatever the embedded source's __init__
+                # takes, discovered when GRC rewrites the flowgraph. The block
+                # library only knows the four every block has.
+                continue
             for key in blk.get("parameters", {}):
                 assert key in known, "%s: %s has no parameter %r" % (
                     name, blk["id"], key)
@@ -634,11 +643,18 @@ def test_the_colorimeter_flowgraph_builds(repo_root):
     assert make.count("fft.goertzel_fc(samp_rate, nfft,") == 6
     # No window to taper, because nothing lands between bins.
     assert "window.WIN_RECTANGULAR" in make
-    # The empty beam is not 1.0, and the blank is folded into the display.
+    # The empty beam is not 1.0. Dividing it out happens on the wire, not in
+    # a display setting, so what reaches the decision block is real percent.
     assert "blank_red = 1.0053" in make
     assert "blank_green = 0.9757" in make
     assert "blank_blue = 0.9911" in make
-    assert "100.0 / blank_red" in make
+    assert "blocks.multiply_const_ff((100.0 / blank_red))" in make
+    assert make.count("blocks.multiply_const_ff") == 3
+    # Three percentages in, one word out, into a text box on the GUI.
+    assert "decide.blk(clear=85.0, opaque=5.0, margin=1.3)" in make
+    for i, color in enumerate(("red", "green", "blue")):
+        assert "((self.%s_pct, 0), (self.decide, %d))" % (color, i) in make
+    assert "msg_connect((self.decide, 'decision'), (self.verdict, 'val'))" in make
 
 
 @needs_gnuradio
