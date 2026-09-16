@@ -24,10 +24,15 @@ Board used: Rev.D (Z7010), fw v0.33, reached at `ip:192.168.2.1`.
 ## 1. The blocks appear and load — PASSES
 
 ```
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_loopback_native.grc
 ```
+
+`env.sh` sets `GRC_BLOCKS_PATH` and `PYTHONPATH` for that shell and nothing
+else -- the two exports this checklist used to spell out at every step. For
+an install that outlives the shell, `pip install` and `m2k-blocks install`;
+if the block tree is empty, `m2k-blocks check` says why. See
+`gr-m2k/README.md`.
 
 - [x] `[ADALM2000]` is in the block tree with four blocks
 - [x] the flowgraph opens with no red blocks
@@ -600,8 +605,7 @@ underruns. `python3 bench/spi_flowgraph.py` is the headless version:
 same three blocks, a collector standing in for Message Debug.
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback_continuous.grc
 ```
 
@@ -722,8 +726,7 @@ simply running this flowgraph clears them.
 ### Running it
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback.grc
 ```
 
@@ -912,8 +915,7 @@ settings you understand:
 The hardware runs in sections 9, 10 and 11 are reproducible:
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 python3 bench/digital_coherence.py cyclic       # 9a
 python3 bench/spi_loopback.py 0xA5              # 9b
 python3 bench/spi_loopback.py $(seq 0 255)      # every byte

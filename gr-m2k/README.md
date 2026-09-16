@@ -4,14 +4,87 @@ GNU Radio blocks that treat the ADALM2000 as a scope and a signal
 generator, rather than as fourteen IIO devices you have to understand
 first.
 
+## Installing
+
+Two routes. Neither compiles anything -- this is a pure-Python block
+collection, so there is no CMake step and no `gnuradio-dev`.
+
+**For this shell only**, from a clone of the workshop repo:
+
 ```
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_scope.grc
 ```
 
-Two lines, no build step, nothing to install. `[ADALM2000]` appears in the
-block tree.
+`[ADALM2000]` appears in the block tree. Nothing is written to disk and
+nothing outside that shell changes, which makes it the right choice for
+trying the blocks out and for CI.
+
+**For every terminal**, straight from GitHub, no clone:
+
+```
+pip install "git+https://github.com/livethisdream/grcon26-workshop#subdirectory=gr-m2k"
+m2k-blocks install
+```
+
+`m2k-blocks install` adds the installed block directory to
+`~/.gnuradio/config.conf` under `[grc] local_blocks_path`, which is GNU
+Radio's own supported place for out-of-tree blocks. It appends rather than
+replaces, keeps a `.bak` if the file already existed, and `m2k-blocks
+uninstall` takes it back out. Restart gnuradio-companion afterwards -- a
+running one will not pick up a directory it did not have at launch.
+
+### Which Python
+
+This is the one thing that actually goes wrong. `pip install` has to land in
+the **same interpreter gnuradio-companion uses**, which on a distro GNU
+Radio is the system Python and not a fresh venv:
+
+```
+pip install --user "git+https://github.com/..."     # usually right
+```
+
+A venv only works if it can see the system packages *and* was built from the
+system interpreter -- `uv venv --system-site-packages --python /usr/bin/python3`.
+A venv on a different Python installs cleanly, puts `m2k-blocks` on your
+`PATH`, and still leaves the block tree empty, because GRC never sees it.
+
+### When the blocks are not in the tree
+
+```
+m2k-blocks check
+```
+
+It prints the block directory, the interpreter it is running under, whether
+`m2k_blocks` imports, and the full list of directories GRC will search with
+ours marked. Exit status 0 means GRC will find the blocks.
+
+That list is worth understanding once. GRC concatenates four sources, in
+order, dropping the ones that do not exist:
+
+| | |
+| --- | --- |
+| `~/.grc_gnuradio` | always first |
+| `GRC_BLOCKS_PATH` | the environment, what `env.sh` sets |
+| `[grc] local_blocks_path` | `~/.gnuradio/config.conf`, what `m2k-blocks install` writes |
+| `[grc] global_blocks_path` | `/etc/gnuradio/conf.d/grc.conf`, the system blocks |
+
+It **prepends**; it does not replace. Do not put block paths in
+`~/.gnuradio/grc.conf` -- that file is GUI state and says so in its own
+first line.
+
+### Two paths, two different failures
+
+`GRC_BLOCKS_PATH` decides whether the block appears in the tree.
+`PYTHONPATH` decides whether the generated flowgraph can import the code
+behind it. Set only the first and the failure is quiet: the blocks appear,
+the canvas validates, and the flowgraph dies on Run with an ImportError.
+`env.sh` sets both; `pip install` makes the second one stop existing as a
+thing to forget.
+
+`m2k_calibrate.py` and `generate_digital_grc.py` sit beside the package
+rather than inside it, so they come with a clone and not with a wheel. They
+are development tools, not part of the block library.
 
 ## Why not the stock IIO Device Source
 

@@ -94,8 +94,7 @@ is what the workshop ships because it is what twenty people can wire
 without a diagram.
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback.grc
 ```
 
@@ -277,8 +276,7 @@ Input range **high** (±2.5 V). Point the two transducers at each other,
 30 cm or so apart to start.
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_ultrasonic_fsk.grc
 ```
 
