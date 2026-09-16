@@ -23,7 +23,7 @@ The IIO ABI fixes the unit per channel type, and they are deliberately sub-unit 
 | `angl` | angle | radians |
 | `anglvel` | angular velocity | radians per second |
 | `capacitance` | capacitance | nanofarads |
-| `cct` | correlated colour temperature | Kelvin |
+| `cct` | correlated color temperature | Kelvin |
 | `concentration` | concentration | percent |
 | `count` | a count of events | no unit |
 | `current` | electrical current | milliamps |

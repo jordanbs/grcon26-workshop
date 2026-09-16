@@ -12,3 +12,8 @@ flowgraphs/*.py
 
 # 25 MB deck, larger than the whole tracked repo
 tools_for_precision_wideband_instrumentation_workshop (1).pptx
+
+# wheels built from gr-m2k/
+dist/
+build/
+*.egg-info/

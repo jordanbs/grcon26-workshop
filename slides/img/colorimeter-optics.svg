@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 392" role="img" aria-label="The colorimeter's light path: one RGB LED through a 45 degree splitter into a reference well and a sample well, each with its own photodiode">
+  <style>
+  .bg   { fill: #fafaf7; }
+  .axis { stroke: #5a5a5a; stroke-width: 1; fill: none; }
+  .grid { stroke: #5a5a5a; stroke-width: .5; stroke-dasharray: 2 4; }
+  .tick { fill: #5a5a5a; font: 400 10px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .tickr{ fill: #5a5a5a; font: 400 10px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: end; }
+  .note { fill: #5a5a5a; font: 400 10.5px ui-monospace, Menlo, Consolas, monospace; }
+  .hd   { fill: #1a1a1a; font: 700 12px ui-monospace, Menlo, Consolas, monospace; }
+  .lbl  { fill: #004a85; font: 700 11.5px ui-monospace, Menlo, Consolas, monospace; }
+  .mkt  { fill: #b01e24; font: 700 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .stem { stroke: #1a1a1a; stroke-width: 2; stroke-linecap: round; }
+  .stemq{ stroke: #b01e24; stroke-width: 2; stroke-linecap: round; }
+  .body { fill: #ffffff; stroke: #5a5a5a; stroke-width: 1.2; }
+  .glass{ fill: #dce9f4; stroke: #0067b9; stroke-width: 1.2; }
+  .split{ stroke: #7a5aa8; stroke-width: 3.5; stroke-linecap: round; }
+  .beamr{ stroke: #d33; stroke-width: 1.6; }
+  .beamg{ stroke: #1a8f3c; stroke-width: 1.6; }
+  .beamb{ stroke: #2a6fd6; stroke-width: 1.6; }
+  .arrow{ fill: #5a5a5a; }
+  @media (prefers-color-scheme: dark) {
+    .bg    { fill: #0d1826; }
+    .axis, .grid { stroke: #93a3b5; }
+    .tick, .tickr, .note { fill: #93a3b5; }
+    .hd    { fill: #e9eef4; }
+    .lbl   { fill: #8cc4ee; }
+    .mkt   { fill: #e4737a; }
+    .stem  { stroke: #e9eef4; }
+    .stemq { stroke: #e4737a; }
+    .body  { fill: #16263a; stroke: #93a3b5; }
+    .glass { fill: #1d3550; stroke: #58a7e5; }
+    .split { stroke: #b39ddb; }
+    .beamr { stroke: #ff7b7b; }
+    .beamg { stroke: #62d98a; }
+    .beamb { stroke: #72aefc; }
+    .arrow { fill: #93a3b5; }
+  }
+  </style>
+  <rect class="bg" x="0" y="0" width="560" height="392"/>
+  <text class="hd" x="16" y="24">One LED, two wells, two photodiodes</text>
+  <rect class="body" x="16" y="92" width="104" height="52" rx="3"/>
+  <text class="hd" x="68" y="115" text-anchor="middle">RGB LED</text>
+  <text class="hd" x="68" y="129" text-anchor="middle">J5</text>
+  <line class="beamr" x1="120.0" y1="115.0" x2="230.0" y2="115.0"/>
+  <line class="beamg" x1="120.0" y1="118.0" x2="230.0" y2="118.0"/>
+  <line class="beamb" x1="120.0" y1="121.0" x2="230.0" y2="121.0"/>
+  <line class="split" x1="230" y1="138" x2="270" y2="98"/>
+  <text class="lbl" x="248" y="62" text-anchor="end">45&#176; splitter</text>
+  <text class="note" x="248" y="78" text-anchor="end">a slot, not a well</text>
+  <line class="beamr" x1="270.0" y1="115.0" x2="326.0" y2="115.0"/>
+  <line class="beamg" x1="270.0" y1="118.0" x2="326.0" y2="118.0"/>
+  <line class="beamb" x1="270.0" y1="121.0" x2="326.0" y2="121.0"/>
+  <rect class="glass" x="326" y="90" width="56" height="56" rx="3"/>
+  <text class="hd" x="354" y="122" text-anchor="middle">Ref</text>
+  <line class="beamr" x1="382.0" y1="115.0" x2="436.0" y2="115.0"/>
+  <line class="beamg" x1="382.0" y1="118.0" x2="436.0" y2="118.0"/>
+  <line class="beamb" x1="382.0" y1="121.0" x2="436.0" y2="121.0"/>
+  <rect class="body" x="436" y="92" width="108" height="52" rx="3"/>
+  <text class="hd" x="490" y="115" text-anchor="middle">photodiode</text>
+  <text class="hd" x="490" y="129" text-anchor="middle">analog 1</text>
+  <text class="lbl" x="354" y="82" text-anchor="middle">Reference</text>
+  <line class="beamr" x1="253.0" y1="138.0" x2="253.0" y2="216.0"/>
+  <line class="beamg" x1="250.0" y1="138.0" x2="250.0" y2="216.0"/>
+  <line class="beamb" x1="247.0" y1="138.0" x2="247.0" y2="216.0"/>
+  <rect class="glass" x="222" y="216" width="56" height="56" rx="3"/>
+  <text class="hd" x="250" y="248" text-anchor="middle">Smp</text>
+  <line class="beamr" x1="253.0" y1="272.0" x2="253.0" y2="310.0"/>
+  <line class="beamg" x1="250.0" y1="272.0" x2="250.0" y2="310.0"/>
+  <line class="beamb" x1="247.0" y1="272.0" x2="247.0" y2="310.0"/>
+  <rect class="body" x="196" y="310" width="108" height="52" rx="3"/>
+  <text class="hd" x="250" y="333" text-anchor="middle">photodiode</text>
+  <text class="hd" x="250" y="347" text-anchor="middle">analog 2</text>
+  <text class="lbl" x="214" y="208" text-anchor="end">Sample</text>
+  <text class="note" x="214" y="224" text-anchor="end">the cuvette</text>
+  <text class="note" x="214" y="238" text-anchor="end">goes here</text>
+  <text class="note" x="326" y="196">Block the sample well and analog 2</text>
+  <text class="note" x="326" y="212">keeps 0.8%. Analog 1 keeps 88% --</text>
+  <text class="note" x="326" y="228">the empty cuvette itself takes the</text>
+  <text class="note" x="326" y="244">other 12%, in Fresnel reflection at</text>
+  <text class="note" x="326" y="260">two glass faces. Which is why a</text>
+  <text class="note" x="326" y="276">colorimeter blanks against an empty</text>
+  <text class="note" x="326" y="292">cuvette, not against an empty slot.</text>
+  <text class="lbl" x="326" y="330">transmittance = analog 2</text>
+  <text class="lbl" x="326" y="346">&#160;&#160;over analog 1, per color</text>
+</svg>

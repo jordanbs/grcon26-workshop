@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gr-m2k"
+version = "0.1.0"
+description = "GNU Radio blocks that treat the ADALM2000 as an instrument"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+
+# Deliberately empty, for the same reason the repo root's is: everything
+# these blocks need comes from GNU Radio itself, and GNU Radio does not come
+# from pip. Listing `gnuradio` here would make every install fail against a
+# package index that does not have it. See "Which Python" in README.md --
+# the install has to land in the interpreter GRC already uses.
+dependencies = []
+
+[project.scripts]
+m2k-blocks = "m2k_blocks.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/livethisdream/grcon26-workshop"
+
+# The block definitions stay at gr-m2k/grc/ on disk, because that is the
+# directory every README, the bench checklist and `env.sh` already name.
+# This mapping ships them inside the wheel at m2k_blocks/grc/ without moving
+# anything, so `m2k-blocks path` has a directory to point GRC at.
+[tool.setuptools]
+packages = ["m2k_blocks", "m2k_blocks.grc"]
+
+[tool.setuptools.package-dir]
+m2k_blocks = "m2k_blocks"
+"m2k_blocks.grc" = "grc"
+
+[tool.setuptools.package-data]
+"m2k_blocks.grc" = ["*.yml"]

@@ -67,7 +67,7 @@ xvfb-run -a ./slides/render_grc.py --list   # block ids per flowgraph
 ```
 
 It loads the same `.grc` a participant opens, asks GRC to lay it out, and
-draws it to Cairo. Same fonts, same colours, same port shapes, same wire
+draws it to Cairo. Same fonts, same colors, same port shapes, same wire
 routing — so the slide and their screen match, and a changed parameter shows
 up by re-running the script rather than by somebody noticing.
 
@@ -124,6 +124,34 @@ internal `@media (prefers-color-scheme: dark)` block, because an `<img>` cannot
 see the page's custom properties; the deck follows the OS scheme too, so they
 stay in step. And the viewBox is deliberately narrow (560 units): an SVG's type
 scales with its box, and at 760 the annotations landed at 7px on a 1280 screen.
+
+## The colorimeter figures are computed, not drawn
+
+```
+./slides/render_colorimeter.py          # into slides/img/
+```
+
+Two SVGs. `colorimeter-optics.svg` is the light path -- one LED, a 45 degree
+splitter slot, a Reference well straight on and a Sample well at the elbow --
+because the board's own silkscreen suggests the diagonal slot is a second
+cuvette position and it is not.
+
+`colorimeter-coherent.svg` is the argument for 5004.9 Hz. Both panels come out
+of a DFT this script computes, of a square wave this script generates: 205
+whole cycles in 4096 samples on the left, a round 5000 Hz on the right. The
+spurs and the leakage in the caption are the numbers that fell out, not numbers
+chosen to make the point -- the left panel is not bare either, and the caption
+says so.
+
+Standard library only, on any interpreter.
+
+**There is no rasterizer on this machine** -- no `rsvg-convert`, no Inkscape --
+so nothing here can be previewed as a picture before it ships. The script
+carries a `Canvas` class instead that records every box and every text extent
+it emits and then reports labels that fall outside the viewBox or sit on a box
+that is not theirs. It runs on every render and prints its complaints. It
+caught an inverted dB axis and a caption running off the edge, which is about
+what a pair of eyes would have caught.
 
 ## Keys
 
@@ -201,6 +229,8 @@ assets/frames.js    position, counter, laser, contents, keys, modes
 check_deck.py       the structural check
 render_grc.py       the GRC figures, from GRC's own canvas code
 render_spi.py       the SPI waveforms, from the encoder that drives the pins
+render_colorimeter.py
+                    the colorimeter optics, and the coherence argument
 img/                what they produce -- generated, but committed, so the
                     deck opens on a machine with no GNU Radio
 ```

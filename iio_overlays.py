@@ -149,7 +149,7 @@ DEVICE_PACKS = {
 # intensity channels are unitless.
 
 DEVICE_PACKS["cn0363"] = {
-    "device": _e("The colorimeter. Measures how much light of each colour "
+    "device": _e("The colorimeter. Measures how much light of each color "
                  "passes through a sample.",
                  check="Only one board exists -- verify before the workshop, "
                        "not during."),

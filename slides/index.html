@@ -157,8 +157,8 @@
       network, or from the local filesystem. The <em>backend</em> changes; the
       names do not.</p>
       <p>That is the whole bet of this workshop. Learn the naming rules once, and
-      the next board — a CN0363 colorimeter, an AD9361 transceiver, a pressure
-      sensor — presents itself the same way.</p>
+      the next board — an AD9361 transceiver, an ADXL345 accelerometer, a
+      pressure sensor — presents itself the same way.</p>
       <p>The M2K in particular is normally reached over the network backend, as a
       USB ethernet gadget at a fixed address. It advertises nothing, so it is not
       discoverable: you name it, <code>ip:192.168.2.1</code>.</p>
@@ -1958,29 +1958,195 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter" data-section="Applications">
   <div class="wrap">
-    <h2>CN0363 colorimeter &mdash; <em>placeholder</em></h2>
-    <div class="stage">
+    <h2>Three colors at once</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot wave">
+          <img src="img/colorimeter-optics.svg" alt="The colorimeter's light path. One RGB LED on riser J5 fires right into a 45 degree splitter slot. Part of the beam passes straight through a Reference cuvette well to the photodiode on analog 1; the rest reflects down through the Sample well to the photodiode on analog 2.">
+          <figcaption>One beam, split at the elbow. Transmittance is analog 2 over analog 1, one number per color.</figcaption>
+        </figure>
+      </div>
       <div class="present">
         <ul>
-          <li>Modulate an LED; demodulate the photodiode against the same reference</li>
-          <li>The room lights fall out of the answer</li>
+          <li>Red, green and blue chopped at three frequencies, all lit together</li>
+          <li>One FFT separates them again</li>
+          <li>Two photodiodes: one sees the cuvette, one does not</li>
         </ul>
-        <p class="pull">We have one board, so this is a demo rather than a station.</p>
-      </div>
-      <div class="present callout trap">
-        <p><strong>Not yet built.</strong> Scheduled after the ultrasonic link.</p>
+        <p class="pull">Nothing is switched on and off in turn.</p>
       </div>
     </div>
     <div class="depth">
-      <p>The CN0363 is where the IIO half of the session lands. It is a
-      different board with a different driver, and everything learned about
-      reading attribute names, about <code>raw</code> not being a measurement, and about
-      where a channel's meaning comes from applies to it unchanged. That
-      transfer is the argument for teaching IIO rather than teaching the M2K.</p>
-      <p>There is exactly one of them, so hardware architecture cannot rescue it the way it can for the ultrasonic demo. One instructor
-      unit, everyone watching.</p>
-      <p>Open: whether we drive it over its own IIO context alongside the M2K, or
-      whether the M2K reads its analog output. The first demonstrates the point directly. The second keeps every flowgraph in the workshop on one source block.</p>
+      <p>The board is ADI's <strong>M2k Colorimeter Accessory Board</strong>, out of
+      <code>education_tools</code> — not the CN0363, though it borrowed the CN0363's
+      cuvette holder. Four PCBs: a main board on the digital header, an RGB LED
+      riser, two photodiode risers, and the holder. There is no ADC on it and no
+      driver for it. It is a passive analog front end, and every sample comes
+      through the M2K's own <code>m2k_analog_source</code>.</p>
+      <p>The naive way to measure three colors is to light them one at a time.
+      That works and it is three times slower, and any drift between the three
+      measurements — the lamp warming, a hand near the bench — lands in the
+      answer as color. Chopping each color at its own frequency and lighting all
+      three together means the three measurements happen in the same 41&nbsp;ms,
+      through the same optics, against the same reference.</p>
+      <p><strong>The DIO bit steers, it does not gate.</strong> DIO13, 14 and 15
+      are the select lines of a triple SPDT, and each one sends its color's
+      current to LED riser 0 (J5) or riser 1 (J6). Only J5 is populated, so low
+      is lit and high is dark. Which is why <code>idle_level</code> is
+      <strong>high</strong>: idle it low and the LED sits on white whenever the
+      flowgraph is stopped.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-colorimeter-chop.png" alt="Three Signal Source blocks on the GNU Radio Companion canvas, square waves at 5.00488, 6.00586 and 7.00684 kHz with amplitude 1 and offset 0, feeding the three inputs of an M2K Digital Sink on DIO13, DIO14 and DIO15, cyclic, idling high.">
+        <figcaption>A short square wave at amplitude 1 and offset 0 is 0 and 1, which is exactly what a DIO line wants. Three of them fill one cyclic buffer.</figcaption>
+      </figure>
+      <p>The rails are not garnish. The LED common anodes sit directly on V+, so
+      <code>m2k_power_supply</code> is the first block in the file — without it,
+      no light and no gain, which looks exactly like a dead board.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="colorimeter-bins" data-section="Applications">
+  <div class="wrap">
+    <h2>5004.9 Hz, not 5 kHz</h2>
+    <div class="stage">
+      <div class="present">
+        <figure class="shot wave">
+          <img src="img/colorimeter-coherent.svg" alt="Two spectra of the same square wave. On the left, 205 cycles in a 4096-sample buffer puts nearly all the energy in bin 205, with small spurs 26 dB down at bins 201 and 209. On the right, a round 5000 Hz is 204.8 cycles and spreads energy across every bin in the span, the nearest neighbours only 12 to 20 dB down.">
+          <figcaption>Same pin, same window, one fifth of a cycle apart.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <div class="tablewrap"><table class="params">
+          <tr><th></th><th>cycles</th><th>bin</th><th>Hz</th></tr>
+          <tr><td>red</td><td>205</td><td>205</td><td>5004.9</td></tr>
+          <tr><td>green</td><td>246</td><td>246</td><td>6005.9</td></tr>
+          <tr><td>blue</td><td>287</td><td>287</td><td>7006.8</td></tr>
+        </table></div>
+        <p class="pull">A whole number of cycles per buffer is a whole number of bins.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>4096 samples at 100&nbsp;kS/s is a 24.4140625&nbsp;Hz bin. Put
+      <em>K</em> whole cycles in that buffer and the tone is at
+      <em>K</em>&nbsp;&times;&nbsp;24.4140625&nbsp;Hz, which is exactly bin
+      <em>K</em> of a 4096-point FFT at the same rate. So the frequency plan is
+      not three frequencies, it is three integers.</p>
+      <p>This works because the pattern generator and the ADC run off one clock.
+      Measured on this board, the peak stays on its own bin and the phase holds
+      to better than 0.02&nbsp;ppm over a minute. Nothing aligns the buffers and
+      nothing triggers the capture: <em>any</em> 4096 consecutive samples are a
+      whole number of cycles of all three tones, so every capture buffer is a
+      valid measurement on its own.</p>
+      <p>That is also why the FFT window is <strong>rectangular</strong>. A window
+      exists to taper energy that falls between bins, and here none does.
+      Applying a Hann window would spread each tone over three bins and throw
+      away the thing that was arranged for.</p>
+      <p><strong>What the left panel admits.</strong> It is not bare either side
+      of 205. A square wave's edges can only land on sample boundaries, so the
+      duty cycle wobbles by a fraction of a sample and puts spurs about 26&nbsp;dB
+      down at bins 201 and 209. They matter not at all, because they land on no
+      other color's bin — whereas the round-number version reaches green's bin
+      246 at &minus;47&nbsp;dB, which is a red LED reporting itself as green.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="colorimeter-lockin" data-section="Applications">
+  <div class="wrap">
+    <h2>A DFT bin is a lock-in amplifier</h2>
+    <div class="stage">
+      <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-colorimeter-lockin.png" alt="The red channel of the colorimeter flowgraph on the GNU Radio Companion canvas: M2K Analog Source with both channels at 100 kS/s feeding two Goertzel blocks at 5.00488 kHz, each into Complex to Mag, into a Divide, into a Multiply Const of 100 over the red blank.">
+          <figcaption>One color's chain. The other five are the same picture with a different bin.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li><code>X[k] = &Sigma; x[n]&thinsp;e<sup>&minus;j2&pi;kn/N</sup></code></li>
+          <li>Multiply by a reference, integrate — that is a lock-in</li>
+          <li>Goertzel is one bin of it, six times over</li>
+        </ul>
+        <p class="pull">Room lights are not at 5004.9 Hz, so they are not in bin 205.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>A lock-in amplifier multiplies the incoming signal by a reference at the
+      modulation frequency and integrates the product. Everything not at that
+      frequency averages toward zero; what remains is the amplitude of the part
+      that was modulated. It is the standard instrument for pulling a small
+      signal out of a large background.</p>
+      <p>The sum above is that operation, written down. <code>e<sup>&minus;j2&pi;kn/N</sup></code>
+      is the reference, the sum is the integration, and one value of <em>k</em>
+      is one lock-in tuned to one frequency. GNU Radio's <code>Goertzel</code>
+      block computes a single bin directly and returns
+      <code>|X[k]|/N</code> — checked against numpy to fourteen digits. Six of
+      them, two channels by three colors, is six lock-in amplifiers.</p>
+      <p><strong>Room lights fall out for free.</strong> Daylight is DC and sits
+      in bin 0. Mains flicker is 120&nbsp;Hz and sits near bin 5. Neither is in
+      bin 205, 246 or 287, so neither reaches the answer — no shroud, no dark
+      room, no subtracting a background frame.</p>
+      <p>The Goertzel length is <code>nfft</code> and so is the source's
+      <code>buffer_size</code>, deliberately. Each measurement is then exactly one
+      capture buffer and never straddles two, so no reading spans the gap between
+      one buffer and the next.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="colorimeter-result" data-section="Applications">
+  <div class="wrap">
+    <h2>What it reads</h2>
+    <div class="stage split">
+      <div class="present">
+        <div class="tablewrap"><table class="params">
+          <tr><th>transmittance</th><th>red</th><th>green</th><th>blue</th></tr>
+          <tr><td>empty cuvette</td><td>100.1%</td><td>97.4%</td><td>98.8%</td></tr>
+          <tr><td>blanked</td><td>100.0%</td><td>100.0%</td><td>100.0%</td></tr>
+          <tr><td>green filter</td><td>9.3%</td><td>66.0%</td><td>24.4%</td></tr>
+        </table></div>
+        <p class="pull">It passes green, attenuates blue, kills red. Which is what a green filter is.</p>
+      </div>
+      <div class="present callout trap">
+        <p><strong>An empty beam is not 1.0.</strong> The splitter does not split
+        evenly and the two photodiodes are not the same part twice. Blank
+        first, or every reading is tilted.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Blanking is three numbers — 1.0053, 0.9757, 0.9911 — measured once with
+      empty cuvettes in both wells and divided back out. After that an empty beam
+      reads 100.0% on all three and holds to about 0.06% peak to peak, which is
+      roughly three decades of usable range. The green strip repeats to 0.3%
+      across half a dozen insertions.</p>
+      <p>That steadiness is the coherence result being drawn on: one bin, no
+      window, no averaging across neighbours, 41&nbsp;ms of integration.</p>
+      <p>Those three numbers describe one afternoon's alignment, so the GUI
+      carries a <strong>Blank</strong> button: empty both wells, press it, and
+      whatever the two paths are doing now becomes 100%. The check that it took
+      is already on the screen — all three go to 100.0% and the box reads
+      <em>nothing in the beam</em>.</p>
+      <p><strong>From three numbers to one word.</strong> "Green" is a decision,
+      not a measurement, and no block in the library makes it, because none of
+      them knows what your thresholds mean. So the chain ends in about fifteen
+      lines of embedded Python: three floats in, one word out on a message port,
+      into a text box. The rule is <em>which one is largest</em>, guarded either
+      side — all three above 85% is nothing in the beam, all three below 5% is
+      opaque, and a winner inside 1.3&times; of the runner-up is mixed rather than
+      a color. Without the guards an empty beam reports a color and so does a
+      closed shutter, because something is always largest.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-colorimeter-decide.png" alt="Two blocks on the GNU Radio Companion canvas: an embedded Python block named Decide the color with three float inputs and parameters clear 85, opaque 5 and margin 1.3, its message output connected to a QT GUI Message Edit Box labelled Sample is.">
+        <figcaption>The thresholds are block parameters, so they are adjustable on the canvas rather than buried in the source.</figcaption>
+      </figure>
+      <p><strong>The exercise.</strong> Make it name seven. Magenta passes red and
+      blue, yellow passes red and green, cyan passes green and blue — so the rule
+      stops being a winner and becomes a three-bit pattern of which colors clear a
+      threshold. ADI's own exercise for this board stops at a
+      <code># Purple Detector</code> comment with nothing underneath it.</p>
+      <p>One board, so this is a demo at the front rather than a station each.
+      The flowgraph, the bench script and the numbers above are in the repo, so
+      it can be read afterwards by people who never touched it.</p>
     </div>
   </div>
 </section>
