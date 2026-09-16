@@ -154,9 +154,11 @@ From the repo root, with a GNU Radio interpreter:
     python3 bench/colorimeter.py pins        # which pin is which color
     python3 bench/colorimeter.py channels    # which channel is the sample
     python3 bench/colorimeter.py run         # transmittance, continuously
+    python3 bench/colorimeter.py filter --name "green strip"
     python3 bench/colorimeter.py supply      # rails against a meter
 
-Run them in that order the first time. `pins` and `channels` exist
+Run them in that order the first time; `filter` whenever there is a new
+sample worth writing down. `pins` and `channels` exist
 because two of the four things this demo depends on cannot be read out
 of a schematic: the LED riser is a separate board on a symmetric 6-pin
 connector, and which photodiode sees the cuvette is a matter of which
@@ -231,4 +233,16 @@ value. It is worth about 3 OD of usable range.
   than a winner-takes-all. The decision block does winner-takes-all.
 - No filter set has been characterized beyond the one green strip, so
   the 85 / 5 / 1.3 thresholds in the decision block are a first guess
-  sized to that one reading.
+  sized to that one reading. `bench/colorimeter.py filter` is how the
+  other readings get collected -- it prints the three percentages, the
+  repeatability, and the margin over the runner-up, which is the number
+  1.3 is guessing at, and appends a row to `bench/colorimeter-filters.csv`.
+  That file does not exist yet.
+- The rule is written twice, once in the flowgraph's embedded block and
+  once in the bench script, because making the demo import out of the
+  repo would put a PYTHONPATH on the critical path. They cannot drift
+  silently: `tests/test_colorimeter.py` runs both over a grid, using the
+  thresholds set on the canvas rather than the defaults in the source.
+- The Blank button and the decision block have not been run on the
+  board. Both generate and both pass their tests dry; neither has seen a
+  photodiode.

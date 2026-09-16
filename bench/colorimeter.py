@@ -19,6 +19,11 @@ things those two documents are not allowed to guess at.
 
     run         Continuous transmittance, the demo itself.
 
+    filter      One sample characterized: percentages, repeatability,
+                the margin over the runner-up, and the word the
+                flowgraph would say. Appends a row to a CSV, because
+                one filter strip is not a threshold.
+
     supply      Two-point meter check of V+ and V- against what
                 m2k_scale believes. Wants a DMM on the header.
 
@@ -32,6 +37,7 @@ Run from the repo root:
     python3 bench/colorimeter.py pins
     python3 bench/colorimeter.py channels
     python3 bench/colorimeter.py run
+    python3 bench/colorimeter.py filter --name "green strip"
     python3 bench/colorimeter.py supply
 
 Needs a gnuradio interpreter -- the project .venv does not have one.
@@ -389,6 +395,33 @@ def take_blank(rig, ref_ch, sample_ch, n=8):
     return blank
 
 
+# The thresholds the flowgraph's decision block uses, and the same rule
+# it applies. There are two copies of this on purpose: the flowgraph's
+# lives inside its embedded Python block, self-contained, because making
+# the demo import out of the repo would put a PYTHONPATH on the critical
+# path. `tests/test_grc_integration.py` runs both over a grid and fails
+# if they ever disagree.
+CLEAR = 85.0               # above this, a color counts as unblocked
+OPAQUE = 5.0               # below this, nothing is getting through
+MARGIN = 1.3               # how far the winner must clear the runner-up
+
+NAMES = ["Red", "Green", "Blue"]
+
+
+def verdict(t, clear=CLEAR, opaque=OPAQUE, margin=MARGIN):
+    """t is [red, green, blue] in percent. A word, or a reason."""
+    if not all(np.isfinite(t)):
+        return "no reference"
+    low, mid, high = sorted(t)
+    if low >= clear:
+        return "nothing in the beam"
+    if high <= opaque:
+        return "opaque"
+    if high < margin * mid:
+        return "mixed"
+    return NAMES[t.index(high)]
+
+
 def cmd_run(ref_ch=0, sample_ch=1):
     """Transmittance, continuously, the way the demo shows it.
 
@@ -430,6 +463,75 @@ def cmd_run(ref_ch=0, sample_ch=1):
     return 0
 
 
+def cmd_filter(ref_ch=0, sample_ch=1):
+    """One sample, characterized: three percentages and the word.
+
+    The decision block's thresholds were sized to a single green filter
+    strip, which is one data point and therefore not a threshold. This
+    is how the other points get collected. It prints the margin between
+    the winner and the runner-up as well as the percentages, because
+    that margin is the number 1.3 is guessing at, and it appends a row
+    to a CSV so the guess can be revisited against real filters rather
+    than remembered.
+
+        python3 bench/colorimeter.py filter --name "green strip"
+    """
+    name = "unnamed"
+    if "--name" in sys.argv:
+        at = sys.argv.index("--name")
+        if at + 1 < len(sys.argv):
+            name = sys.argv[at + 1]
+
+    with Rig(live=True) as rig:
+        time.sleep(2.0)
+        rig.grab(0.5)                     # throw away the start-up transient
+
+        print("blanking: empty cuvettes in both wells, nothing moving")
+        blank = take_blank(rig, ref_ch, sample_ch)
+        print("")
+
+        input("put %s in the Sample well, then press enter " % name)
+        rig.grab(0.5)                     # whatever moved, let it stop moving
+
+        runs = []
+        while len(runs) < 16:
+            data = rig.grab(0.25)
+            if min(len(d) for d in data) < NFFT:
+                continue
+            now = ratios(data, ref_ch, sample_ch)
+            runs.append([100.0 * now[c] / blank[c] for c in COLORS])
+
+    mean = [sum(r[i] for r in runs) / len(runs) for i in range(3)]
+    spread = [max(r[i] for r in runs) - min(r[i] for r in runs)
+              for i in range(3)]
+
+    print("")
+    for i, color in enumerate(COLORS):
+        print("  %-6s %6.1f%%   +/- %.1f" % (color, mean[i], spread[i]))
+
+    mid, high = sorted(mean)[1:]
+    ratio = high / mid if mid > 0 else float("inf")
+    said = verdict(mean)
+    print("\n  margin %.2fx over the runner-up  (the rule wants %.2fx)"
+          % (ratio, MARGIN))
+    print("  reads as: %s" % said)
+    if said == "mixed":
+        print("  -- two colors within %.2fx of each other is not one color."
+              % MARGIN)
+
+    row = [name] + ["%.1f" % v for v in mean] + ["%.1f" % v for v in spread] \
+        + ["%.2f" % ratio, said]
+    path = os.path.join("bench", "colorimeter-filters.csv")
+    fresh = not os.path.exists(path)
+    with open(path, "a") as fp:
+        if fresh:
+            fp.write("name,red,green,blue,red_pp,green_pp,blue_pp,"
+                     "margin,verdict\n")
+        fp.write(",".join('"%s"' % c if "," in c else c for c in row) + "\n")
+    print("  appended to %s" % path)
+    return 0
+
+
 # ------------------------------------------------------------------ supply
 
 def cmd_supply():
@@ -462,7 +564,8 @@ def cmd_supply():
 
 
 COMMANDS = {"coherence": cmd_coherence, "pins": cmd_pins,
-            "channels": cmd_channels, "run": cmd_run, "supply": cmd_supply}
+            "channels": cmd_channels, "run": cmd_run,
+            "filter": cmd_filter, "supply": cmd_supply}
 
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""

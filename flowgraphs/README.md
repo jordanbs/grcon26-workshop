@@ -453,8 +453,35 @@ transmittance rather than a raw ratio. Putting it there instead of in the
 number sink's display `factor` matters because the decision block reads the
 same wire and its thresholds are in percent. Blanked, an empty beam reads
 100.0% and holds it to about 0.06% peak to peak — roughly three decades of
-usable range. Re-measure with `bench/colorimeter.py run` if the optics get
-moved.
+usable range.
+
+### Re-blanking without opening the editor
+
+Those three numbers describe one afternoon's optical alignment. Reseat a
+photodiode riser, knock the LED board, carry the thing to a conference, and
+they are wrong — silently, as a tilt in every reading rather than an error.
+
+So there is a **Blank** button on the GUI. Empty both wells, press it, and
+whatever the two paths are doing right now becomes 100%. It averages the last
+two seconds of the raw ratios, upstream of where the blank is divided out, and
+sets the three variables through the stock `Message Pair to Var` block. GRC
+already wires those variables to each `Multiply Const`'s `set_k`, so the new
+blank reaches the wire without anything restarting.
+
+**The check that it worked is already on the screen.** After a good blank all
+three read 100.0% and the box says `nothing in the beam`. If it does not,
+something was in the beam when you pressed it — press it again with the beam
+clear.
+
+Nothing about this sits in the measurement path. If the button is never
+pressed, the variables keep the bench numbers and the flowgraph behaves
+exactly as it did before the button existed. A blank of zero or infinity —
+a reference gone dark, which means a loose riser — is refused rather than
+published, because `100.0 / blank` is a live constant downstream.
+
+To set the variables permanently instead, run `bench/colorimeter.py run`,
+read the three numbers it prints, and edit `blank_red`, `blank_green` and
+`blank_blue` in the flowgraph.
 
 ## Idle high, because the bit steers rather than gates
 

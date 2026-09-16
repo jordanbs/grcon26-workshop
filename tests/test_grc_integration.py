@@ -655,6 +655,20 @@ def test_the_colorimeter_flowgraph_builds(repo_root):
     for i, color in enumerate(("red", "green", "blue")):
         assert "((self.%s_pct, 0), (self.decide, %d))" % (color, i) in make
     assert "msg_connect((self.decide, 'decision'), (self.verdict, 'val'))" in make
+    # Blanking on demand. The chain the button closes is: press -> average
+    # the raw ratios -> set the variable -> the multiply block's own
+    # set_k. That last hop is GRC's, and it is the one worth asserting,
+    # because nothing in the flowgraph mentions it.
+    assert "self.red_pct.set_k((100.0 / self.blank_red))" in make
+    for color in ("red", "green", "blue"):
+        assert "msg_connect((self.blanker, '%s'), (self.apply_%s, 'inpair'))" \
+            % (color, color) in make
+        assert "blocks.msg_pair_to_var(self.set_blank_%s)" % color in make
+    assert "msg_connect((self.blank_button, 'pressed'), (self.blanker, 'blank'))" in make
+    # It reads the ratios BEFORE the blank is divided out, or pressing the
+    # button a second time would blank against the first blank.
+    for i, color in enumerate(("red", "green", "blue")):
+        assert "((self.%s_ratio, 0), (self.blanker, %d))" % (color, i) in make
 
 
 @needs_gnuradio

@@ -440,6 +440,119 @@ blocks:
     is_static: 'True'
   states: {coordinate: [1704, 664], state: enabled}
 
+# --- blank on demand ----------------------------------------------------
+
+- name: blank_button
+  id: variable_qtgui_msg_push_button
+  parameters:
+    comment: Press with nothing in the beam. Nothing here is in the measurement
+      path -- if it is never pressed, the three variables keep the values
+      measured on the bench and the flowgraph behaves as it always has.
+    label: '"Blank"'
+    type: int
+    msgName: pressed
+    value: '1'
+    relBackgroundColor: default
+    relFontColor: default
+  states: {coordinate: [1088, 856], state: enabled}
+
+- name: blanker
+  id: epy_block
+  parameters:
+    comment: Watches the raw ratios, upstream of the blank being divided out,
+      so what it captures is the path imbalance itself.
+    _source_code: |
+      """Capture the empty-beam ratio on demand."""
+
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      COLORS = ["red", "green", "blue"]
+
+      class blk(gr.sync_block):
+          """Blank now
+
+          The three raw ratios in; on a button press, the average of the last
+          couple of seconds of them out, one message per color, each one a
+          pair the stock Message Pair to Var block turns into `blank_red` and
+          its two siblings.
+
+          The blank is a property of the optics, not of the sample: the
+          splitter does not split evenly and the two photodiodes are not the
+          same part twice. Measure it once with empty cuvettes and divide it
+          out, and it stops being an error. Carry yesterday's copy of it to a
+          board that has been in a bag overnight, and it is a tilt in every
+          reading.
+
+          Press it with nothing in the beam. The check that it worked is on
+          the screen already -- all three readings go to 100.0% and the box
+          says "nothing in the beam".
+
+          depth  how many ratios to average. They arrive at rate/nfft, about
+                 24 a second, so 48 is about two seconds.
+          """
+
+          def __init__(self, depth=48):
+              gr.sync_block.__init__(
+                  self, name="Blank now",
+                  in_sig=[np.float32, np.float32, np.float32],
+                  out_sig=None)
+              self.depth = max(1, int(depth))
+              self.recent = [[], [], []]
+              self.message_port_register_in(pmt.intern("blank"))
+              self.set_msg_handler(pmt.intern("blank"), self.blank)
+              for color in COLORS:
+                  self.message_port_register_out(pmt.intern(color))
+
+          def blank(self, msg):
+              """Whatever is in the beam right now becomes 100%."""
+              for i, color in enumerate(COLORS):
+                  seen = list(self.recent[i])
+                  if not seen:
+                      continue
+                  value = sum(seen) / len(seen)
+                  # 100.0/blank is the constant downstream, so a zero or an
+                  # inf here would take the whole chain with it. A reference
+                  # that dark is a loose riser, not a blank.
+                  if not np.isfinite(value) or value <= 1e-6:
+                      continue
+                  self.message_port_pub(pmt.intern(color),
+                                        pmt.cons(pmt.intern("blank_" + color),
+                                                 pmt.from_double(float(value))))
+
+          def work(self, input_items, output_items):
+              for i in range(3):
+                  keep = self.recent[i]
+                  keep.extend(float(v) for v in input_items[i])
+                  del keep[:-self.depth]
+              return len(input_items[0])
+
+    depth: '48'
+  states:
+    _io_cache: ''
+    coordinate: [1280, 784]
+    state: enabled
+
+- name: apply_red
+  id: blocks_msgpair_to_var
+  parameters:
+    comment: Stock block. Calls the flowgraph's own set_blank_red, which GRC
+      already wires to red_pct's set_k -- so the new blank reaches the wire
+      without anything here knowing about multiply blocks.
+    target: blank_red
+  states: {coordinate: [1520, 760], state: enabled}
+
+- name: apply_green
+  id: blocks_msgpair_to_var
+  parameters: {target: blank_green}
+  states: {coordinate: [1520, 824], state: enabled}
+
+- name: apply_blue
+  id: blocks_msgpair_to_var
+  parameters: {target: blank_blue}
+  states: {coordinate: [1520, 888], state: enabled}
+
 connections:
 - [red_chop, '0', led, '0']
 - [green_chop, '0', led, '1']
@@ -481,6 +594,14 @@ connections:
 - [green_pct, '0', decide, '1']
 - [blue_pct, '0', decide, '2']
 - [decide, decision, verdict, val]
+
+- [red_ratio, '0', blanker, '0']
+- [green_ratio, '0', blanker, '1']
+- [blue_ratio, '0', blanker, '2']
+- [blank_button, pressed, blanker, blank]
+- [blanker, red, apply_red, inpair]
+- [blanker, green, apply_green, inpair]
+- [blanker, blue, apply_blue, inpair]
 
 metadata:
   file_format: 1
