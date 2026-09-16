@@ -73,6 +73,18 @@ FIGURES = {
     "m2k_scope.grc": {
         "grc-analog-source": ["m2k_analog_source_0"],
     },
+    # The colorimeter's whole canvas is six parallel copies of the same three
+    # blocks, which reads as wallpaper. Drawn as one color's chain instead --
+    # the other five are the same picture -- plus the three sources that make
+    # the simultaneity visible, and the decision the chain ends in.
+    "m2k_colorimeter.grc": {
+        "grc-colorimeter-chop": ["red_chop", "green_chop", "blue_chop", "led"],
+        "grc-colorimeter-lockin": [
+            "photodiodes", "ref_red", "sam_red", "ref_red_mag", "sam_red_mag",
+            "red_ratio", "red_pct",
+        ],
+        "grc-colorimeter-decide": ["decide", "verdict"],
+    },
     # Nineteen blocks on one canvas is a strip nine times as wide as it is
     # tall, and a strip constrained to a slide column is unreadable from the
     # back of a room. Drawn instead as the stages a person builds it in --
