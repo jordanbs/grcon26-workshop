@@ -259,3 +259,128 @@ and loses about half its runs.
 
 One Digital Sink per flowgraph — all sixteen pins share one output word
 and one DMA buffer.
+
+---
+
+# Ultrasonic FSK
+
+`m2k_ultrasonic_fsk.grc` — a 200-baud FSK link that leaves the board, goes
+through the air, and comes back. Transmit and receive are in one flowgraph,
+on one M2K.
+
+```
+W1  -> TX +      TX - -> GND
+1+  <- RX +      RX - -> GND       1- -> GND
+```
+
+Input range **high** (±2.5 V). Point the two transducers at each other,
+30 cm or so apart to start.
+
+```
+export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
+export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+gnuradio-companion flowgraphs/m2k_ultrasonic_fsk.grc
+```
+
+Type in the **Message** box and press Enter; the new text goes out on the
+next frame and comes back in Message Debug.
+
+## The two rates are different on purpose
+
+`tx_rate` is 750 kS/s and `rx_rate` is 1 MS/s, and there is no `samp_rate`
+variable to collapse them into. The DAC divides down from 75 MS/s and the
+ADC from 100 MS/s, so the two ladders share no rung anywhere near 40 kHz.
+A flowgraph that generates and captures at "the same rate" is not doing
+that, and the arithmetic that depends on it — samples per bit, filter
+design, demodulator gain — is wrong in a way nothing reports.
+
+The same bit is 3750 samples going out and 25 coming back.
+
+## The tones are measured, not nominal
+
+`f0 = 40755.0`. The part says 40 kHz; this pair resonates 755 Hz above it
+with a −6 dB width of only 1023 Hz, so driving 40.0 kHz throws away about
+10 dB. It does not look like a frequency problem when it happens — it looks
+like a demodulator that will not lock. `bench/ultrasonic_sweep.py` is where
+that number came from, and it is the first thing to re-run on a different
+pair or a different spacing.
+
+Mark and space sit at f0 ± 300. At 200 baud with 600 Hz spacing, Carson's
+rule puts the occupied bandwidth near 1000 Hz, which fits inside 1023 Hz
+with nothing to spare. Widening the deviation makes the eye better and the
+link worse.
+
+## Decimate before you demodulate
+
+The receiver mixes f0 to zero and decimates by 200 in one block, down to
+5 kS/s, before the quadrature demod sees anything. Capturing at 1 MS/s and
+demodulating there means spending all the work on empty spectrum — the
+signal is 1 kHz wide inside a 500 kHz Nyquist. 5 kS/s still leaves 25
+samples per bit.
+
+The low-pass taps are designed at the **input** rate. `firdes` is not told
+about the decimation that follows and will happily design a filter for the
+wrong band if you hand it the output rate.
+
+Mixing at f0 rather than at one of the tones puts space at −1 and mark at
++1 after the demod, so the slicer threshold is 0 and there is nothing to
+tune.
+
+## Where the byte boundary comes from
+
+Over the air the capture starts wherever it starts. Two things have to be
+recovered that a file-to-file flowgraph gets for free:
+
+**Which sample in the bit.** `Symbol Sync` with a zero-crossing detector,
+25 samples per symbol in and 1 out. Nothing about the message goes into it.
+
+**Which bit starts the byte.** Every frame begins with a 32-bit sync word,
+`0x1ACFFC1D` — the CCSDS attached sync marker, chosen because its
+autocorrelation is good and it is somebody else's constant, not one we
+picked to make our own test pass. `Correlate Access Code` tags the bit
+*after* the code and `Tagged Stream Align` drops everything before that
+tag. From there, `Pack K Bits` produces bytes that are the bytes that were
+sent.
+
+Threshold is **0**: no bit errors allowed inside the sync word. On a link
+this clean a relaxed threshold buys false locks, not range.
+
+`Keep M in N` then drops the next frame's four sync bytes so Message Debug
+prints the payload alone. The frame length is fixed at `4 + msg_capacity`,
+which is why the message is padded rather than sent at its natural length —
+a frame that changed size when somebody typed would move the phase that
+`Keep M in N` counts on.
+
+## What has been checked, and what has not
+
+On the bench, 2026-09-09, with `bench/ultrasonic_fsk.py` — the same
+receive chain run offline on a live capture: **0 bit errors in 395 bits**,
+zero DAC underruns at 750 kS/s non-cyclic, and every symbol dwelling
+5.000 ms. That bounds the error rate below about 1/395. It does not
+measure a BER, and nothing here has run long enough to.
+
+In the test suite, without hardware (`tests/test_grc_integration.py`):
+
+- the flowgraph validates in GRC and generates Python that parses
+- the measured constants are still the ones in the file, and the two rates
+  are still two numbers
+- the sink is non-cyclic, the source is free-running
+- typing a message reaches the vector source and does not resize the frame
+- the receive chain recovers `GRCON26` from synthetic FSK started 1373
+  samples mid-bit
+
+Not checked: **this exact flowgraph on the board.** The bench script proves
+the chain and the parameters; the `.grc` wires the same blocks with the same
+numbers plus `Symbol Sync`, which the bench script did offline by searching
+the eye instead. Run it at a station before it goes in front of anybody.
+
+Also not checked: range, off-axis falloff, and how many stations can run at
+once in one room. Twenty pairs of transducers on the same three tones is a
+question the bench cannot answer.
+
+## Running the tests
+
+`uv run pytest` puts the project venv first on `PATH`, and the venv has no
+`gnuradio` — so every test in `test_grc_integration.py` silently **skips**.
+Run `.venv/bin/pytest` instead and they execute against the distro's
+interpreter.

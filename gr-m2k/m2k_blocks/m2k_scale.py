@@ -196,3 +196,100 @@ def check_dac_sample_rate(sample_rate):
             "from %s" % (sample_rate,
                          ", ".join(str(r) for r in DAC_SAMPLE_RATES)))
     return rate
+
+
+# ---------------------------------------------------------------------
+# The two user power supplies, V+ and V-.
+#
+# These are the one thing on the board GNU Radio has no concept of. A
+# flowgraph can generate a waveform and capture one, but it cannot turn
+# on a rail -- and an add-on board with an op-amp on it does nothing at
+# all until something does.
+#
+# The arithmetic is from M2kPowerSupplyImpl::pushChannel(), and unlike
+# the scope and the generator it needs the board's own calibration. The
+# gain and the offset are context attributes -- cal,gain_pos_dac and its
+# three siblings -- read off the board rather than computed, which is why
+# the functions below take them as arguments instead of holding a table.
+# ---------------------------------------------------------------------
+
+# Counts per volt, per rail, from M2kPowerSupplyImpl's constructor:
+#
+#     4095 / (5.02 * 1.2)   and   4095 / (-5.1 * 1.2)
+#
+# The two are not symmetric -- 5.02 against 5.1 -- and the negative one
+# is negative, which is what turns a negative setpoint into a positive
+# DAC count. Asking for -5 V and writing a negative raw value is exactly
+# the mistake this sign is here to prevent.
+SUPPLY_WRITE_COEFF = {"v+": 4095.0 / (5.02 * 1.2),
+                      "v-": 4095.0 / (-5.1 * 1.2)}
+
+# Volts per count coming back, from M2kPowerSupplyImpl::readChannel().
+# The readback is a different path with a different scale: +/-6.4 V full
+# scale over the same 4095 counts, measured on ad9963's inputs rather
+# than read back off the ad5627 that set the rail.
+SUPPLY_READ_COEFF = {"v+": 6.4 / 4095.0, "v-": -6.4 / 4095.0}
+
+# libm2k throws above this and so do we. The rails are specified to 5 V.
+SUPPLY_MAX_V = 5.0
+
+# A 12-bit DAC. Inside the +/-5 V limit the conversion tops out near 3400,
+# so this clamp never fires in normal use; it is here so that a wrong
+# calibration coefficient cannot write a number the register cannot hold.
+SUPPLY_RAW_MAX = 4095
+
+# Where reset() parks the DACs. Mid-scale, which is not 0 V.
+SUPPLY_RESET_RAW = 2048
+
+
+def check_supply_rail(rail):
+    """Reject anything that is not one of the two rails."""
+    if rail not in SUPPLY_WRITE_COEFF:
+        raise ValueError("unknown rail %r; expected 'v+' or 'v-'" % (rail,))
+    return rail
+
+
+def supply_volts_to_raw(volts, rail, gain=1.0, offset=0.0):
+    """A rail setpoint in volts, as the count ad5627 wants.
+
+    From M2kPowerSupplyImpl::pushChannel():
+
+        raw = (volts * gain + offset) * write_coeff[rail],  floored at 0
+
+    gain and offset are the board's own cal,gain_pos_dac and
+    cal,offset_pos_dac context attributes, or the _neg_ pair. They
+    default to the uncalibrated 1.0 and 0.0 so the bare conversion can be
+    checked on its own; anything driving real hardware should pass what
+    the board says.
+
+    Sign convention: `volts` is the voltage you want to see on the rail,
+    so the negative rail takes a NEGATIVE number. -5.0 on 'v-' is right.
+    5.0 on 'v-' asks for +5 V on the negative rail, and floors at 0.
+
+    libm2k hands the driver a double here and this rounds to an integer.
+    The difference is under one count, about 1.5 mV, which is below
+    anything a two-point meter sweep will resolve.
+    """
+    check_supply_rail(rail)
+    if abs(float(volts)) > SUPPLY_MAX_V:
+        raise ValueError("the M2K's supplies are limited to +/-%g V, got %g"
+                         % (SUPPLY_MAX_V, volts))
+    raw = ((float(volts) * float(gain) + float(offset))
+           * SUPPLY_WRITE_COEFF[rail])
+    return int(min(max(round(raw), 0), SUPPLY_RAW_MAX))
+
+
+def supply_raw_to_volts(raw, rail, gain=1.0, offset=0.0):
+    """What the board measured on a rail, from readChannel().
+
+        volts = (raw * read_coeff[rail] + offset) * gain
+
+    This is NOT the inverse of supply_volts_to_raw, and is not meant to
+    be. It reads a different device -- ad9963's inputs, not the ad5627
+    that set the rail -- through a different scale, and it applies the
+    calibration the other way round: added then multiplied, rather than
+    multiplied then added. Feeding one's output into the other will not
+    round-trip.
+    """
+    check_supply_rail(rail)
+    return (float(raw) * SUPPLY_READ_COEFF[rail] + float(offset)) * float(gain)

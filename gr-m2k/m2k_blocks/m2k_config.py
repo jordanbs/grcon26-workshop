@@ -141,3 +141,81 @@ def write_device_attr(block, keep, uri, device, attr, value):
     block.msg_connect((updater, "out"), (sink, "attr"))
     keep.extend([updater, sink])
     return sink
+
+
+def context_attr(uri, key, default=None):
+    """One context-level attribute as a string, or `default`.
+
+    Context attributes are where the board keeps its calibration -- the
+    four `cal,*_dac` pairs the power supply conversion needs. They sit on
+    no device at all, so neither device_source's `params` nor attr_sink
+    can reach them. They are read once, here, and never written.
+
+    pylibiio has changed what Context.attrs holds between releases: older
+    bindings hand back an object with a `.value`, newer ones the string
+    itself. Both are handled, because getting it wrong turns a
+    calibration coefficient into the repr of an object and the rail into
+    a voltage nobody can account for.
+    """
+    try:
+        raw = context(uri).attrs[key]
+    except Exception:                                  # noqa: BLE001
+        _CONTEXTS.pop(uri, None)
+        return default
+    return getattr(raw, "value", raw)
+
+
+def context_float(uri, key, default):
+    """A `cal,*` coefficient as a float, falling back loudly.
+
+    An unreachable board or a missing coefficient gives `default` and
+    says so. That matters more here than elsewhere: the fallbacks are
+    gain 1.0 and offset 0.0, which are not wrong so much as uncalibrated,
+    and the resulting rail is off by the percent or so the calibration
+    was there to remove. Silence would make that indistinguishable from a
+    working board.
+    """
+    text = context_attr(uri, key)
+    if text is None:
+        print("m2k_config: no context attribute %r at %s; using %g"
+              % (key, uri, default), file=sys.stderr)
+        return default
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        print("m2k_config: context attribute %r is %r, not a number; using %g"
+              % (key, text, default), file=sys.stderr)
+        return default
+
+
+def channels_with_label(uri, device, label, output=True):
+    """Channel ids on `device` whose `label` attribute reads `label`.
+
+    The power rails are the case this exists for. libm2k reaches them by
+    hardcoded channel index -- 2 and 3 on m2k-fabric -- but the board
+    says which they are itself: both carry a `label` attribute reading
+    `user_supply`. Asking the hardware rather than assuming is the whole
+    thesis of this workshop, so this asks, and the caller keeps the
+    index as a fallback for when it cannot.
+
+    Returns ids in device order, so the first is the positive rail and
+    the second the negative, matching libm2k's 2 then 3. An unreachable
+    board gives an empty list rather than raising.
+    """
+    found = []
+    try:
+        dev = context(uri).find_device(device)
+        if dev is None:
+            return []
+        for chan in dev.channels:
+            if bool(chan.output) != bool(output):
+                continue
+            attr = chan.attrs.get("label")
+            if attr is None:
+                continue
+            if getattr(attr, "value", attr) == label:
+                found.append(chan.id)
+    except Exception:                                  # noqa: BLE001
+        _CONTEXTS.pop(uri, None)
+        return []
+    return found

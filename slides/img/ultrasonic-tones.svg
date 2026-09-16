@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 250" role="img" aria-label="The same response at 46 Hz resolution across the peak, in dB below the peak. f0 is 40.755 kHz; the space tone at 40.455 kHz and the mark tone at 41.055 kHz sit either side of it, both within a decibel of each other.">
+  <style>
+  .bg   { fill: #fafaf7; }
+  .axis { stroke: #5a5a5a; stroke-width: 1; fill: none; }
+  .grid { stroke: #5a5a5a; stroke-width: .5; stroke-dasharray: 2 4; }
+  .cur  { fill: none; stroke: #1a1a1a; stroke-width: 2.2;
+          stroke-linejoin: round; stroke-linecap: round; }
+  .cur2 { fill: none; stroke: #0067b9; stroke-width: 1.6;
+          stroke-dasharray: 6 4; stroke-linejoin: round; }
+  .lbl  { fill: #004a85; font: 700 13px ui-monospace, Menlo, Consolas, monospace; }
+  .note { fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace; }
+  .tick { fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .tickr{ fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: end; }
+  .mark { stroke: #b01e24; stroke-width: 1; stroke-dasharray: 3 3; }
+  .mkt  { fill: #b01e24; font: 700 12px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .dot  { fill: #b01e24; }
+  .dim  { stroke: #0067b9; stroke-width: 1; }
+  .dimt { fill: #0067b9; font: 400 10.5px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  @media (prefers-color-scheme: dark) {
+    .bg   { fill: #0d1826; }
+    .axis, .grid { stroke: #93a3b5; }
+    .cur  { stroke: #e9eef4; }
+    .cur2 { stroke: #58a7e5; }
+    .lbl  { fill: #8cc4ee; }
+    .note, .tick, .tickr { fill: #93a3b5; }
+    .mkt, .dot { fill: #e4737a; }
+    .mark { stroke: #e4737a; }
+    .dim  { stroke: #58a7e5; }
+    .dimt { fill: #58a7e5; }
+  }
+  </style>
+  <rect class="bg" x="0" y="0" width="560" height="250"/>
+  <path class="axis" d="M52,34 V204 H544"/>
+  <line class="grid" x1="52" y1="40.00" x2="544" y2="40.00"/>
+  <text class="tickr" x="45" y="44.00">0</text>
+  <line class="grid" x1="52" y1="94.67" x2="544" y2="94.67"/>
+  <text class="tickr" x="45" y="98.67">-2</text>
+  <line class="grid" x1="52" y1="149.33" x2="544" y2="149.33"/>
+  <text class="tickr" x="45" y="153.33">-4</text>
+  <line class="grid" x1="52" y1="204.00" x2="544" y2="204.00"/>
+  <text class="tickr" x="45" y="208.00">-6</text>
+  <line class="axis" x1="124.13" y1="204" x2="124.13" y2="209"/>
+  <text class="tick" x="124.13" y="223">40.50</text>
+  <line class="axis" x1="288.87" y1="204" x2="288.87" y2="209"/>
+  <text class="tick" x="288.87" y="223">40.75</text>
+  <line class="axis" x1="453.61" y1="204" x2="453.61" y2="209"/>
+  <text class="tick" x="453.61" y="223">41.00</text>
+  <text class="note" x="544" y="238" text-anchor="end">kHz</text>
+  <text class="note" x="6" y="28">dB</text>
+  <polyline class="cur" points="71.77,119.67 101.93,101.57 132.09,86.24 162.26,80.42 192.43,53.57 222.59,51.33 252.75,44.33 282.92,40.00 313.08,40.99 343.25,48.25 373.41,51.73 433.74,80.56 463.90,97.61 494.07,116.65 524.23,135.47"/>
+  <line class="mark" x1="94.65" y1="34" x2="94.65" y2="204"/>
+  <text class="mkt" x="94.65" y="32.00">space</text>
+  <circle class="dot" cx="94.65" cy="105.82" r="3.2"/>
+  <line class="mark" x1="490.02" y1="34" x2="490.02" y2="204"/>
+  <text class="mkt" x="490.02" y="32.00">mark</text>
+  <circle class="dot" cx="490.02" cy="114.00" r="3.2"/>
+  <line class="mark" x1="292.34" y1="34" x2="292.34" y2="204"/>
+  <text class="mkt" x="292.34" y="16.00">f₀</text>
+</svg>

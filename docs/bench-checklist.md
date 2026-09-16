@@ -121,10 +121,21 @@ all three were run against a 4989.6 Hz sine at 1.0 V, `high` range,
 
 Also found: `set_len_tag_key("packet_len")` on a sink puts it in
 tagged-burst mode against an untagged stream and it refuses with
-`Input stream not tagged!`. Harmless on a source, where it only labels
-the output. The `Unable to refill buffer: Connection timed out (110)`
-that came with it was downstream, not a second bug — the ADC was waiting
-for a signal the failed sink never produced.
+`Input stream not tagged!`. The `Unable to refill buffer: Connection
+timed out (110)` that came with it was downstream, not a second bug —
+the ADC was waiting for a signal the failed sink never produced.
+
+On a source it fails much later and much more quietly. `analog_source`
+and the digital source both call it unconditionally, so every buffer
+carries a `packet_len` tag that nothing in this repo reads. That is
+inert right up until a downstream tagged-stream block keys on the same
+string: in `m2k_ultrasonic_fsk.grc`, `tagged_stream_to_pdu` read the
+source's 16384 where the flowgraph meant 8 and waited eleven minutes
+per message. Over the air the transducers, the spectrum and the
+demodulated eye all looked correct and no PDU ever came out. A
+`tag_gate` with single key `packet_len` ahead of the receive chain is
+what that flowgraph does about it;
+`test_the_sources_buffer_tags_do_not_reach_the_pdu` holds the line.
 
 **Fixed: `CONFIG_INTERVAL_MS = 1000` in `m2k_config.py`.** `attr_sink`
 republishes on a timer, so for the first second of any flowgraph *no

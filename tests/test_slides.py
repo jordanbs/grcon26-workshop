@@ -50,35 +50,53 @@ def test_every_asset_the_deck_asks_for_is_checked_in(deck):
         assert os.path.exists(os.path.join(SLIDES, ref)), ref
 
 
-def _manifest():
-    """Every figure the two renderers know how to make.
+def _renderers():
+    """Every figure each `slides/render_*.py` knows how to make.
 
     Read out of the source with `ast` rather than by importing them:
     `render_grc.py` needs PyGObject, which is native and lives in system
     site-packages where this venv cannot see it.
 
-    The two manifests are shaped differently on purpose. `render_grc.py` maps
-    a flowgraph to {stem: block ids}, so it literal-evals; `render_spi.py`
-    maps a stem to the function that draws it, which does not, so only its
-    keys are read.
+    A renderer declares two things at module scope. `SUFFIX` is the extension
+    it writes, and `FIGURES` is its manifest -- shaped differently on purpose.
+    `render_grc.py` maps a flowgraph to {stem: block ids}, so it literal-evals
+    and the stems are one level down; the others map a stem to the function
+    that draws it, which does not literal-eval, so only its keys are read.
+
+    Globbed rather than listed, so a fourth renderer needs no edit here.
     """
     import ast
+    import glob
 
+    out = {}
+    for path in sorted(glob.glob(os.path.join(SLIDES, "render_*.py"))):
+        name = os.path.basename(path)
+        with open(path, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        suffix, stems = None, None
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            targets = {getattr(t, "id", None) for t in node.targets}
+            if "SUFFIX" in targets:
+                suffix = ast.literal_eval(node.value)
+            elif "FIGURES" in targets:
+                try:
+                    nested = ast.literal_eval(node.value)
+                except ValueError:
+                    stems = [k.value for k in node.value.keys]
+                else:
+                    stems = [stem for fg in nested.values() for stem in fg]
+        assert stems is not None, f"{name} has no FIGURES manifest"
+        assert suffix, f"{name} declares no SUFFIX, so nothing knows what it writes"
+        out[name] = [stem + suffix for stem in stems]
+    return out
+
+
+def _manifest():
     produced = set()
-
-    with open(os.path.join(SLIDES, "render_grc.py"), encoding="utf-8") as fh:
-        for node in ast.walk(ast.parse(fh.read())):
-            if isinstance(node, ast.Assign) and any(
-                    getattr(t, "id", None) == "FIGURES" for t in node.targets):
-                for flowgraph in ast.literal_eval(node.value).values():
-                    produced |= {stem + ".png" for stem in flowgraph}
-
-    with open(os.path.join(SLIDES, "render_spi.py"), encoding="utf-8") as fh:
-        for node in ast.walk(ast.parse(fh.read())):
-            if isinstance(node, ast.Assign) and any(
-                    getattr(t, "id", None) == "FIGURES" for t in node.targets):
-                produced |= {k.value + ".svg" for k in node.value.keys}
-
+    for files in _renderers().values():
+        produced |= set(files)
     return produced
 
 
@@ -104,21 +122,18 @@ def test_every_figure_the_deck_uses_is_one_a_renderer_produces(deck):
 
 def test_the_renderers_do_not_collide_on_a_filename():
     """Two scripts writing the same path would race, silently."""
-    import ast
-    stems = []
-    for name in ("render_grc.py", "render_spi.py"):
-        with open(os.path.join(SLIDES, name), encoding="utf-8") as fh:
-            for node in ast.walk(ast.parse(fh.read())):
-                if isinstance(node, ast.Assign) and any(
-                        getattr(t, "id", None) == "FIGURES"
-                        for t in node.targets):
-                    if name == "render_grc.py":
-                        for fg in ast.literal_eval(node.value).values():
-                            stems += list(fg)
-                    else:
-                        stems += [k.value for k in node.value.keys]
-    assert len(stems) == len(set(stems)), \
-        f"two renderers claim the same stem: {sorted(set(stems))}"
+    files = [f for produced in _renderers().values() for f in produced]
+    assert len(files) == len(set(files)), \
+        f"two renderers claim the same file: {sorted(set(files))}"
+
+
+def test_every_renderer_is_runnable_on_its_own():
+    """Each is documented as `./slides/render_*.py`, so each has to be that."""
+    for name in _renderers():
+        path = os.path.join(SLIDES, name)
+        assert os.access(path, os.X_OK), name
+        with open(path, encoding="utf-8") as fh:
+            assert fh.readline().startswith("#!"), name
 
 
 def test_no_rendered_figure_is_dead_weight():

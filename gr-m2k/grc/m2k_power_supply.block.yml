@@ -1,0 +1,92 @@
+id: m2k_power_supply
+label: M2K Power Supply
+category: '[ADALM2000]'
+flags: [python]
+
+parameters:
+-   id: uri
+    label: M2K address
+    dtype: string
+    default: ip:192.168.2.1
+
+-   id: rail
+    label: Rail
+    dtype: enum
+    default: "'v+'"
+    options: ["'v+'", "'v-'"]
+    option_labels: ['V+ (positive)', 'V- (negative)']
+
+-   id: voltage
+    label: Set point (V)
+    dtype: float
+    default: '5.0'
+
+-   id: calibrated
+    label: Calibration
+    dtype: enum
+    default: 'True'
+    options: ['True', 'False']
+    option_labels: ['Apply this board''s', 'Ignore (nominal)']
+
+-   id: min_interval
+    label: Minimum write interval (s)
+    dtype: float
+    default: '0.1'
+
+asserts:
+- ${ abs(voltage) <= 5.0 }
+- ${ min_interval >= 0 }
+
+templates:
+    imports: from m2k_blocks.power_supply import power_supply
+    make: |-
+        power_supply(
+            uri=${uri}, rail=${rail}, voltage=${voltage},
+            calibrated=${calibrated}, min_interval=${min_interval})
+    callbacks:
+    - set_voltage(${voltage})
+
+documentation: |-
+    One of the M2K's two programmable supplies, V+ or V-, held at a
+    voltage you choose. Use one block per rail.
+
+    Nothing on an add-on board works without these. If a sensor flowgraph
+    shows noise where a signal should be, check that its amplifier has
+    rails before you doubt anything else.
+
+    Rail
+      V+ goes from 0 to +5 V, V- from 0 to -5 V. They are separate
+      channels of the same DAC, so two blocks at the same address do not
+      conflict. The block refuses anything past +/-5 V, which is where
+      the hardware stops.
+
+    Set point
+      A GUI widget wired to this parameter sets the rail while the graph
+      runs. Writes are rate-limited, so dragging a slider costs a few
+      writes rather than a few hundred and still lands on the value you
+      let go at.
+
+    Calibration
+      Every board stores its own gain and offset for both rails. Applying
+      them is worth about a percent -- the difference between a rail that
+      measures 5.00 V and one that measures 4.95. Ignore them only to see
+      what the uncorrected hardware does.
+
+    Two things worth knowing.
+
+    The rail stays up after the flowgraph stops. This block has no ports,
+    so GNU Radio never schedules it and never tells it the graph is
+    ending -- closing the window leaves +5 V on the header, and anything
+    plugged into it stays powered.
+
+    Setting the set point to 0 does NOT turn the rail off. It leaves the
+    rail enabled at zero volts, which keeps an attached amplifier biased.
+    To actually take it down, call power_down() on the block -- from a
+    button, or from a line after the flowgraph stops.
+
+    The block commands a voltage; it does not measure one. The M2K can
+    read its own rails back, but that is a separate path through a
+    different device and is not wired up here. To confirm a rail, put it
+    on scope input 1 and look.
+
+file_format: 1

@@ -1,8 +1,80 @@
 ---
 name: "#grcon26-workshop"
-dateModified: 2026-09-04
+dateModified: 2026-09-11
 ---
 # Superseded Decisions
+
+- **2026-09-01** — The filter corrections are arithmetic, not calibration, and live in
+  `m2k_scale.py`. Reason: fixed property of the converters, same on every board.
+  Rotated 2026-09-11, settled -- the arithmetic is in `m2k_scale.py` and tested.
+
+- **2026-09-04** — Ultrasonic reuses ECE448's `fsk_project.grc` (AFSK, 200 baud,
+  600 Hz deviation) retuned to 40 kHz. Reason: already end to end; only the endpoints
+  and the rates change, which is itself the lesson.
+  Rotated 2026-09-11, executed -- the port is benched and the tuning is now the
+  2026-09-09 f0 entry.
+
+- **2026-09-06** — The deck is ECE444's frame view, ported standalone into `slides/`.
+  Reason: one document serves the projector, the participant's notes and the printed
+  handout, and nothing in it can be lost by presenting it. No book, no generator: one
+  HTML file and three assets, published to Pages by a workflow.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+- **2026-09-06** — Slides are written for the demos that run, with the two that do not
+  as labelled placeholders. Reason: the SPI half is bench-verified end to end and
+  gating the whole deck on the ultrasonic link would leave nothing written this month.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+- **2026-09-08** — The deck's prose follows ECE444's `VOICE.md`, and
+  `check_deck.py` gates the unambiguous rules. Reason: it is a calibration set
+  built from Neil's own review corrections, not a style opinion, and the deck
+  was written without reading it -- it broke rules 1, 2, 3 and 9 throughout.
+  Figures now carry a key only; explanation moved to the caption and bullets.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+- **2026-09-07** — Present blocks are bullets and pictures, never paragraphs.
+  Reason: Neil talks to and about the slide rather than reading it, and a
+  paragraph on screen is one the room reads instead of listening. Running prose
+  moves to `.depth`, which is the notes and the printed handout. Documented in
+  `slides/README.md`.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+- **2026-09-07** — The SPI waveforms are rendered from `SpiEncoder` by
+  `slides/render_spi.py`, the same way the blocks come from GRC. Reason: the
+  three SPI concept frames had no picture at all, and a drawing of mode 0 is a
+  claim about mode 0 rather than the thing the board actually puts on the pins.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+- **2026-09-06** — Block and flowgraph figures are rendered from GRC's own canvas
+  code, not drawn and not screenshotted by hand. Reason: a drawing is a second copy
+  of the flowgraph that drifts on the next parameter change, and it teaches
+  recognising a picture rather than the canvas participants will sit in front of.
+  The hand-drawn schematic is kept for the one thing GRC cannot draw: the three
+  jumper wires that close the loop outside the software.
+  Rotated 2026-09-11, settled — the deck is built to this and `check_deck.py` gates it.
+
+
+- **2026-09-04** — One SPI frame is one whole transaction, CS asserted once across all
+  bytes. Reason: the capture re-arms per buffer, so per-byte CS framing starts each
+  buffer on a random byte -- and one assertion is what real SPI does anyway. Rotated 2026-09-09, settled — built and verified; bench checklist section 9
+  runs all 256 byte values with zero errors.
+
+- **2026-09-04** — Digital blocks take a pin list plus an optional name per line, not a
+  count and an offset. Reason: a bus is not always contiguous, and a name only has to
+  make an error legible — GRC will not evaluate a port label. Rotated 2026-09-09, settled — shipped in the two generated ymls.
+
+- **2026-09-04** — SPI sends on demand through a new `m2k_spi_encode` block; the cyclic
+  version is kept as `m2k_spi_loopback_continuous.grc`. Reason: a cyclic buffer is
+  repeated by the hardware and nothing downstream can gate it. Rotated 2026-09-09, settled — bench checklist section 12, 20 clean sends at
+  100 kS/s.
+
+- **2026-09-04** — The decoded PDU carries the bytes as text in its metadata,
+  not as the payload. Reason: the loopback's own proof, the way Scopy shows a text
+  column, while the payload stays what was on the wire. Rotated 2026-09-09, settled — shipped in `spi_decode.py`.
+
+- **2026-09-04** — SPI mode 0 is checked against libsigrokdecode, not only against
+  our own decoder. Reason: encoder and decoder were written from the same sentences, so
+  a shared misreading round-trips clean and is still wrong on a real bus. Rotated 2026-09-09, settled — bench checklist section 13 passes, off the board.
 
 - **2026-09-04** — `m2k_spi_encode` aligns frames to the sink's buffer size. Reason: a
   non-cyclic sink's DMA buffers need not join seamlessly, and the encoder's sample
@@ -210,6 +282,23 @@ implementation rather than open choices; the code and its docstrings carry them.
   constraint instead of the logistics doing it.
 
 # Session Log
+
+## 2026-09-10 — Phase 1 detail rotated out of Status
+
+Rotated because Phase 1 is closed; Status now carries the one-line verdict. The
+detail, still accurate:
+
+- **`gr-m2k/` — six blocks**: `analog_source`, `analog_sink`, `digital_source`,
+  `digital_sink`, `spi_decode`, `spi_encode`, plus `m2k_calibrate.py`, `m2k_scale.py`
+  and `spi_decode.py`/`spi_encode.py` (arithmetic, import nothing) and `m2k_config.py`.
+  390 tests pass. Decoded messages carry the bytes as text in the PDU metadata.
+- **The two digital ymls are generated** by `gr-m2k/generate_digital_grc.py`; a test
+  fails if the committed copy drifts.
+- **Bench checklist sections 1-13 all pass**, including a real SPI mode-0 bus over all
+  256 byte values, live send-on-demand, and the libsigrokdecode cross-check.
+- **Absolute error is closed and meter-verified.** Inputs within 0.31%, generators keep
+  ~10-17 mV. Numbers: checklist section 10.
+
 
 ## 2026-08-18 — discovery tooling, first real capture
 

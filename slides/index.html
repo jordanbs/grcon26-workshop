@@ -214,15 +214,15 @@
         </ul>
       </div>
       <div class="present callout">
-        <p>The unit is fixed by the ABI. <code>voltage</code> &rarr; millivolts.
+        <p>The ABI fixes the unit. <code>voltage</code> &rarr; millivolts.
         <code>temp</code> &rarr; millidegrees.</p>
       </div>
     </div>
     <div class="depth">
       <p>If a participant remembers one thing from the IIO half of this session,
       this is a good candidate. Every plausible-looking wrong answer in an IIO
-      flowgraph comes from a number that is still in counts being treated as if
-      it were in volts, or from applying the offset on the wrong side of the
+      flowgraph comes from a number still in counts that something downstream
+      reads as volts, or from applying the offset on the wrong side of the
       multiply.</p>
       <p>The sub-unit choice is deliberate: the values are integers, so
       millivolts and millidegrees keep useful resolution without floating point
@@ -371,7 +371,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       <code>ip:192.168.2.1</code>. USB passthrough is not in use.</p>
       <p>Choosing the M2K as the input device solves a scarcity problem as much
       as a pedagogical one. Twenty participants can each have a board that is a
-      scope, a generator and a logic analyser at once, and the interesting
+      scope, a generator and a logic analyzer at once, and the interesting
       hardware — the colorimeter, the ultrasonic transducers — can be a single
       instructor unit feeding many receive-only stations.</p>
       <p>It also puts a real constraint in front of the room: the board is 12-bit, it is rate-limited, and it is wrong about its own volts until you calibrate it.</p>
@@ -469,8 +469,8 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
     </div>
     <div class="depth">
       <p>The kernel says what an attribute <em>means</em>. It cannot say whether you
-      will ever need it. For this board libm2k can, because it is the library
-      Scopy is built on: anything it reads or writes is something driving the M2K as an instrument requires.</p>
+      will ever need it. For this board libm2k can, because Scopy itself runs on
+      libm2k: anything it reads or writes is something driving the M2K as an instrument requires.</p>
       <p><strong>Absence is not a verdict.</strong> <code>scale</code> and <code>offset</code> are
       not in that table, because libm2k computes the scope's conversion itself
       instead of reading them back. That means "not part of this board's
@@ -511,10 +511,10 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
       trigger level, which otherwise sits about 9% away from where the scope says
       it is. That arithmetic is <code>m2k_scale.py</code>; it is a fixed property of the
       converters, not a per-board calibration.</p>
-      <p><strong>Cyclic quantisation.</strong> A repeating N-sample buffer can only
+      <p><strong>Cyclic quantization.</strong> A repeating N-sample buffer can only
       produce multiples of <code>rate/N</code>, so asking for 10&nbsp;kHz gets you 9979.2&nbsp;Hz
-      and that is correct behaviour, not a defect.</p>
-      <p>There are a dozen more in the project note, and most of them cost a
+      and that is correct behavior, not a defect.</p>
+      <p>There are a dozen more in the project note, and most of them took a
       bench session to find. The blocks in the next section exist largely so that
       a participant does not have to re-find them.</p>
     </div>
@@ -625,7 +625,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
     </div>
     <div class="depth">
       <p>Each line also takes an optional <strong>label</strong>. It changes no
-      behaviour whatever — GRC draws a port's name from the block definition and
+      behavior whatever — GRC draws a port's name from the block definition and
       will not evaluate a template — but it means a mistake reports itself as
       <code>MOSI (DIO7)</code> rather than <code>DIO7</code>.</p>
       <p><strong>Nothing here is protocol-aware.</strong> Three pins are three pins,
@@ -878,11 +878,11 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
       <p>The bus speed is <code>sample_rate / (2 &times; half)</code>. Change
       <code>half</code> from 8 to 4 and the bus doubles to 125&nbsp;kHz; change it to 16 and
       it halves. All three have been run on the board.</p>
-      <p>Verbosity is the pedagogical point rather than a cost. The frame is
+      <p>Verbosity is the pedagogical point, not a defect. The frame is
       arithmetic over plain Python lists, so a participant can change a number and
       immediately see the waveform move — and can see, on a scope trace, exactly
       what "MOSI settles while the clock is low" means.</p>
-      <p>It also matches what the M2K is. This is a logic analyser and a
+      <p>It also matches what the M2K is. This is a logic analyzer and a
       pattern generator, not an SPI peripheral. There is no SPI hardware anywhere
       in the path; there are sixteen pins and a sample clock, and the protocol is
       arithmetic we do on top.</p>
@@ -920,7 +920,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
       <p>This is not a drawing of the flowgraph. It is the flowgraph:
       <code>slides/render_grc.py</code> loads the same <code>.grc</code> a
       participant opens and hands it to GRC's own Cairo canvas code, so the
-      fonts, the colours, the port shapes and the wire routing are the ones
+      fonts, the colors, the port shapes and the wire routing are the ones
       that will be on their screen. A diagram would have started drifting the
       first time a parameter changed.</p>
       <p>Two things to read off it before we take it apart. <strong>Solid
@@ -1063,7 +1063,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
         </figure>
       </div>
       <div class="present callout">
-        <p><code>frame</code> is computed, never typed. The old flowgraph hard-coded it
+        <p>The flowgraph computes <code>frame</code>; nobody types it. The old one hard-coded it
         at 256 and any other <code>half</code> silently mismatched the buffer.</p>
       </div>
     </div>
@@ -1129,11 +1129,11 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
           <tr><td>Is Static</td><td><code>True</code></td></tr>
           <tr><td>Default</td><td><code>M2K</code></td></tr>
         </table></div>
-      <p>This block sets the shape of everything after it. This
+      <p>Every setting after this one follows from this block. This
       is <em>send on demand</em>: nothing repeats, the bus rests at idle between
       messages, and a transaction happens because a person asked for one.</p>
-      <p>The alternative — and the version that was built first — is a cyclic
-      buffer the hardware repeats forever. It is kept as
+      <p>The alternative — and the version we built first — is a cyclic
+      buffer the hardware repeats forever. We keep it as
       <code>m2k_spi_loopback_continuous.grc</code>, because it is the easier thing to get
       running and it makes a lovely scope trace. But the hardware repeats a cyclic buffer, and nothing downstream can gate it. You cannot send one
       message.</p>
@@ -1328,14 +1328,14 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
         </table></div>
       <p>People get this setting wrong more often than any other in the graph. The
       board <em>has</em> a digital trigger, it works, and arming it on CS falling is
-      exactly what you would do with a logic analyser. It is also what makes a
+      exactly what you would do with a logic analyzer. It is also what makes a
       send-on-demand graph die the first time nobody types anything for a moment.</p>
       <p>The mechanism: <code>work()</code> returns <code>WORK_DONE</code> on a timeout, which
       ends the block, which ends the flowgraph's source. And
       <code>set_timeout_ms</code> stores its value and never hands it to libiio, so there
       is no knob to turn either.</p>
       <p class="pull">Free-run the source. Trigger the display.</p>
-      <p>Which costs nothing, because CS does the framing in software anyway —
+      <p>Which loses nothing, because CS does the framing in software anyway —
       that is what the decoder does. The trigger belongs on the QT
       time sink, where a missed edge means a scruffy plot rather than a dead
       capture.</p>
@@ -1381,13 +1381,13 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
       is the words that were on the wire; the metadata carries the same words as
       text. So a Message Debug prints both, and the text line is the quickest
       proof that a loopback carried what somebody typed. Bytes outside printable
-      ASCII come out as <code>\xNN</code>, not as dots — nothing is thrown away. Above 8
+      ASCII come out as <code>\xNN</code>, not as dots — the block discards nothing. Above 8
       bits per word there is no text to give and the block adds none.</p>
       <p>The decode itself is a separate module that imports nothing:
       <code>m2k_blocks/spi_decode.py</code> is plain Python, no GNU&nbsp;Radio and no numpy,
-      so we test it in an ordinary interpreter. That split also bought the one
+      so we test it in an ordinary interpreter. That split also turned up the one
       performance fact that matters here: indexing a numpy array element by
-      element from Python costs 0.84&nbsp;s per million samples against 0.04&nbsp;s for a
+      element from Python takes 0.84&nbsp;s per million samples against 0.04&nbsp;s for a
       list, so the wrapper calls <code>.tolist()</code> first and 1&nbsp;MS/s stays
       comfortable.</p>
       <p>It has to hold its state across <code>work()</code> calls that land wherever the
@@ -1630,38 +1630,328 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="ultrasonic" data-section="Applications">
   <div class="wrap">
-    <h2>Ultrasonic FSK &mdash; <em>placeholder</em></h2>
-    <div class="stage">
+    <h2>Ultrasonic FSK, over the air</h2>
+    <div class="stage split-r">
       <div class="present">
         <ul>
-          <li>40&nbsp;kHz transducers, AFSK retuned from ECE448</li>
-          <li>200 baud, 600&nbsp;Hz deviation, tones at f<sub>0</sub>&nbsp;&plusmn;&nbsp;300</li>
-          <li>Transmit 750&nbsp;kS/s, receive 1&nbsp;MS/s</li>
+          <li>200 baud, two tones 600&nbsp;Hz apart</li>
+          <li>W1 drives the transmitter, 1+ reads the receiver</li>
+          <li>Between them, four inches of air</li>
         </ul>
-        <p class="pull">The converters have different rate ladders, and that is the lesson.</p>
+        <p class="pull">We transmit at 750&nbsp;kS/s and receive at 1&nbsp;MS/s, so there is no <code>samp_rate</code>.</p>
       </div>
-      <div class="present callout trap">
-        <p><strong>Not yet built.</strong> These frames get written once the link runs
-        on the bench.</p>
+      <div class="present">
+        <figure class="shot">
+          <img src="img/grc-ultrasonic-rates.png" alt="Four GNU Radio Companion variable blocks: tx_rate 750k, rx_rate 1M, tx_repeat showing int(round(tx_rate * bitlen)) evaluated to 3.75k, and sps showing sym_rate * bitlen evaluated to 25.">
+          <figcaption>Each count comes from its own rate.</figcaption>
+        </figure>
       </div>
     </div>
     <div class="depth">
-      <p><strong>What has to happen before this section exists.</strong></p>
-      <ul>
-        <li>Sweep 36–44&nbsp;kHz with Analog Sink and Analog Source for resonance and
-        the real &minus;6&nbsp;dB bandwidth. Everything downstream needs f<sub>0</sub>.</li>
-        <li>Port <code>fsk_project.grc</code>: split <code>samp_rate</code> into a 750&nbsp;kS/s
-        transmit and a 1&nbsp;MS/s receive, M2K endpoints, the xlating filter
-        recentred, and the VCO output scaled to volts.</li>
-        <li>Bench it, then measure range and off-axis falloff.</li>
-        <li>Confirm non-cyclic analog streaming holds at 750&nbsp;kS/s; fall back to one
-        cyclic buffer if it underruns.</li>
-      </ul>
-      <p>Two questions still open on the hardware: whether 40&nbsp;kHz transducers have
-      the bandwidth for sweep-direction encoding or whether it has to be two-tone
-      FSK, and whether the M2K input can resolve the microphone signal without a
-      gain stage. Both are bench measurements, not arguments.</p>
-      <p>Time-of-flight ranging is the stretch goal if the link lands early.</p>
+      <p>Every other flowgraph in this workshop has one <code>samp_rate</code>.
+      This one cannot, and the reason is the hardware. The DAC counts its rates
+      down from 75&nbsp;MS/s and the ADC counts down from 100&nbsp;MS/s, so the
+      two ladders share almost no rungs. 750&nbsp;kS/s is a rung on one of them
+      and 1&nbsp;MS/s is a rung on the other, and there is no value that is a
+      rung on both and also fast enough for 41&nbsp;kHz.</p>
+      <p>Ask for a rate that is not on the ladder and libiio does not refuse —
+      it gives you the nearest one it has, and every count derived from the
+      number you asked for is then wrong by that ratio. So the two rates are
+      separate variables, and we compute everything downstream from whichever
+      rate it belongs to.</p>
+      <p><code>tx_repeat</code> is <code>tx_rate * bitlen</code>: 3750 samples
+      hold one bit for one bit time at 750&nbsp;kS/s. <code>sps</code> is
+      <code>sym_rate * bitlen</code>: 25 samples per bit after the receiver has
+      decimated down to 5&nbsp;kS/s. It is the same bit in both places, counted in
+      different units.</p>
+      <p>The flowgraph is <code>flowgraphs/m2k_ultrasonic_fsk.grc</code>, and
+      <code>flowgraphs/README.md</code> has the wiring, and it says what we have
+      checked and what we have not.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-resonance" data-section="Applications">
+  <div class="wrap">
+    <h2>It does not resonate at 40&nbsp;kHz</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot wave">
+          <img src="img/ultrasonic-response.svg" alt="Response of the 40 kHz transducer pair from 36 to 44 kHz, plotted in dB below each curve's own peak. A solid curve taken at four inches and a dashed curve taken at eight inches lie on top of each other, peaking at 40.755 kHz. A dimension on the minus 6 dB line marks a band 1023 Hz wide, and a marker at 40 kHz sits 9.8 dB down the lower skirt.">
+          <figcaption>Each curve runs against its own peak. <code>bench/ultrasonic_sweep.py</code> took both sweeps.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>f<sub>0</sub> is 40.755&nbsp;kHz, not 40.0</li>
+          <li>The &minus;6&nbsp;dB band is 1023&nbsp;Hz wide</li>
+          <li>Driving 40.0&nbsp;kHz loses 9.8&nbsp;dB</li>
+        </ul>
+        <p class="pull">A wrong frequency looks exactly like a demodulator that will not lock.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p><strong>How the level is read.</strong> Correlating the capture against
+      the known drive frequency rejects everything that is not at it, which is
+      what makes millivolts measurable at all. It does not reject crosstalk,
+      because crosstalk is at exactly that frequency — drive coupling through
+      the shared ground. So the sweep is read against two floors: a noise floor
+      with the drive off, and a crosstalk floor taken with the transducers
+      turned away from each other. On this bench that second floor is
+      8.4&nbsp;mV.</p>
+      <p><strong>The second curve is the control.</strong> A peak in a room can
+      be a standing wave rather than a transducer, and a standing wave moves
+      when the spacing changes. Doubling the spacing to eight inches moved the
+      level — 1.388&nbsp;V down to 0.704, which is 1/r to within two percent —
+      and left the peak where it was.</p>
+      <p><strong>Where the tones go.</strong> The flowgraph derives them, so
+      re-sweeping and changing one number moves both:</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-tuning.png" alt="Four GNU Radio Companion variable blocks: f0 at 40.755k, spacing at 600, fspace showing f0 minus spacing over 2 evaluated to 40.455k, and fmark showing f0 plus spacing over 2 evaluated to 41.055k.">
+        <figcaption>The flowgraph computes both tones from the measured f<sub>0</sub>.</figcaption>
+      </figure>
+      <figure class="shot wave">
+        <img src="img/ultrasonic-tones.svg" alt="The same response at 46 Hz resolution across the peak, from 40.4 to 41.1 kHz and plotted in dB below the peak. The space tone at 40.455 kHz and the mark tone at 41.055 kHz are marked either side of f0 at 40.755 kHz, and the curve is within about one decibel at both.">
+        <figcaption>The two tones sit 600&nbsp;Hz apart and within a decibel of each other.</figcaption>
+      </figure>
+      <p>Carson's rule puts the occupied bandwidth near 1000&nbsp;Hz, which almost
+      fills the 1023&nbsp;Hz band. Widening the spacing separates the tones and
+      improves the noise margin on each one, but it also pushes both of them
+      further down the skirts, and the skirts on this pair are steep.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-tx" data-section="Applications">
+  <div class="wrap">
+    <h2>Bits into a tone</h2>
+    <div class="chain">
+      <span class="lnk on">Frame</span><span class="arw">&#8594;</span>
+      <span class="lnk">VCO</span><span class="arw">&#8594;</span>
+      <span class="lnk wire">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
+      <span class="lnk">Xlating FIR</span><span class="arw">&#8594;</span>
+      <span class="lnk">Demod</span><span class="arw">&#8594;</span>
+      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk">Msg Debug</span>
+    </div>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot">
+          <img src="img/grc-ultrasonic-tx.png" alt="Three GNU Radio Companion blocks in a row: a Vector Source of bytes with vector frame and Repeat set to Yes, into Unpack K Bits with K of 8, into a Repeat block with Interpolation tx_repeat showing 3.75k.">
+          <figcaption>The vector source emits bytes, Unpack turns them into bits, and Repeat gives each bit its duration.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>The frame is one byte vector, sent over and over</li>
+          <li><strong>Unpack</strong> turns each byte into eight bits</li>
+          <li><strong>Repeat</strong> holds each bit for 3750 samples</li>
+        </ul>
+      </div>
+    </div>
+    <div class="depth">
+      <p><strong>Repeat.</strong> A bit is a duration, and Repeat is the block
+      that gives it one. Nothing before it has a sample rate in it — the vector source emits bytes as
+      fast as the graph will take them. <code>tx_repeat</code> is the only place
+      the transmit rate enters, and it is what makes 200 baud 200 baud.</p>
+      <p>What comes out of Repeat is a stream of 0 and 1 as unsigned bytes. The
+      VCO wants a float between 0 and 1 scaled so that those two values land on
+      the two tones:</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-scale.png" alt="Three GNU Radio Companion blocks: UChar To Float, then Multiply Const with constant (fmark - fspace) / fmark, then Add Const with constant fspace / fmark.">
+        <figcaption>Both constants are fractions of <code>fmark</code>.</figcaption>
+      </figure>
+      <p>The VCO's sensitivity is <code>2*pi*fmark</code> radians per second per
+      unit of input, so an input of 1.0 is <code>fmark</code> and an input of
+      <code>fspace/fmark</code> is <code>fspace</code>. The multiply sets the
+      span and the add sets the floor. Written as fractions rather than as two
+      numbers, so changing f<sub>0</sub> moves both tones and neither constant
+      needs touching.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-sink.png" alt="A VCO block with sample rate tx_rate, sensitivity 2 * math.pi * fmark and amplitude 4, connected to the M2K Analog Sink block set to output w1, sample rate 750k, units volts, buffer 65536 and cyclic No.">
+        <figcaption>Set <strong>Cyclic</strong> to No. The graph then pushes every buffer, so an underrun is a real one.</figcaption>
+      </figure>
+      <p>Cyclic would be easier and wrong here. We push a cyclic buffer once and
+      the hardware repeats it forever, which quantizes the frequency to
+      multiples of <code>rate/N</code> and keeps driving the transducer after
+      the graph stops. Non-cyclic pushes every buffer, so
+      <em>Unable to push buffer</em> means the graph fell behind rather than
+      meaning nothing at all.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is code_bytes plus a list comprehension padding the message to msg_capacity characters.">
+        <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
+      </figure>
+      <p>The transmitter pads every payload to <code>msg_capacity</code>, so every
+      frame is the same length. That matters at the far end, where a fixed frame
+      length is what lets the receiver discard the next frame's sync word.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-rx" data-section="Applications">
+  <div class="wrap">
+    <h2>Decimate, then demodulate</h2>
+    <div class="chain">
+      <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
+      <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
+      <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
+      <span class="lnk on">Xlating FIR</span><span class="arw">&#8594;</span>
+      <span class="lnk on">Demod</span><span class="arw">&#8594;</span>
+      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk">Msg Debug</span>
+    </div>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot">
+          <img src="img/grc-ultrasonic-rx.png" alt="Three GNU Radio Companion blocks: M2K Analog Source on channel 1, range high, sample rate 1M, into Frequency Xlating FIR Filter with decimation rx_decim of 200 and center frequency f0, into Quadrature Demod with gain sym_rate over 2 pi times 300.">
+          <figcaption>One block shifts, filters and decimates. The next turns frequency into a number.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>Shift f<sub>0</sub> to zero, filter, drop 199 samples in 200</li>
+          <li>1&nbsp;MS/s becomes 5&nbsp;kS/s</li>
+          <li>Then frequency becomes a level</li>
+        </ul>
+        <p class="pull">Design the taps at the input rate.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p><strong>Why decimate first.</strong> 1&nbsp;MS/s against a 1023&nbsp;Hz
+      channel is almost all empty spectrum, and every block after this one
+      would have to process it. Decimating by 200 leaves 5&nbsp;kS/s — twenty-five
+      samples a bit, which is plenty for a timing recovery loop and light
+      enough that the whole receiver runs in a fraction of a core.</p>
+      <p><strong>The trap in this block.</strong> Frequency Xlating FIR Filter
+      decimates, so it has two rates, and the taps belong to the input one:
+      <code>firdes.low_pass(1.0, rx_rate, 600.0, 600.0)</code>. Design them at
+      5&nbsp;kS/s and the cutoff lands two hundred times too low, which reads as
+      a dead channel. The block also takes <em>Center Frequency</em> and
+      <em>Sample Rate</em> separately — both refer to the input.</p>
+      <p><strong>Quadrature demod.</strong> Its gain is
+      <code>sym_rate / (2*pi*(spacing/2))</code>, which is the number that makes
+      a &plusmn;300&nbsp;Hz deviation come out as &plusmn;1.0. If the gain is
+      wrong the eye is still open, only at the wrong height, and the slicer at
+      the end still needs the level centered on zero. The two symmetric tones
+      are what center it.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-clock.png" alt="A Symbol Sync block with TED Zero Crossing, samples per symbol sps of 25, loop bandwidth 0.045 and an eight-tap MMSE interpolator, feeding a Binary Slicer block.">
+        <figcaption>Symbol Sync decides which of the twenty-five samples in a bit is the middle one.</figcaption>
+      </figure>
+      <p>This is the block the offline bench script did not need. A script that
+      generated its own samples knew where every bit started; a receiver
+      listening to a transducer does not. <strong>Symbol Sync</strong> finds the
+      sampling instant and tracks it as the two clocks drift apart.</p>
+      <p>Zero crossing is the detector here because the signal at this point is
+      real-valued and binary — the eye crosses zero between opposite bits and
+      the crossing is the timing information. Gardner and Mueller &amp; Müller
+      were both tried against synthetic frames from 30&nbsp;dB down to
+      0&nbsp;dB, at four sampling offsets and clock errors to
+      &plusmn;2000&nbsp;ppm; all three recovered every frame, and zero crossing
+      is the one that needs no constellation object.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-sync" data-section="Applications">
+  <div class="wrap">
+    <h2>Where the byte boundary comes from</h2>
+    <div class="chain">
+      <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
+      <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
+      <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
+      <span class="lnk done">Xlating FIR</span><span class="arw">&#8594;</span>
+      <span class="lnk done">Demod</span><span class="arw">&#8594;</span>
+      <span class="lnk on">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk">Msg Debug</span>
+    </div>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot">
+          <img src="img/grc-ultrasonic-sync.png" alt="Two GNU Radio Companion blocks: Correlate Access Code Tag with the 32-bit access code, threshold 0 and tag name sync, feeding Tagged Stream Align keyed on the same sync tag.">
+          <figcaption>One block finds the word. The next throws away everything before it.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>A bit stream has no bytes in it</li>
+          <li>Every frame starts with the same 32 bits</li>
+          <li>Correlate on those, tag the hit, align to the tag</li>
+        </ul>
+        <p class="pull">The transmitter sends the byte boundary.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>The slicer emits one bit per symbol and nothing else. Pack eight of
+      them and you get a byte — but a byte starting wherever the graph happened
+      to begin, which is seven times out of eight the wrong place. Nothing
+      downstream can tell, because a wrongly aligned byte is still a byte.</p>
+      <p>The access code is <strong><code>0x1ACFFC1D</code></strong>, the CCSDS
+      attached sync marker. It correlates badly against shifted copies of
+      itself, so a false hit needs a specific 32-bit accident rather than any
+      long run of ones. Threshold 0 rejects any match carrying a bit error, and
+      this link is clean enough that it rejects nothing real.</p>
+      <p><strong>Correlate Access Code Tag</strong> does not remove the code —
+      it drops a tag on the sample after it. <strong>Tagged Stream Align</strong>
+      is what acts on that: it discards everything before the first tag, so the
+      stream handed on begins on a byte boundary.</p>
+      <figure class="shot canvas">
+        <img src="img/grc-ultrasonic-out.png" alt="Four GNU Radio Companion blocks: Keep M in N with M of msg_capacity and N of frame_len, into Stream to Tagged Stream with packet length msg_capacity, into Tagged Stream to PDU, into Message Debug.">
+        <figcaption>Keep the payload, drop the next frame's sync word, hand it over as a message.</figcaption>
+      </figure>
+      <p>Once aligned, the stream repeats: sync bytes, then payload, then sync
+      bytes again. <strong>Keep M in N</strong> keeps <code>msg_capacity</code> of every
+      <code>frame_len</code> bytes, which is the payload alone — and that only
+      works because the transmitter pads every message to the same length.
+      Stream to Tagged Stream and Tagged Stream to PDU then turn the bytes into
+      a message, which is what Message Debug prints.</p>
+      <pre><code>***** MESSAGE DEBUG PRINT PDU VERBOSE *****
+pdu length =          8 bytes
+pdu vector contents =
+0000: 47 52 43 4f 4e 32 36 20</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-result" data-section="Applications">
+  <div class="wrap">
+    <h2>What it has done, and what it has not</h2>
+    <div class="stage split">
+      <div class="present">
+        <div class="tablewrap"><table class="params">
+          <tr><th>on the bench</th><th></th></tr>
+          <tr><td>bits sent</td><td>395</td></tr>
+          <tr><td>bit errors</td><td>0</td></tr>
+          <tr><td>underruns</td><td>0</td></tr>
+          <tr><td>spacing</td><td>4 in</td></tr>
+          <tr><td>level at 1 m</td><td>~143 mV</td></tr>
+        </table></div>
+      </div>
+      <div class="present callout trap">
+        <p><strong>Not yet checked:</strong> this flowgraph on a board, range
+        past four inches, off-axis falloff, and twenty stations in one room.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>The 2026-09-09 run was <code>bench/ultrasonic_fsk.py</code>, which is
+      the same chain as the flowgraph written as a script: W1 out, 1+ back,
+      message decoded in the same process. 395 bits, no errors, no underruns at
+      750&nbsp;kS/s non-cyclic.</p>
+      <p>The 143&nbsp;mV at one meter is a projection, not a measurement. It is
+      1/r extrapolated from the two spacings we measured. Against an
+      8.4&nbsp;mV crosstalk floor that is 24&nbsp;dB of margin, which is why a
+      room-scale link looks plausible.</p>
+      <p><strong>What the tests cover.</strong>
+      <code>tests/test_grc_integration.py</code> builds the flowgraph, checks the rates and
+      the frame arithmetic survive code generation, and runs the whole receive
+      chain in-process against synthetic FSK with a deliberate sample offset —
+      twelve frames, every one decoded. None of that puts it in front of a
+      transducer.</p>
+      <p><strong>Twenty stations in one room.</strong> Twenty transmitters each
+      radiating 41&nbsp;kHz into the same air is not something a bench with one
+      pair can answer. The fallback is one transmitter at the front and twenty
+      receivers, which also halves the wiring each participant has to get right.
+      Time-of-flight ranging is the stretch goal if the link lands early.</p>
     </div>
   </div>
 </section>
@@ -1682,7 +1972,7 @@ sigrok-cli -i bus.csv \
       </div>
     </div>
     <div class="depth">
-      <p>The CN0363 is the payoff for the IIO half of the session. It is a
+      <p>The CN0363 is where the IIO half of the session lands. It is a
       different board with a different driver, and everything learned about
       reading attribute names, about <code>raw</code> not being a measurement, and about
       where a channel's meaning comes from applies to it unchanged. That
@@ -1713,16 +2003,16 @@ sigrok-cli -i bus.csv \
       </div>
       <div class="present callout">
         <p>Everything in this deck is in the repository, including the bench
-        checklist that says which claims were measured and which are still
+        checklist that says which claims we measured and which are still
         assumptions.</p>
       </div>
     </div>
     <div class="depth">
-      <p>The fourth is the one that generalises furthest beyond this hardware.
+      <p>The fourth is the one that generalizes furthest beyond this hardware.
       Encoder and decoder written from the same sentences will agree with each
-      other perfectly and can both be wrong; the only cheap escape is an
-      independent implementation of the same spec. For SPI that was
-      libsigrokdecode and it cost an afternoon.</p>
+      other perfectly and can both be wrong; the only way out is an independent
+      implementation of the same spec. For SPI we used libsigrokdecode, and it
+      took an afternoon.</p>
       <p>The block-design rules are the same idea pointed at a user interface: a
       parameter that cannot express an illegal value cannot be set to one, and a
       dropdown built from the hardware's own list cannot drift from it.</p>
