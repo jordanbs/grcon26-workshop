@@ -518,6 +518,14 @@ In the test suite, without hardware (`tests/test_grc_integration.py`):
 On the board, running the flowgraph itself: the three bars track the bench
 numbers and the verdict names the filter in the well.
 
+The Blank button passed on 2026-09-16, tested the way that distinguishes it
+from doing nothing. With the empty-beam constants only 0.3% stale, blanking a
+clear beam moves the readings so little that success and failure look alike --
+so the test blanks against the green strip instead. Pressed with the strip in
+the well, all three walk to 100.0%; pull the strip and they go far above it,
+which is only possible if the button rewrote the constants. Pressed again on a
+clear beam, everything returns.
+
 Two things to know before opening it in GRC. Saving from the editor rewrites
 the file with every default spelled out, and in doing so resets the number
 sink's `color2` and `color3` to black — the green and blue bars go the color

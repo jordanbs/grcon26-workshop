@@ -243,6 +243,6 @@ value. It is worth about 3 OD of usable range.
   repo would put a PYTHONPATH on the critical path. They cannot drift
   silently: `tests/test_colorimeter.py` runs both over a grid, using the
   thresholds set on the canvas rather than the defaults in the source.
-- The Blank button and the decision block have not been run on the
-  board. Both generate and both pass their tests dry; neither has seen a
-  photodiode.
+- The seven-color case is the only part of the decision block still
+  untried. Winner-takes-all named several filters correctly on the board
+  on 2026-09-16, and the Blank button passed the same day.
