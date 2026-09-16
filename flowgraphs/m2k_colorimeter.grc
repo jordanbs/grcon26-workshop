@@ -136,7 +136,7 @@ blocks:
     freq: red_bin * bin_hz
     amp: '1'
     offset: '0'
-  states: {coordinate: [160, 480], state: enabled}
+  states: {coordinate: [160, 416], state: enabled}
 
 - name: green_chop
   id: analog_sig_source_x
@@ -147,7 +147,7 @@ blocks:
     freq: green_bin * bin_hz
     amp: '1'
     offset: '0'
-  states: {coordinate: [160, 560], state: enabled}
+  states: {coordinate: [160, 592], state: enabled}
 
 - name: blue_chop
   id: analog_sig_source_x
@@ -158,7 +158,7 @@ blocks:
     freq: blue_bin * bin_hz
     amp: '1'
     offset: '0'
-  states: {coordinate: [160, 640], state: enabled}
+  states: {coordinate: [160, 768], state: enabled}
 
 - name: led
   id: m2k_digital_sink
@@ -177,7 +177,7 @@ blocks:
     buffer_size: nfft
     cyclic: 'True'
     idle_level: "'high'"
-  states: {coordinate: [416, 552], state: enabled}
+  states: {coordinate: [464, 560], state: enabled}
 
 # --- read both photodiodes ----------------------------------------------
 
