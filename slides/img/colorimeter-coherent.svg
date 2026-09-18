@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 300" role="img" aria-label="Two spectra: a 205-cycle square wave occupies one FFT bin, while a 5000 Hz square wave spreads energy across every bin around it">
+  <style>
+  .bg   { fill: #fafaf7; }
+  .axis { stroke: #5a5a5a; stroke-width: 1; fill: none; }
+  .grid { stroke: #5a5a5a; stroke-width: .5; stroke-dasharray: 2 4; }
+  .tick { fill: #5a5a5a; font: 400 10px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .tickr{ fill: #5a5a5a; font: 400 10px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: end; }
+  .note { fill: #5a5a5a; font: 400 10.5px ui-monospace, Menlo, Consolas, monospace; }
+  .hd   { fill: #1a1a1a; font: 700 12px ui-monospace, Menlo, Consolas, monospace; }
+  .lbl  { fill: #004a85; font: 700 11.5px ui-monospace, Menlo, Consolas, monospace; }
+  .mkt  { fill: #b01e24; font: 700 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .stem { stroke: #1a1a1a; stroke-width: 2; stroke-linecap: round; }
+  .stemq{ stroke: #b01e24; stroke-width: 2; stroke-linecap: round; }
+  .body { fill: #ffffff; stroke: #5a5a5a; stroke-width: 1.2; }
+  .glass{ fill: #dce9f4; stroke: #0067b9; stroke-width: 1.2; }
+  .split{ stroke: #7a5aa8; stroke-width: 3.5; stroke-linecap: round; }
+  .beamr{ stroke: #d33; stroke-width: 1.6; }
+  .beamg{ stroke: #1a8f3c; stroke-width: 1.6; }
+  .beamb{ stroke: #2a6fd6; stroke-width: 1.6; }
+  .arrow{ fill: #5a5a5a; }
+  @media (prefers-color-scheme: dark) {
+    .bg    { fill: #0d1826; }
+    .axis, .grid { stroke: #93a3b5; }
+    .tick, .tickr, .note { fill: #93a3b5; }
+    .hd    { fill: #e9eef4; }
+    .lbl   { fill: #8cc4ee; }
+    .mkt   { fill: #e4737a; }
+    .stem  { stroke: #e9eef4; }
+    .stemq { stroke: #e4737a; }
+    .body  { fill: #16263a; stroke: #93a3b5; }
+    .glass { fill: #1d3550; stroke: #58a7e5; }
+    .split { stroke: #b39ddb; }
+    .beamr { stroke: #ff7b7b; }
+    .beamg { stroke: #62d98a; }
+    .beamb { stroke: #72aefc; }
+    .arrow { fill: #93a3b5; }
+  }
+  </style>
+  <rect class="bg" x="0" y="0" width="560" height="300"/>
+  <text class="hd" x="16" y="24">The same square wave, one fifth of a cycle apart</text>
+  <text class="lbl" x="56" y="50">205 cycles a buffer</text>
+  <text class="note" x="56" y="66">5004.9 Hz</text>
+  <line class="axis" x1="56" y1="236" x2="266" y2="236"/>
+  <line class="axis" x1="56" y1="84" x2="56" y2="236"/>
+  <line class="grid" x1="56" y1="117.8" x2="266" y2="117.8"/>
+  <text class="tickr" x="50" y="121" text-anchor="end">-20</text>
+  <line class="grid" x1="56" y1="151.6" x2="266" y2="151.6"/>
+  <text class="tickr" x="50" y="155" text-anchor="end">-40</text>
+  <line class="grid" x1="56" y1="185.3" x2="266" y2="185.3"/>
+  <text class="tickr" x="50" y="189" text-anchor="end">-60</text>
+  <line class="grid" x1="56" y1="219.1" x2="266" y2="219.1"/>
+  <text class="tickr" x="50" y="223" text-anchor="end">-80</text>
+  <line class="stem" x1="71.8" y1="236" x2="71.8" y2="137.7"/>
+  <line class="stem" x1="92.8" y1="236" x2="92.8" y2="189.2"/>
+  <line class="stem" x1="113.8" y1="236" x2="113.8" y2="127.2"/>
+  <line class="stem" x1="134.8" y1="236" x2="134.8" y2="189.2"/>
+  <line class="stem" x1="155.8" y1="236" x2="155.8" y2="84.0"/>
+  <line class="stem" x1="176.8" y1="236" x2="176.8" y2="189.2"/>
+  <line class="stem" x1="197.8" y1="236" x2="197.8" y2="128.7"/>
+  <line class="stem" x1="218.8" y1="236" x2="218.8" y2="189.2"/>
+  <line class="stem" x1="239.8" y1="236" x2="239.8" y2="138.5"/>
+  <line class="stem" x1="260.8" y1="236" x2="260.8" y2="189.2"/>
+  <text class="tick" x="103" y="251" text-anchor="middle">200</text>
+  <text class="tick" x="156" y="251" text-anchor="middle">205</text>
+  <text class="tick" x="208" y="251" text-anchor="middle">210</text>
+  <text class="tick" x="261" y="251" text-anchor="middle">215</text>
+  <text class="tick" x="161" y="267" text-anchor="middle">FFT bin</text>
+  <text class="lbl" x="330" y="50">5000 Hz, a round number</text>
+  <text class="note" x="330" y="66">204.8 cycles</text>
+  <line class="axis" x1="330" y1="236" x2="540" y2="236"/>
+  <line class="axis" x1="330" y1="84" x2="330" y2="236"/>
+  <line class="grid" x1="330" y1="117.8" x2="540" y2="117.8"/>
+  <line class="grid" x1="330" y1="151.6" x2="540" y2="151.6"/>
+  <line class="grid" x1="330" y1="185.3" x2="540" y2="185.3"/>
+  <line class="grid" x1="330" y1="219.1" x2="540" y2="219.1"/>
+  <line class="stemq" x1="335.2" y1="236" x2="335.2" y2="140.3"/>
+  <line class="stemq" x1="345.8" y1="236" x2="345.8" y2="138.6"/>
+  <line class="stemq" x1="356.2" y1="236" x2="356.2" y2="136.6"/>
+  <line class="stemq" x1="366.8" y1="236" x2="366.8" y2="134.3"/>
+  <line class="stemq" x1="377.2" y1="236" x2="377.2" y2="131.5"/>
+  <line class="stemq" x1="387.8" y1="236" x2="387.8" y2="128.1"/>
+  <line class="stemq" x1="398.2" y1="236" x2="398.2" y2="123.6"/>
+  <line class="stemq" x1="408.8" y1="236" x2="408.8" y2="117.1"/>
+  <line class="stemq" x1="419.2" y1="236" x2="419.2" y2="105.2"/>
+  <line class="stemq" x1="429.8" y1="236" x2="429.8" y2="84.9"/>
+  <line class="stemq" x1="440.2" y1="236" x2="440.2" y2="111.2"/>
+  <line class="stemq" x1="450.8" y1="236" x2="450.8" y2="120.1"/>
+  <line class="stemq" x1="461.2" y1="236" x2="461.2" y2="125.6"/>
+  <line class="stemq" x1="471.8" y1="236" x2="471.8" y2="129.6"/>
+  <line class="stemq" x1="482.2" y1="236" x2="482.2" y2="132.8"/>
+  <line class="stemq" x1="492.8" y1="236" x2="492.8" y2="135.3"/>
+  <line class="stemq" x1="503.2" y1="236" x2="503.2" y2="137.5"/>
+  <line class="stemq" x1="513.8" y1="236" x2="513.8" y2="139.5"/>
+  <line class="stemq" x1="524.2" y1="236" x2="524.2" y2="141.2"/>
+  <line class="stemq" x1="534.8" y1="236" x2="534.8" y2="142.7"/>
+  <text class="tick" x="377" y="251" text-anchor="middle">200</text>
+  <text class="tick" x="430" y="251" text-anchor="middle">205</text>
+  <text class="tick" x="482" y="251" text-anchor="middle">210</text>
+  <text class="tick" x="535" y="251" text-anchor="middle">215</text>
+  <text class="tick" x="435" y="267" text-anchor="middle">FFT bin</text>
+  <text class="tickr" x="50" y="88" text-anchor="end">dB</text>
+  <text class="note" x="16" y="262">Left is not bare: quantized edges put spurs 26 dB down at 201 and 209. They sit on</text>
+  <text class="note" x="16" y="276">no other color's bin. Right, the skirt reaches green's bin 246 at -47 dB, where left</text>
+  <text class="note" x="16" y="290">leaves nothing at all. Both drawn from the 0/1 pattern the pin actually carries.</text>
+</svg>

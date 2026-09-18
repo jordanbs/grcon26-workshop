@@ -40,6 +40,8 @@ from m2k_blocks.spi_encode import SpiEncoder            # noqa: E402
 
 OUT = os.path.join(ROOT, "slides", "img")
 
+SUFFIX = ".svg"
+
 # The bench settings: 8 samples a half clock, and the quiet stretches the
 # flowgraph actually uses.
 HALF, LEAD, SETUP, TAIL, GAP = 8, 64, 8, 8, 48
@@ -292,7 +294,7 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     for stem, draw in FIGURES.items():
-        target = os.path.join(args.out, stem + ".svg")
+        target = os.path.join(args.out, stem + SUFFIX)
         w, h = draw(target)
         size = os.path.getsize(target)
         print(f"{os.path.relpath(target, ROOT):36} {w}x{h}  {size / 1024:.1f} kB")

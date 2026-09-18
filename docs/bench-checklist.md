@@ -5,10 +5,12 @@ Ordered so that each step makes the next one meaningful.
 Nothing here needs the discovery tool. It needs an M2K, a wire, and
 ideally a meter.
 
-**State as of 2026-09-03:** every section passes. Section 4 was the last
+**State as of 2026-09-15:** every section passes. Section 4 was the last
 open one -- it passed on everything relative and failed on absolute
 accuracy -- and section 10 closes it with a metered gain and offset for
-all four signal paths.
+all four signal paths. Section 14 is new: it settles whether the
+pattern generator and the ADC share a clock, which is what the
+colorimeter demo rests on.
 
 Section 9 is where the multi-pin digital sink got fixed. gr-iio's
 `device_sink` can only drive one DIO pin -- silently -- so `digital_sink`
@@ -22,10 +24,15 @@ Board used: Rev.D (Z7010), fw v0.33, reached at `ip:192.168.2.1`.
 ## 1. The blocks appear and load — PASSES
 
 ```
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_loopback_native.grc
 ```
+
+`env.sh` sets `GRC_BLOCKS_PATH` and `PYTHONPATH` for that shell and nothing
+else -- the two exports this checklist used to spell out at every step. For
+an install that outlives the shell, `pip install` and `m2k-blocks install`;
+if the block tree is empty, `m2k-blocks check` says why. See
+`gr-m2k/README.md`.
 
 - [x] `[ADALM2000]` is in the block tree with four blocks
 - [x] the flowgraph opens with no red blocks
@@ -121,10 +128,21 @@ all three were run against a 4989.6 Hz sine at 1.0 V, `high` range,
 
 Also found: `set_len_tag_key("packet_len")` on a sink puts it in
 tagged-burst mode against an untagged stream and it refuses with
-`Input stream not tagged!`. Harmless on a source, where it only labels
-the output. The `Unable to refill buffer: Connection timed out (110)`
-that came with it was downstream, not a second bug — the ADC was waiting
-for a signal the failed sink never produced.
+`Input stream not tagged!`. The `Unable to refill buffer: Connection
+timed out (110)` that came with it was downstream, not a second bug —
+the ADC was waiting for a signal the failed sink never produced.
+
+On a source it fails much later and much more quietly. `analog_source`
+and the digital source both call it unconditionally, so every buffer
+carries a `packet_len` tag that nothing in this repo reads. That is
+inert right up until a downstream tagged-stream block keys on the same
+string: in `m2k_ultrasonic_fsk.grc`, `tagged_stream_to_pdu` read the
+source's 16384 where the flowgraph meant 8 and waited eleven minutes
+per message. Over the air the transducers, the spectrum and the
+demodulated eye all looked correct and no PDU ever came out. A
+`tag_gate` with single key `packet_len` ahead of the receive chain is
+what that flowgraph does about it;
+`test_the_sources_buffer_tags_do_not_reach_the_pdu` holds the line.
 
 **Fixed: `CONFIG_INTERVAL_MS = 1000` in `m2k_config.py`.** `attr_sink`
 republishes on a timer, so for the first second of any flowgraph *no
@@ -587,8 +605,7 @@ underruns. `python3 bench/spi_flowgraph.py` is the headless version:
 same three blocks, a collector standing in for Message Debug.
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback_continuous.grc
 ```
 
@@ -709,8 +726,7 @@ simply running this flowgraph clears them.
 ### Running it
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback.grc
 ```
 
@@ -801,7 +817,60 @@ capture. Needs DIO0-2 wired to DIO4-6.
 
 ---
 
-## 14. Promote what passes
+## 14. Chop and sample on one clock — PASSES
+
+The colorimeter's whole argument is that an FFT bin *is* a lock-in
+output. That is only true if the LED chop and the ADC sampling come from
+the same clock, and the two sit on different sides of the M2K -- the
+pattern generator runs off the fabric clock, the ADC off its own divider
+from 100 MS/s. Nothing in a block diagram settles it.
+
+```
+python3 bench/colorimeter.py coherence
+```
+
+Three square waves at 205, 246 and 287 cycles per 4096-sample cyclic
+buffer, played at 100 kS/s and captured at 100 kS/s. One contiguous
+32768-sample capture, split into eight blocks, tracking the phase of
+each color's bin from block to block.
+
+- [x] every tone peaks at exactly the bin it was generated for
+- [x] phase is constant across all eight blocks
+- [x] drift below 0.02 ppm on all six color/channel pairs
+
+Measured 2026-09-15, analog 1 (analog 2 identical):
+
+```
+  red   bin 205 ( 5004.9 Hz)  peak at 205  leak  1.6%  drift -0.0 ppm
+  green bin 246 ( 6005.9 Hz)  peak at 246  leak  0.0%  drift +0.0 ppm
+  blue  bin 287 ( 7006.8 Hz)  peak at 287  leak  0.0%  drift +0.0 ppm
+```
+
+A drift that prints as exactly zero is worth distrusting, so the raw
+per-block phases were dumped as well: stable to about 2e-4 radians over
+the 0.33 s capture, with bin magnitudes of 307-434 (roughly 70 dB of
+bin SNR) and slopes between -1.4e-05 and +2.0e-05 rad/block. That is a
+drift between -0.011 and +0.011 ppm. These are not two clocks that
+happen to agree; it is one clock.
+
+Red's 1.6% is not noise -- the bin's SNR is around 70 dB. Roughly a
+third of it is the generator: 4096/205 is not an integer, so the square
+wave's edges land a sample early or late and put a 5% spur at bins 201
+and 209. It is four bins away from anything that gets read, and it is
+identical on both channels, so it divides out of a transmittance ratio.
+
+**The trap in this section is not electrical.** The first three attempts
+segfaulted in a worker thread several seconds after start, with an
+`AttributeError: 'str' object has no attribute 'history'` from inside
+gr's own `gateway.py`. The cause: the script built the digital sink into
+a local variable. A `top_block` keeps its blocks alive on the C++ side
+only, and `digital_sink` wraps a *Python* block -- so the last Python
+reference went away at the end of the function and the scheduler kept
+calling into a half-collected object. GRC-generated code never hits this
+because every block is stored on the flowgraph object. Hand-written
+scripts must hold their own references.
+
+## 15. Promote what passes
 
 Each entry in `iio_overlays.py` carries a `check` field describing how to
 confirm it. 58 of 74 are still `UNVERIFIED`. As they check out, change
@@ -846,8 +915,7 @@ settings you understand:
 The hardware runs in sections 9, 10 and 11 are reproducible:
 
 ```
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
+source gr-m2k/env.sh
 python3 bench/digital_coherence.py cyclic       # 9a
 python3 bench/spi_loopback.py 0xA5              # 9b
 python3 bench/spi_loopback.py $(seq 0 255)      # every byte
@@ -857,6 +925,7 @@ gnuradio-companion flowgraphs/m2k_spi_loopback.grc             # 12
 python3 bench/dc_point.py 0.0 --output w1       # 10, one point
 python3 bench/dc_point.py 1.0 --output w1 --meter 1.051
 python3 bench/spi_flowgraph.py M2K 8 --csv /tmp/bus.csv     # 13, on hardware
+python3 bench/colorimeter.py coherence          # 14, needs the colorimeter board
 ```
 
 Both want a gnuradio interpreter. The project `.venv` does not have one,

@@ -1,0 +1,607 @@
+options:
+  parameters:
+    author: GRCon26 workshop
+    comment: 'M2k Colorimeter Accessory Board on the digital header. V+ and V- power
+      its op amp. LED riser in J5, photodiode risers in J3 and J4.
+
+
+      Three colors are measured at the same time, not one after another. Each
+      color is chopped at its own frequency, all three shine through the cuvette
+      together, and one FFT pulls them apart again.
+
+
+      The three chop frequencies are not round numbers on purpose. 205, 246 and
+      287 whole cycles fit in a 4096-sample buffer at 100 kS/s, which puts each
+      tone exactly on bin 205, 246 and 287 of a 4096-point FFT at that same rate.
+      Measured on this hardware: the peak lands on its own bin and the phase
+      holds to 0.02 ppm, because the pattern generator and the ADC run off one
+      clock. That is what makes a rectangular window correct here -- there is no
+      leakage to taper away.
+
+
+      The DIO bit does not switch a color on and off. It steers that color''s
+      current between LED riser 0 (J5) and riser 1 (J6). Only J5 is populated,
+      so low is lit and high is dark, and idle_level is high so the LED goes out
+      when the flowgraph stops rather than sitting on white.
+
+
+      Transmittance is the sample photodiode over the reference photodiode, one
+      number per color. The blank_ variables divide out the fact that the two
+      optical paths were never equal to begin with; re-measure them with
+      bench/colorimeter.py run and an empty cuvette.'
+    copyright: ''
+    description: Frequency-multiplexed colorimetry on an M2K - three colors chopped
+      at once, separated in one FFT.
+    generate_options: qt_gui
+    id: m2k_colorimeter
+    title: M2K colorimeter - three colors at once
+  states: {coordinate: [8, 8], state: enabled}
+
+blocks:
+
+# --- the frequency plan -------------------------------------------------
+
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 'Both directions. The DIO out and the ADC in share a clock at this
+      rate, which is the whole trick.
+
+
+      This variable feeds the chop sources, the Goertzels and the plot. The two
+      M2K blocks pick their rate from a dropdown instead, so 100 kS/s is typed
+      out twice more in this file. A variable name in that dropdown does not
+      fail -- it silently reverts to 1 MS/s.'
+    value: '100000'
+  states: {coordinate: [16, 92], state: enabled}
+
+- name: nfft
+  id: variable
+  parameters:
+    comment: One buffer, one FFT, one measurement. 41 ms of integration.
+    value: '4096'
+  states: {coordinate: [16, 156], state: enabled}
+
+- name: bin_hz
+  id: variable
+  parameters:
+    comment: 24.4140625 Hz. A whole number of these is a tone that lands on one bin
+      and nowhere else.
+    value: samp_rate / nfft
+  states: {coordinate: [16, 220], state: enabled}
+
+- name: red_bin
+  id: variable
+  parameters: {comment: '5004.9 Hz', value: '205'}
+  states: {coordinate: [144, 92], state: enabled}
+
+- name: green_bin
+  id: variable
+  parameters: {comment: '6005.9 Hz', value: '246'}
+  states: {coordinate: [144, 156], state: enabled}
+
+- name: blue_bin
+  id: variable
+  parameters: {comment: '7006.8 Hz', value: '287'}
+  states: {coordinate: [144, 220], state: enabled}
+
+# --- the blank ----------------------------------------------------------
+
+- name: blank_red
+  id: variable
+  parameters:
+    comment: 'Sample over reference with nothing in either well. Not 1.0, because
+      the beam splitter does not split evenly and the two photodiodes are not
+      the same part twice.'
+    value: '1.0053'
+  states: {coordinate: [280, 92], state: enabled}
+
+- name: blank_green
+  id: variable
+  parameters: {value: '0.9757'}
+  states: {coordinate: [280, 156], state: enabled}
+
+- name: blank_blue
+  id: variable
+  parameters: {value: '0.9911'}
+  states: {coordinate: [280, 220], state: enabled}
+
+# --- rails --------------------------------------------------------------
+
+- name: rail_pos
+  id: m2k_power_supply
+  parameters:
+    comment: The board's op amp does nothing without these. No rails looks exactly
+      like no light.
+    rail: "'v+'"
+    voltage: '5.0'
+  states: {coordinate: [16, 320], state: enabled}
+
+- name: rail_neg
+  id: m2k_power_supply
+  parameters: {rail: "'v-'", voltage: '-5.0'}
+  states: {coordinate: [16, 400], state: enabled}
+
+# --- chop the LED -------------------------------------------------------
+
+- name: red_chop
+  id: analog_sig_source_x
+  parameters:
+    comment: 'Square, amplitude 1, offset 0: GNU Radio''s short square wave is 0 and
+      1, which is exactly a DIO line. 205 whole cycles fill the buffer, so the
+      cyclic repeat is seamless.'
+    type: short
+    samp_rate: samp_rate
+    waveform: analog.GR_SQR_WAVE
+    freq: red_bin * bin_hz
+    amp: '1'
+    offset: '0'
+  states: {coordinate: [160, 416], state: enabled}
+
+- name: green_chop
+  id: analog_sig_source_x
+  parameters:
+    type: short
+    samp_rate: samp_rate
+    waveform: analog.GR_SQR_WAVE
+    freq: green_bin * bin_hz
+    amp: '1'
+    offset: '0'
+  states: {coordinate: [160, 592], state: enabled}
+
+- name: blue_chop
+  id: analog_sig_source_x
+  parameters:
+    type: short
+    samp_rate: samp_rate
+    waveform: analog.GR_SQR_WAVE
+    freq: blue_bin * bin_hz
+    amp: '1'
+    offset: '0'
+  states: {coordinate: [160, 768], state: enabled}
+
+- name: led
+  id: m2k_digital_sink
+  parameters:
+    comment: 'Pushed once, repeated by the hardware forever. Idle HIGH: the bit
+      steers rather than gates, and only riser J5 exists, so idling low would
+      park all three colors on and leave the LED white.'
+    num_lines: '3'
+    pin0: '13'
+    name0: Red
+    pin1: '14'
+    name1: Green
+    pin2: '15'
+    name2: Blue
+    sample_rate: '100000'
+    buffer_size: nfft
+    cyclic: 'True'
+    idle_level: "'high'"
+  states: {coordinate: [464, 560], state: enabled}
+
+# --- read both photodiodes ----------------------------------------------
+
+- name: photodiodes
+  id: m2k_analog_source
+  parameters:
+    comment: 'Channel 1 is the reference path, channel 2 is the sample path.
+      Measured, not assumed: blocking the sample well drops channel 2 to 0.8%
+      and leaves channel 1 at 88%.
+
+
+      buffer_size is nfft on purpose. Each Goertzel window is then exactly one
+      capture buffer and never straddles two, so no measurement spans whatever
+      gap sits between one buffer and the next.'
+    ch1_enabled: 'True'
+    ch2_enabled: 'True'
+    ch1_range: "'high'"
+    ch2_range: "'high'"
+    sample_rate: '100000'
+    buffer_size: nfft
+    units: "'volts'"
+  states: {coordinate: [416, 216], state: enabled}
+
+- name: spectrum
+  id: qtgui_freq_sink_x
+  parameters:
+    comment: Three spikes per trace. Slide a filter into the sample well and watch
+      one of the sample spikes drop while the reference stays put. Drag-zoom to
+      5-7 kHz; the rest of the span is empty.
+    type: float
+    name: '"Both photodiodes"'
+    nconnections: '2'
+    fftsize: nfft
+    wintype: window.WIN_RECTANGULAR
+    bw: samp_rate
+    label1: Reference
+    label2: Sample
+    grid: 'True'
+    ymin: '-140'
+    ymax: '0'
+  states: {coordinate: [704, 168], state: enabled}
+
+# --- one bin each, which is the lock-in ---------------------------------
+
+- name: ref_red
+  id: goertzel_fc
+  parameters:
+    comment: 'Goertzel is a single-bin DFT: multiply by a reference at one
+      frequency and integrate over 4096 samples. That is a lock-in amplifier,
+      written as three lines of arithmetic.'
+    rate: samp_rate
+    len: nfft
+    freq: red_bin * bin_hz
+  states: {coordinate: [704, 392], state: enabled}
+
+- name: ref_green
+  id: goertzel_fc
+  parameters: {rate: samp_rate, len: nfft, freq: green_bin * bin_hz}
+  states: {coordinate: [704, 464], state: enabled}
+
+- name: ref_blue
+  id: goertzel_fc
+  parameters: {rate: samp_rate, len: nfft, freq: blue_bin * bin_hz}
+  states: {coordinate: [704, 536], state: enabled}
+
+- name: sam_red
+  id: goertzel_fc
+  parameters: {rate: samp_rate, len: nfft, freq: red_bin * bin_hz}
+  states: {coordinate: [704, 624], state: enabled}
+
+- name: sam_green
+  id: goertzel_fc
+  parameters: {rate: samp_rate, len: nfft, freq: green_bin * bin_hz}
+  states: {coordinate: [704, 696], state: enabled}
+
+- name: sam_blue
+  id: goertzel_fc
+  parameters: {rate: samp_rate, len: nfft, freq: blue_bin * bin_hz}
+  states: {coordinate: [704, 768], state: enabled}
+
+- name: ref_red_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 392], state: enabled}
+
+- name: ref_green_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 464], state: enabled}
+
+- name: ref_blue_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 536], state: enabled}
+
+- name: sam_red_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 624], state: enabled}
+
+- name: sam_green_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 696], state: enabled}
+
+- name: sam_blue_mag
+  id: blocks_complex_to_mag
+  parameters: {}
+  states: {coordinate: [912, 768], state: enabled}
+
+# --- sample over reference ----------------------------------------------
+
+- name: red_ratio
+  id: blocks_divide_xx
+  parameters:
+    comment: Sample on top, reference underneath. If the reference goes dark this
+      reads inf, which is the correct diagnosis rather than a bug.
+    type: float
+    num_inputs: '2'
+  states: {coordinate: [1088, 480], state: enabled}
+
+- name: green_ratio
+  id: blocks_divide_xx
+  parameters: {type: float, num_inputs: '2'}
+  states: {coordinate: [1088, 576], state: enabled}
+
+- name: blue_ratio
+  id: blocks_divide_xx
+  parameters: {type: float, num_inputs: '2'}
+  states: {coordinate: [1088, 672], state: enabled}
+
+- name: red_pct
+  id: blocks_multiply_const_vxx
+  parameters:
+    comment: 'Divide out the blank and scale to percent here, on the wire, rather
+      than in the number sink''s display factor. Everything downstream then reads
+      percent transmittance and means it -- which the decision block relies on.'
+    type: float
+    const: 100.0 / blank_red
+  states: {coordinate: [1248, 480], state: enabled}
+
+- name: green_pct
+  id: blocks_multiply_const_vxx
+  parameters: {type: float, const: 100.0 / blank_green}
+  states: {coordinate: [1248, 576], state: enabled}
+
+- name: blue_pct
+  id: blocks_multiply_const_vxx
+  parameters: {type: float, const: 100.0 / blank_blue}
+  states: {coordinate: [1248, 672], state: enabled}
+
+- name: transmittance
+  id: qtgui_number_sink
+  parameters:
+    comment: An empty beam reads 100.0% and holds it to about 0.06%, which is
+      roughly three decades of usable range. GRC resets color2 and color3 to
+      black if you save from the editor -- set them back by hand.
+    type: float
+    name: '"Transmittance"'
+    nconnections: '3'
+    graph_type: qtgui.NUM_GRAPH_HORIZ
+    autoscale: 'False'
+    min: '0'
+    max: '110'
+    label1: Red
+    unit1: '%'
+    color1: ("black", "red")
+    label2: Green
+    unit2: '%'
+    color2: ("black", "green")
+    label3: Blue
+    unit3: '%'
+    color3: ("black", "blue")
+  states: {coordinate: [1456, 432], state: enabled}
+
+# --- and one word for all three -----------------------------------------
+
+- name: decide
+  id: epy_block
+  parameters:
+    comment: 'Three numbers in, one word out. Naming the color is a policy, not a
+      measurement, so it is four lines of Python rather than a block: no block
+      in the library knows what your thresholds mean.'
+    _source_code: |
+      """Name the color the sample lets through."""
+
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      NAMES = ["Red", "Green", "Blue"]
+
+
+      class blk(gr.sync_block):
+          """Decide the color
+
+          Three transmittance percentages in, one word out on a message
+          port.
+
+          The rule is only "which one is largest", with a guard either
+          side of it so it does not name a winner picked out of noise.
+          An empty beam passes all three; something opaque passes none;
+          a filter that passes two of them almost equally is not one
+          color and says so.
+
+          clear   above this many percent, a color counts as unblocked
+          opaque  below this, nothing is getting through at all
+          margin  how far the winner has to clear the runner-up
+          """
+
+          def __init__(self, clear=85.0, opaque=5.0, margin=1.3):
+              gr.sync_block.__init__(
+                  self, name="Decide the color",
+                  in_sig=[np.float32, np.float32, np.float32],
+                  out_sig=None)
+              self.clear = clear
+              self.opaque = opaque
+              self.margin = margin
+              self._said = None
+              self.message_port_register_out(pmt.intern("decision"))
+
+          def verdict(self, t):
+              """t is [red, green, blue] in percent. A word, or a reason."""
+              if not all(np.isfinite(t)):
+                  return "no reference"
+              low, mid, high = sorted(t)
+              if low >= self.clear:
+                  return "nothing in the beam"
+              if high <= self.opaque:
+                  return "opaque"
+              if high < self.margin * mid:
+                  return "mixed"
+              return NAMES[t.index(high)]
+
+          def work(self, input_items, output_items):
+              for i in range(len(input_items[0])):
+                  said = self.verdict([float(c[i]) for c in input_items[:3]])
+                  if said != self._said:
+                      self._said = said
+                      self.message_port_pub(pmt.intern("decision"),
+                                            pmt.intern(said))
+              return len(input_items[0])
+    clear: '85.0'
+    opaque: '5.0'
+    margin: '1.3'
+  states:
+    _io_cache: ''
+    coordinate: [1456, 664]
+    state: enabled
+
+- name: verdict
+  id: qtgui_edit_box_msg
+  parameters:
+    comment: Static locks the type selector, not the text. The word still
+      arrives on the val port and lands in the box.
+    type: string
+    label: '"Sample is"'
+    value: '""'
+    is_pair: 'False'
+    is_static: 'True'
+  states: {coordinate: [1704, 664], state: enabled}
+
+# --- blank on demand ----------------------------------------------------
+
+- name: blank_button
+  id: variable_qtgui_msg_push_button
+  parameters:
+    comment: Press with nothing in the beam. Nothing here is in the measurement
+      path -- if it is never pressed, the three variables keep the values
+      measured on the bench and the flowgraph behaves as it always has.
+    label: '"Blank"'
+    type: int
+    msgName: pressed
+    value: '1'
+    relBackgroundColor: default
+    relFontColor: default
+  states: {coordinate: [1088, 856], state: enabled}
+
+- name: blanker
+  id: epy_block
+  parameters:
+    comment: Watches the raw ratios, upstream of the blank being divided out,
+      so what it captures is the path imbalance itself.
+    _source_code: |
+      """Capture the empty-beam ratio on demand."""
+
+      import numpy as np
+      import pmt
+      from gnuradio import gr
+
+      COLORS = ["red", "green", "blue"]
+
+      class blk(gr.sync_block):
+          """Blank now
+
+          The three raw ratios in; on a button press, the average of the last
+          couple of seconds of them out, one message per color, each one a
+          pair the stock Message Pair to Var block turns into `blank_red` and
+          its two siblings.
+
+          The blank is a property of the optics, not of the sample: the
+          splitter does not split evenly and the two photodiodes are not the
+          same part twice. Measure it once with empty cuvettes and divide it
+          out, and it stops being an error. Carry yesterday's copy of it to a
+          board that has been in a bag overnight, and it is a tilt in every
+          reading.
+
+          Press it with nothing in the beam. The check that it worked is on
+          the screen already -- all three readings go to 100.0% and the box
+          says "nothing in the beam".
+
+          depth  how many ratios to average. They arrive at rate/nfft, about
+                 24 a second, so 48 is about two seconds.
+          """
+
+          def __init__(self, depth=48):
+              gr.sync_block.__init__(
+                  self, name="Blank now",
+                  in_sig=[np.float32, np.float32, np.float32],
+                  out_sig=None)
+              self.depth = max(1, int(depth))
+              self.recent = [[], [], []]
+              self.message_port_register_in(pmt.intern("blank"))
+              self.set_msg_handler(pmt.intern("blank"), self.blank)
+              for color in COLORS:
+                  self.message_port_register_out(pmt.intern(color))
+
+          def blank(self, msg):
+              """Whatever is in the beam right now becomes 100%."""
+              for i, color in enumerate(COLORS):
+                  seen = list(self.recent[i])
+                  if not seen:
+                      continue
+                  value = sum(seen) / len(seen)
+                  # 100.0/blank is the constant downstream, so a zero or an
+                  # inf here would take the whole chain with it. A reference
+                  # that dark is a loose riser, not a blank.
+                  if not np.isfinite(value) or value <= 1e-6:
+                      continue
+                  self.message_port_pub(pmt.intern(color),
+                                        pmt.cons(pmt.intern("blank_" + color),
+                                                 pmt.from_double(float(value))))
+
+          def work(self, input_items, output_items):
+              for i in range(3):
+                  keep = self.recent[i]
+                  keep.extend(float(v) for v in input_items[i])
+                  del keep[:-self.depth]
+              return len(input_items[0])
+
+    depth: '48'
+  states:
+    _io_cache: ''
+    coordinate: [1280, 784]
+    state: enabled
+
+- name: apply_red
+  id: blocks_msgpair_to_var
+  parameters:
+    comment: Stock block. Calls the flowgraph's own set_blank_red, which GRC
+      already wires to red_pct's set_k -- so the new blank reaches the wire
+      without anything here knowing about multiply blocks.
+    target: blank_red
+  states: {coordinate: [1520, 760], state: enabled}
+
+- name: apply_green
+  id: blocks_msgpair_to_var
+  parameters: {target: blank_green}
+  states: {coordinate: [1520, 824], state: enabled}
+
+- name: apply_blue
+  id: blocks_msgpair_to_var
+  parameters: {target: blank_blue}
+  states: {coordinate: [1520, 888], state: enabled}
+
+connections:
+- [red_chop, '0', led, '0']
+- [green_chop, '0', led, '1']
+- [blue_chop, '0', led, '2']
+
+- [photodiodes, '0', spectrum, '0']
+- [photodiodes, '1', spectrum, '1']
+
+- [photodiodes, '0', ref_red, '0']
+- [photodiodes, '0', ref_green, '0']
+- [photodiodes, '0', ref_blue, '0']
+- [photodiodes, '1', sam_red, '0']
+- [photodiodes, '1', sam_green, '0']
+- [photodiodes, '1', sam_blue, '0']
+
+- [ref_red, '0', ref_red_mag, '0']
+- [ref_green, '0', ref_green_mag, '0']
+- [ref_blue, '0', ref_blue_mag, '0']
+- [sam_red, '0', sam_red_mag, '0']
+- [sam_green, '0', sam_green_mag, '0']
+- [sam_blue, '0', sam_blue_mag, '0']
+
+- [sam_red_mag, '0', red_ratio, '0']
+- [ref_red_mag, '0', red_ratio, '1']
+- [sam_green_mag, '0', green_ratio, '0']
+- [ref_green_mag, '0', green_ratio, '1']
+- [sam_blue_mag, '0', blue_ratio, '0']
+- [ref_blue_mag, '0', blue_ratio, '1']
+
+- [red_ratio, '0', red_pct, '0']
+- [green_ratio, '0', green_pct, '0']
+- [blue_ratio, '0', blue_pct, '0']
+
+- [red_pct, '0', transmittance, '0']
+- [green_pct, '0', transmittance, '1']
+- [blue_pct, '0', transmittance, '2']
+
+- [red_pct, '0', decide, '0']
+- [green_pct, '0', decide, '1']
+- [blue_pct, '0', decide, '2']
+- [decide, decision, verdict, val]
+
+- [red_ratio, '0', blanker, '0']
+- [green_ratio, '0', blanker, '1']
+- [blue_ratio, '0', blanker, '2']
+- [blank_button, pressed, blanker, blank]
+- [blanker, red, apply_red, inpair]
+- [blanker, green, apply_green, inpair]
+- [blanker, blue, apply_blue, inpair]
+
+metadata:
+  file_format: 1

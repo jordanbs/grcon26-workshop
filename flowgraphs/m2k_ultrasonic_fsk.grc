@@ -1,0 +1,910 @@
+options:
+  parameters:
+    author: GRCon26 workshop
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: 'W1 -> TX +, TX - -> GND.  RX + -> 1+, RX - and 1- -> GND.
+
+      Input range high (+/-2.5 V). Point the two transducers at each other.
+
+
+      The tones are the MEASURED resonance, 40.755 kHz, not the 40 kHz on the
+
+      part. The pair is only 1023 Hz wide at -6 dB, so 40.0 kHz loses about
+
+      10 dB and shows up as a bad demodulator rather than a bad frequency.
+
+      bench/ultrasonic_sweep.py is what f0 came from.
+
+
+      Transmit is 750 kS/s and receive is 1 MS/s, and they are not the same
+
+      number by accident: the DAC counts down from 75 MS/s and the ADC from
+
+      100 MS/s, so the two ladders never meet. Anything that assumes one
+
+      samp_rate for both directions is wrong here. That is the lesson.
+
+
+      The receiver decimates by 200 before it demodulates. 1 MS/s against a
+
+      1023 Hz channel is almost all empty spectrum; 5 kS/s still leaves 25
+
+      samples per bit.
+
+
+      Byte alignment comes from the sync word, not from luck. The capture
+
+      starts wherever it starts, so Correlate Access Code tags the bit after
+
+      the code and Tagged Stream Align drops everything before that tag.'
+    copyright: ''
+    description: Ultrasonic FSK over the air on an M2K - 200 baud at 40.755 kHz, decoded
+      back to bytes.
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: m2k_ultrasonic_fsk
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: M2K ultrasonic FSK - W1 to a 40 kHz pair, 1+ back
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: access_code
+  id: variable
+  parameters:
+    comment: 0x1ACFFC1D, the CCSDS sync marker.
+    value: '''00011010110011111111110000011101'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [616, 80.0]
+    rotation: 0
+    state: enabled
+- name: amplitude
+  id: variable
+  parameters:
+    comment: Volts into the transducer. W1 stops at +/-5.
+    value: '4.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 8.0]
+    rotation: 0
+    state: enabled
+- name: baud
+  id: variable
+  parameters:
+    comment: ''
+    value: '200'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [816, 8.0]
+    rotation: 0
+    state: enabled
+- name: bitlen
+  id: variable
+  parameters:
+    comment: ''
+    value: 1.0/baud
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 8.0]
+    rotation: 0
+    state: enabled
+- name: code_bytes
+  id: variable
+  parameters:
+    comment: ''
+    value: '[0x1a, 0xcf, 0xfc, 0x1d]'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [792, 80.0]
+    rotation: 0
+    state: enabled
+- name: f0
+  id: variable
+  parameters:
+    comment: Measured 2026-09-09, not the datasheet's 40 kHz.
+    value: '40755.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [456, 8.0]
+    rotation: 0
+    state: enabled
+- name: fmark
+  id: variable
+  parameters:
+    comment: ''
+    value: f0 + spacing/2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 8.0]
+    rotation: 0
+    state: enabled
+- name: frame
+  id: variable
+  parameters:
+    comment: Sync word, then the payload. This is what goes on the air.
+    value: code_bytes + [ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1056, 8.0]
+    rotation: 0
+    state: enabled
+- name: frame_len
+  id: variable
+  parameters:
+    comment: ''
+    value: len(code_bytes) + msg_capacity
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 80.0]
+    rotation: 0
+    state: enabled
+- name: fspace
+  id: variable
+  parameters:
+    comment: ''
+    value: f0 - spacing/2
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [624, 8.0]
+    rotation: 0
+    state: enabled
+- name: message
+  id: variable_qtgui_entry
+  parameters:
+    comment: Type here while it runs. Padded or cut to msg_capacity.
+    entry_signal: returnPressed
+    gui_hint: ''
+    label: Message
+    type: string
+    value: '''GRCON26'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 136.0]
+    rotation: 0
+    state: enabled
+- name: msg_capacity
+  id: variable
+  parameters:
+    comment: Fixed, so the frame length never moves.
+    value: '8'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [936, 80.0]
+    rotation: 0
+    state: enabled
+- name: rx_decim
+  id: variable
+  parameters:
+    comment: ''
+    value: '200'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 80.0]
+    rotation: 0
+    state: enabled
+- name: rx_rate
+  id: variable
+  parameters:
+    comment: The ADC ladder, 100 MS/s / 100. Not the same number.
+    value: '1000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 8.0]
+    rotation: 0
+    state: enabled
+- name: spacing
+  id: variable
+  parameters:
+    comment: ''
+    value: '600.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [552, 8.0]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: Samples per bit coming back. 25, not 3750.
+    value: sym_rate*bitlen
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [544, 80.0]
+    rotation: 0
+    state: enabled
+- name: sym_rate
+  id: variable
+  parameters:
+    comment: 5 kS/s after the filter.
+    value: rx_rate/rx_decim
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [464, 80.0]
+    rotation: 0
+    state: enabled
+- name: tx_rate
+  id: variable
+  parameters:
+    comment: The DAC ladder, 75 MS/s / 100.
+    value: '750000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [304, 8.0]
+    rotation: 0
+    state: enabled
+- name: tx_repeat
+  id: variable
+  parameters:
+    comment: Samples per bit going out. 3750.
+    value: int(round(tx_rate*bitlen))
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [288, 80.0]
+    rotation: 0
+    state: enabled
+- name: uri
+  id: variable
+  parameters:
+    comment: ''
+    value: '''ip:192.168.2.1'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [176, 8.0]
+    rotation: 0
+    state: enabled
+- name: analog_quadrature_demod_cf_0
+  id: analog_quadrature_demod_cf
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Space lands at -1, mark at +1, so the slicer threshold is 0.
+    gain: sym_rate/(2*math.pi*(spacing/2))
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [704, 584.0]
+    rotation: 0
+    state: enabled
+- name: blocks_add_const_vxx_0
+  id: blocks_add_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: fspace/fmark
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [936, 360]
+    rotation: 0
+    state: enabled
+- name: blocks_keep_m_in_n_0
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Keep the payload, drop the next frame's sync word.
+    m: msg_capacity
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: frame_len
+    offset: '0'
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [504, 840.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: One line per message. The hex is the payload that came back.
+    en_uvec: 'True'
+    log_level: info
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1208, 832.0]
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 0 and 1 onto fspace/fmark and fmark/fmark, so the VCO lands on the tones.
+    const: (fmark - fspace)/fmark
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [736, 360]
+    rotation: 0
+    state: enabled
+- name: blocks_pack_k_bits_bb_0
+  id: blocks_pack_k_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    k: '8'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [336, 856.0]
+    rotation: 0
+    state: enabled
+- name: blocks_repeat_0
+  id: blocks_repeat
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Hold each bit for one bit period, at the TX rate.
+    interp: tx_repeat
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [392, 352]
+    rotation: 0
+    state: enabled
+- name: blocks_stream_to_tagged_stream_0
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    packet_len: msg_capacity
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [680, 848.0]
+    rotation: 0
+    state: enabled
+- name: blocks_tag_gate_0
+  id: blocks_tag_gate
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    propagate_tags: 'False'
+    single_key: '"packet_len"'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [280, 608.0]
+    rotation: 0
+    state: enabled
+- name: blocks_tagged_stream_align_0
+  id: blocks_tagged_stream_align
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Drop everything before the first tag. From here on, bit 0 is byte 0.
+    lengthtagname: sync
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [152.0, 776]
+    rotation: 270
+    state: enabled
+- name: blocks_uchar_to_float_0
+  id: blocks_uchar_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [592, 360]
+    rotation: 0
+    state: enabled
+- name: blocks_unpack_k_bits_bb_0
+  id: blocks_unpack_k_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Bytes to bits, MSB first.
+    k: '8'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [216, 352]
+    rotation: 0
+    state: enabled
+- name: blocks_vco_f_0
+  id: blocks_vco_f
+  parameters:
+    affinity: ''
+    alias: ''
+    amplitude: amplitude
+    comment: Sensitivity 2*pi*fmark makes the output frequency fmark * input.
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: tx_rate
+    sensitivity: 2*math.pi*fmark
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1104, 344]
+    rotation: 0
+    state: enabled
+- name: blocks_vector_source_x_0
+  id: blocks_vector_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    repeat: 'True'
+    tags: '[]'
+    type: byte
+    vector: frame
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 344]
+    rotation: 0
+    state: enabled
+- name: digital_binary_slicer_fb_0
+  id: digital_binary_slicer_fb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 512.0]
+    rotation: 0
+    state: enabled
+- name: digital_correlate_access_code_tag_xx_0
+  id: digital_correlate_access_code_tag_xx
+  parameters:
+    access_code: access_code
+    affinity: ''
+    alias: ''
+    comment: Tags the bit AFTER the code. Threshold 0 - no bit errors allowed in the
+      sync word.
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tagname: sync
+    threshold: '0'
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1360.0, 560]
+    rotation: 270
+    state: enabled
+- name: digital_symbol_sync_xx_0
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 25 samples per bit down to 1. The capture starts mid-bit; this finds
+      the phase.
+    constellation: digital.constellation_bpsk().base()
+    damping: '1.0'
+    loop_bw: '0.045'
+    max_dev: '1.5'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '128'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '1.0'
+    ted_type: digital.TED_ZERO_CROSSING
+    type: ff
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [920, 492.0]
+    rotation: 0
+    state: enabled
+- name: freq_xlating_fir_filter_xxx_0
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: f0
+    comment: Mix f0 to zero and decimate to 5 kS/s. Taps are designed at the INPUT
+      rate.
+    decim: rx_decim
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: rx_rate
+    taps: firdes.low_pass(1.0, rx_rate, 600.0, 600.0)
+    type: fcf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [464, 560.0]
+    rotation: 0
+    state: enabled
+- name: m2k_analog_sink_0
+  id: m2k_analog_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    buffer_size: '65536'
+    comment: Not cyclic. Streaming holds at 750 kS/s with a 64k buffer.
+    cyclic: 'False'
+    output: '''w1'''
+    sample_rate: '750000'
+    units: '''volts'''
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1312, 328.0]
+    rotation: 0
+    state: enabled
+- name: m2k_analog_source_0
+  id: m2k_analog_source
+  parameters:
+    affinity: ''
+    alias: ''
+    buffer_size: '16384'
+    ch1_enabled: 'True'
+    ch1_range: '''high'''
+    ch2_enabled: 'False'
+    ch2_range: '''low'''
+    comment: Free-running. An armed trigger that times out ends the source for good.
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    sample_rate: '1000000'
+    trigger_edge: '''edge-rising'''
+    trigger_level: '0.5'
+    trigger_source: '''off'''
+    units: '''volts'''
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 508]
+    rotation: 0
+    state: enabled
+- name: pdu_tagged_stream_to_pdu_0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [912, 856.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    axislabels: 'True'
+    bw: rx_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: '0'
+    fftsize: '8192'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"Captured on 1+ (volts)"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: float
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 456.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_x_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: Signal 1
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Demodulated, before timing recovery"'
+    nconnections: '1'
+    size: '1000'
+    srate: sym_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Space -1, mark +1
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 440.0]
+    rotation: 180
+    state: enabled
+
+connections:
+- [analog_quadrature_demod_cf_0, '0', digital_symbol_sync_xx_0, '0']
+- [analog_quadrature_demod_cf_0, '0', qtgui_time_sink_x_0, '0']
+- [blocks_add_const_vxx_0, '0', blocks_vco_f_0, '0']
+- [blocks_keep_m_in_n_0, '0', blocks_stream_to_tagged_stream_0, '0']
+- [blocks_multiply_const_vxx_0, '0', blocks_add_const_vxx_0, '0']
+- [blocks_pack_k_bits_bb_0, '0', blocks_keep_m_in_n_0, '0']
+- [blocks_repeat_0, '0', blocks_uchar_to_float_0, '0']
+- [blocks_stream_to_tagged_stream_0, '0', pdu_tagged_stream_to_pdu_0, '0']
+- [blocks_tag_gate_0, '0', freq_xlating_fir_filter_xxx_0, '0']
+- [blocks_tagged_stream_align_0, '0', blocks_pack_k_bits_bb_0, '0']
+- [blocks_uchar_to_float_0, '0', blocks_multiply_const_vxx_0, '0']
+- [blocks_unpack_k_bits_bb_0, '0', blocks_repeat_0, '0']
+- [blocks_vco_f_0, '0', m2k_analog_sink_0, '0']
+- [blocks_vector_source_x_0, '0', blocks_unpack_k_bits_bb_0, '0']
+- [digital_binary_slicer_fb_0, '0', digital_correlate_access_code_tag_xx_0, '0']
+- [digital_correlate_access_code_tag_xx_0, '0', blocks_tagged_stream_align_0, '0']
+- [digital_symbol_sync_xx_0, '0', digital_binary_slicer_fb_0, '0']
+- [freq_xlating_fir_filter_xxx_0, '0', analog_quadrature_demod_cf_0, '0']
+- [m2k_analog_source_0, '0', blocks_tag_gate_0, '0']
+- [m2k_analog_source_0, '0', qtgui_freq_sink_x_0, '0']
+- [pdu_tagged_stream_to_pdu_0, pdus, blocks_message_debug_0, print]
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.9.2

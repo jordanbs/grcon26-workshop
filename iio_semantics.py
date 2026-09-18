@@ -160,7 +160,7 @@ CHANNEL_TYPES = {
         "unit": "pH units", "symbol": "pH", "si_per_unit": None, "note": None,
     },
     "cct": {
-        "quantity": "correlated colour temperature",
+        "quantity": "correlated color temperature",
         "unit": "Kelvin", "symbol": "K", "si_per_unit": 1.0, "note": None,
     },
     "count": {
@@ -183,7 +183,7 @@ CHANNEL_TYPES = {
 
 # ------------------------------------------------------------- modifiers
 #
-# A modifier narrows a channel of a given type: which axis, which colour,
+# A modifier narrows a channel of a given type: which axis, which color,
 # which gas. It appears between the index and the info word.
 
 MODIFIERS = {

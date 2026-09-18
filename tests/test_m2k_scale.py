@@ -175,3 +175,83 @@ def test_a_dac_rate_the_board_will_not_take_is_refused():
     with pytest.raises(ValueError) as excinfo:
         scale.check_dac_sample_rate(1000000)     # an ADC rate, not a DAC one
     assert "750000" in str(excinfo.value)
+
+
+# The power supplies. libm2k's pushChannel() and readChannel(), with the
+# board's own calibration coefficients, which the block reads from the
+# context at build time.
+
+# What this board actually reports, so the expected codes below are
+# arithmetic anyone can redo rather than numbers taken on faith.
+CAL = {"v+": (0.9986241178820292, 0.0031),
+       "v-": (0.9998223185539246, 0.0166)}
+
+
+def test_supply_uses_libm2k_write_coefficients():
+    """4095 / (5.02 * 1.2) positive, 4095 / (-5.1 * 1.2) negative.
+
+    Two different denominators for what looks like a symmetric pair --
+    the rails are not the same circuit and libm2k does not pretend they
+    are.
+    """
+    assert scale.SUPPLY_WRITE_COEFF["v+"] == pytest.approx(4095.0 / 6.024)
+    assert scale.SUPPLY_WRITE_COEFF["v-"] == pytest.approx(4095.0 / -6.12)
+
+
+def test_supply_five_volts_matches_hand_computation():
+    gain, offset = CAL["v+"]
+    raw = scale.supply_volts_to_raw(5.0, "v+", gain, offset)
+    assert raw == round((5.0 * gain + offset) * (4095.0 / 6.024))
+    assert raw == 3396
+
+
+def test_the_negative_rail_takes_a_negative_volts_and_gives_positive_counts():
+    """Both coefficient and voltage are negative, so the code is not.
+
+    A DAC register has no sign. Get this wrong and -5 V clamps to zero,
+    which reads on the bench as a rail that never came up.
+    """
+    gain, offset = CAL["v-"]
+    raw = scale.supply_volts_to_raw(-5.0, "v-", gain, offset)
+    assert raw == 3334
+    assert 0 < raw <= scale.SUPPLY_RAW_MAX
+
+
+def test_a_rail_commanded_the_wrong_way_floors_at_zero():
+    """libm2k clamps a negative code to 0 rather than wrapping it.
+
+    +1 V asked of the negative rail is a mistake, but it is a mistake
+    that turns the rail off, not one that sets it to 4095.
+    """
+    assert scale.supply_volts_to_raw(1.0, "v-") == 0
+    assert scale.supply_volts_to_raw(-1.0, "v+") == 0
+
+
+def test_past_five_volts_is_refused():
+    for volts, rail in ((5.5, "v+"), (-5.5, "v-")):
+        with pytest.raises(ValueError) as excinfo:
+            scale.supply_volts_to_raw(volts, rail)
+        assert "5" in str(excinfo.value)
+
+
+def test_a_rail_that_does_not_exist_is_refused():
+    """'v+' and 'v-' are the silkscreen. 0 and 1 are libm2k's indices."""
+    for rail in ("V+", "positive", 0, "voltage0"):
+        with pytest.raises(ValueError):
+            scale.check_supply_rail(rail)
+
+
+def test_supply_readback_uses_its_own_scale():
+    """6.4 / 4095 -- deliberately not the inverse of the write path.
+
+    Read and write are different devices, ad9963 and ad5627, with
+    different full scales. A round trip through both is not the identity
+    and is not supposed to be.
+    """
+    assert scale.supply_raw_to_volts(3200, "v+") == pytest.approx(5.0011, abs=1e-3)
+    assert scale.supply_raw_to_volts(3200, "v-") == pytest.approx(-5.0011, abs=1e-3)
+
+
+def test_supply_reset_code_is_mid_scale():
+    """2048 of 4095 -- what libm2k's reset() parks the DAC at."""
+    assert scale.SUPPLY_RESET_RAW == 2048

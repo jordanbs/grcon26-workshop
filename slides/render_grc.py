@@ -6,7 +6,7 @@ diagram of a flowgraph is a second copy of it: it drifts the moment a
 parameter changes, and it teaches a participant to recognise a picture rather
 than the canvas they are about to sit in front of. These images come out of
 GRC's own canvas code, so what is on the slide is what is on their screen --
-same fonts, same colours, same port labels, same rounded corners.
+same fonts, same colors, same port labels, same rounded corners.
 
 No hardware and no running flowgraph: GRC parses the .grc and the block
 definitions, and Cairo draws them. It never constructs a block's Python
@@ -37,6 +37,8 @@ OUT = os.path.join(ROOT, "slides", "img")
 # stock blocks have to be named here too -- without them the platform cannot
 # find `options` and refuses to build a library at all.
 STOCK_BLOCKS = "/usr/share/gnuradio/grc/blocks"
+
+SUFFIX = ".png"
 
 _APP = None
 
@@ -70,6 +72,51 @@ FIGURES = {
     },
     "m2k_scope.grc": {
         "grc-analog-source": ["m2k_analog_source_0"],
+    },
+    # The colorimeter's whole canvas is six parallel copies of the same three
+    # blocks, which reads as wallpaper. Drawn as one color's chain instead --
+    # the other five are the same picture -- plus the three sources that make
+    # the simultaneity visible, and the decision the chain ends in.
+    "m2k_colorimeter.grc": {
+        "grc-colorimeter-chop": ["red_chop", "green_chop", "blue_chop", "led"],
+        "grc-colorimeter-lockin": [
+            "photodiodes", "ref_red", "sam_red", "ref_red_mag", "sam_red_mag",
+            "red_ratio", "red_pct",
+        ],
+        "grc-colorimeter-decide": ["decide", "verdict"],
+    },
+    # Nineteen blocks on one canvas is a strip nine times as wide as it is
+    # tall, and a strip constrained to a slide column is unreadable from the
+    # back of a room. Drawn instead as the stages a person builds it in --
+    # three or four blocks each, which lands near 3:1.
+    "m2k_ultrasonic_fsk.grc": {
+        "grc-ultrasonic-rates": ["tx_rate", "rx_rate", "tx_repeat", "sps"],
+        "grc-ultrasonic-frame": ["message", "frame"],
+        "grc-ultrasonic-tuning": ["f0", "spacing", "fspace", "fmark"],
+        "grc-ultrasonic-tx": [
+            "blocks_vector_source_x_0", "blocks_unpack_k_bits_bb_0",
+            "blocks_repeat_0",
+        ],
+        "grc-ultrasonic-scale": [
+            "blocks_uchar_to_float_0", "blocks_multiply_const_vxx_0",
+            "blocks_add_const_vxx_0",
+        ],
+        "grc-ultrasonic-sink": ["blocks_vco_f_0", "m2k_analog_sink_0"],
+        "grc-ultrasonic-rx": [
+            "m2k_analog_source_0", "freq_xlating_fir_filter_xxx_0",
+            "analog_quadrature_demod_cf_0",
+        ],
+        "grc-ultrasonic-clock": [
+            "digital_symbol_sync_xx_0", "digital_binary_slicer_fb_0",
+        ],
+        "grc-ultrasonic-sync": [
+            "digital_correlate_access_code_tag_xx_0",
+            "blocks_tagged_stream_align_0", "blocks_pack_k_bits_bb_0",
+        ],
+        "grc-ultrasonic-out": [
+            "blocks_keep_m_in_n_0", "blocks_stream_to_tagged_stream_0",
+            "pdu_tagged_stream_to_pdu_0", "blocks_message_debug_0",
+        ],
     },
 }
 
@@ -235,7 +282,7 @@ def _shrink(path):
     """Palette-encode the PNG, if Pillow is here to do it.
 
     Cairo writes 32-bit RGBA. A GRC canvas is flat fills, black strokes and
-    antialiased text, so an adaptive 256-colour palette is visually identical
+    antialiased text, so an adaptive 256-color palette is visually identical
     and about a third of the size -- 248 kB to 91 kB on the signal-path
     figure, which is the difference between a deck that is mostly pictures of
     itself and one that is not. Skipped silently where Pillow is absent: the
@@ -279,7 +326,7 @@ def main():
     for name, figures in FIGURES.items():
         flow_graph = load(plat, name)
         for stem, block_ids in figures.items():
-            path = os.path.join(args.out, stem + ".png")
+            path = os.path.join(args.out, stem + SUFFIX)
             w, h = render(flow_graph, block_ids, path, args.scale)
             print(f"{os.path.relpath(path, ROOT):44} {w}x{h}")
     return 0

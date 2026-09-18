@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 282" role="img" aria-label="Response of the 40 kHz transducer pair from 36 to 44 kHz, in dB below each curve's own peak, measured at 4 inches and again at 8 inches. The two curves lie on top of one another and f0 is 40.755 kHz. The -6 dB band runs 40.229 to 41.252 kHz, 1023 Hz wide. Driving 40.0 kHz sits -9.8 dB down.">
+  <style>
+  .bg   { fill: #fafaf7; }
+  .axis { stroke: #5a5a5a; stroke-width: 1; fill: none; }
+  .grid { stroke: #5a5a5a; stroke-width: .5; stroke-dasharray: 2 4; }
+  .cur  { fill: none; stroke: #1a1a1a; stroke-width: 2.2;
+          stroke-linejoin: round; stroke-linecap: round; }
+  .cur2 { fill: none; stroke: #0067b9; stroke-width: 1.6;
+          stroke-dasharray: 6 4; stroke-linejoin: round; }
+  .lbl  { fill: #004a85; font: 700 13px ui-monospace, Menlo, Consolas, monospace; }
+  .note { fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace; }
+  .tick { fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .tickr{ fill: #5a5a5a; font: 400 11px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: end; }
+  .mark { stroke: #b01e24; stroke-width: 1; stroke-dasharray: 3 3; }
+  .mkt  { fill: #b01e24; font: 700 12px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  .dot  { fill: #b01e24; }
+  .dim  { stroke: #0067b9; stroke-width: 1; }
+  .dimt { fill: #0067b9; font: 400 10.5px ui-monospace, Menlo, Consolas, monospace;
+          text-anchor: middle; }
+  @media (prefers-color-scheme: dark) {
+    .bg   { fill: #0d1826; }
+    .axis, .grid { stroke: #93a3b5; }
+    .cur  { stroke: #e9eef4; }
+    .cur2 { stroke: #58a7e5; }
+    .lbl  { fill: #8cc4ee; }
+    .note, .tick, .tickr { fill: #93a3b5; }
+    .mkt, .dot { fill: #e4737a; }
+    .mark { stroke: #e4737a; }
+    .dim  { stroke: #58a7e5; }
+    .dimt { fill: #58a7e5; }
+  }
+  </style>
+  <rect class="bg" x="0" y="0" width="560" height="282"/>
+  <path class="axis" d="M52,34 V236 H544"/>
+  <line class="grid" x1="52" y1="40.00" x2="544" y2="40.00"/>
+  <text class="tickr" x="45" y="44.00">0</text>
+  <line class="grid" x1="52" y1="79.20" x2="544" y2="79.20"/>
+  <text class="tickr" x="45" y="83.20">-6</text>
+  <line class="grid" x1="52" y1="118.40" x2="544" y2="118.40"/>
+  <text class="tickr" x="45" y="122.40">-12</text>
+  <line class="grid" x1="52" y1="157.60" x2="544" y2="157.60"/>
+  <text class="tickr" x="45" y="161.60">-18</text>
+  <line class="grid" x1="52" y1="196.80" x2="544" y2="196.80"/>
+  <text class="tickr" x="45" y="200.80">-24</text>
+  <line class="grid" x1="52" y1="236.00" x2="544" y2="236.00"/>
+  <text class="tickr" x="45" y="240.00">-30</text>
+  <line class="axis" x1="63.71" y1="236" x2="63.71" y2="241"/>
+  <text class="tick" x="63.71" y="255">36</text>
+  <line class="axis" x1="180.86" y1="236" x2="180.86" y2="241"/>
+  <text class="tick" x="180.86" y="255">38</text>
+  <line class="axis" x1="298.00" y1="236" x2="298.00" y2="241"/>
+  <text class="tick" x="298.00" y="255">40</text>
+  <line class="axis" x1="415.14" y1="236" x2="415.14" y2="241"/>
+  <text class="tick" x="415.14" y="255">42</text>
+  <line class="axis" x1="532.29" y1="236" x2="532.29" y2="241"/>
+  <text class="tick" x="532.29" y="255">44</text>
+  <text class="note" x="544" y="270" text-anchor="end">kHz</text>
+  <text class="note" x="6" y="28">dB</text>
+  <line class="dim" x1="52" y1="79.33" x2="544" y2="79.33"/>
+  <polyline class="cur2" points="62.56,236.00 78.64,236.00 92.05,236.00 108.14,236.00 121.54,236.00 137.63,236.00 151.03,236.00 167.12,236.00 180.53,236.00 196.62,236.00 210.02,223.66 226.11,206.60 239.51,188.63 252.92,173.20 269.01,152.25 282.41,130.88 298.50,101.09 311.91,77.48 327.99,48.92 341.40,40.00 357.49,54.99 370.89,79.78 386.98,114.86 400.39,150.75 416.47,181.48 429.88,198.44 443.28,213.52 459.37,228.13 472.78,236.00 488.86,236.00 502.27,236.00 518.36,236.00 531.76,236.00"/>
+  <polyline class="cur" points="62.56,236.00 78.64,236.00 92.05,236.00 108.14,236.00 121.54,236.00 137.63,236.00 151.03,236.00 167.12,236.00 180.53,236.00 196.62,236.00 210.02,223.37 226.11,206.18 239.51,190.10 252.92,173.84 269.01,148.70 282.41,129.59 298.50,104.07 311.91,78.37 327.99,50.03 341.40,40.00 357.49,53.75 370.89,78.33 386.98,115.78 400.39,148.47 416.47,185.33 429.88,202.17 443.28,218.48 459.37,236.00 472.78,236.00 488.86,236.00 502.27,236.00 518.36,236.00 531.76,236.00"/>
+  <line class="mark" x1="298.00" y1="34" x2="298.00" y2="236"/>
+  <text class="mkt" x="298.00" y="32.00">40 kHz</text>
+  <line class="mark" x1="342.24" y1="34" x2="342.24" y2="236"/>
+  <text class="mkt" x="342.24" y="16.00">f₀</text>
+  <circle class="dot" cx="298.00" cy="104.07" r="3.2"/>
+  <line class="dim" x1="311.41" y1="74.33" x2="311.41" y2="84.33"/>
+  <line class="dim" x1="371.32" y1="74.33" x2="371.32" y2="84.33"/>
+  <text class="dimt" x="341.36" y="69.33">1023 Hz</text>
+  <text class="lbl" x="58" y="46">4 in</text>
+  <text class="note" x="58" y="60">8 in, dashed</text>
+</svg>

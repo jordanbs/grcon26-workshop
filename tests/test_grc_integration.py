@@ -99,8 +99,12 @@ BUILD = '''
     errors = list(fg.iter_error_messages())
     out = tempfile.mkdtemp()
     p.Generator(fg, out).write()
-    name = [f for f in __import__("os").listdir(out) if f.endswith(".py")][0]
-    source = open(__import__("os").path.join(out, name)).read()
+    # An embedded Python block is written out as its own module beside the
+    # flowgraph, so there is more than one .py here and listdir has no order.
+    # Take the one named after the .grc.
+    import os
+    name = os.path.basename(sys.argv[1]).replace(".grc", ".py")
+    source = open(os.path.join(out, name)).read()
     ast.parse(source)          # a flowgraph that will not compile is not valid
     # A make template can span several lines, so take the whole
     # constructor call, not just the line its name appears on.
@@ -392,7 +396,8 @@ def test_every_instrument_block_loads(repo_root):
     loaded = json.loads(run_in_gr(LOAD, os.path.join(repo_root, M2K_GRC)))
     assert set(loaded) == {"m2k_analog_source", "m2k_analog_sink",
                            "m2k_digital_source", "m2k_digital_sink",
-                           "m2k_spi_decode", "m2k_spi_encode"}
+                           "m2k_spi_decode", "m2k_spi_encode",
+                           "m2k_power_supply"}
 
 
 @needs_gnuradio
@@ -567,6 +572,247 @@ def test_flowgraph_parameter_names_are_real(repo_root):
             known = out.get(blk["id"])
             if known is None:                 # a generated block, not loaded here
                 continue
+            if blk["id"] == "epy_block":
+                # Its parameters are whatever the embedded source's __init__
+                # takes, discovered when GRC rewrites the flowgraph. The block
+                # library only knows the four every block has.
+                continue
             for key in blk.get("parameters", {}):
                 assert key in known, "%s: %s has no parameter %r" % (
                     name, blk["id"], key)
+
+
+@needs_gnuradio
+def test_the_ultrasonic_flowgraph_builds(repo_root):
+    """The numbers in this one are measurements, not defaults.
+
+    f0 is the swept resonance and not 40 kHz; the two rates come off
+    different ladders and must not collapse to one `samp_rate`; the sink
+    is not cyclic because a repeating buffer cannot carry a message that
+    changes.
+    """
+    path = os.path.join(repo_root, "flowgraphs", "m2k_ultrasonic_fsk.grc")
+    result = json.loads(run_in_gr(BUILD, path,
+                                  os.path.join(repo_root, M2K_GRC)))
+    assert result["valid"], result["errors"]
+    make = result["make"]
+    assert "f0 = 40755.0" in make
+    assert "tx_rate = 750000" in make
+    assert "rx_rate = 1000000" in make
+    assert "rx_decim = 200" in make
+    assert "sample_rate=750000" in make and "cyclic=False" in make
+    assert "sample_rate=1000000" in make and "trigger_source='off'" in make
+    # Typing a new message must reach the wire, and must not resize the frame.
+    assert "self.blocks_vector_source_x_0.set_data(self.frame, [])" in make
+    assert "ljust(self.msg_capacity)" in make
+
+
+@needs_gnuradio
+def test_the_colorimeter_flowgraph_builds(repo_root):
+    """Every number in this one came off the bench.
+
+    The three bins are not round frequencies; they are the whole-cycle
+    counts that make a rectangular window correct. The sink idles HIGH
+    because a DIO bit on that board steers rather than gates. And the
+    Goertzel length has to match the capture buffer, or a measurement
+    straddles two buffers and whatever gap sits between them.
+    """
+    path = os.path.join(repo_root, "flowgraphs", "m2k_colorimeter.grc")
+    result = json.loads(run_in_gr(BUILD, path,
+                                  os.path.join(repo_root, M2K_GRC)))
+    assert result["valid"], result["errors"]
+    make = result["make"]
+    # 205, 246 and 287 whole cycles in 4096 samples at 100 kS/s.
+    assert "samp_rate = 100000" in make
+    assert "nfft = 4096" in make
+    assert "bin_hz = samp_rate / nfft" in make
+    for name, cycles in (("red", 205), ("green", 246), ("blue", 287)):
+        assert "%s_bin = %d" % (name, cycles) in make
+    # Chop and capture share one clock, which is what the whole demo rests on.
+    # sample_rate on the M2K blocks is a dropdown, so it is a literal here.
+    # A variable name in it reverts to 1 MS/s without complaining.
+    assert make.count("sample_rate=100000,") == 2
+    assert make.count("buffer_size=nfft,") == 2
+    assert "sample_rate=1000000" not in make
+    # The bit steers between risers; only J5 exists, so idle high is dark.
+    assert "pins=[13, 14, 15]" in make
+    assert "cyclic=True" in make and "idle_level='high'" in make
+    # A square short source is 0/1, which is exactly a DIO line.
+    assert "analog.GR_SQR_WAVE, (red_bin * bin_hz), 1, 0" in make
+    # One bin, computed over exactly one capture buffer.
+    assert make.count("fft.goertzel_fc(samp_rate, nfft,") == 6
+    # No window to taper, because nothing lands between bins.
+    assert "window.WIN_RECTANGULAR" in make
+    # The empty beam is not 1.0. Dividing it out happens on the wire, not in
+    # a display setting, so what reaches the decision block is real percent.
+    assert "blank_red = 1.0053" in make
+    assert "blank_green = 0.9757" in make
+    assert "blank_blue = 0.9911" in make
+    assert "blocks.multiply_const_ff((100.0 / blank_red))" in make
+    assert make.count("blocks.multiply_const_ff") == 3
+    # Three percentages in, one word out, into a text box on the GUI.
+    assert "decide.blk(clear=85.0, opaque=5.0, margin=1.3)" in make
+    for i, color in enumerate(("red", "green", "blue")):
+        assert "((self.%s_pct, 0), (self.decide, %d))" % (color, i) in make
+    assert "msg_connect((self.decide, 'decision'), (self.verdict, 'val'))" in make
+    # Blanking on demand. The chain the button closes is: press -> average
+    # the raw ratios -> set the variable -> the multiply block's own
+    # set_k. That last hop is GRC's, and it is the one worth asserting,
+    # because nothing in the flowgraph mentions it.
+    assert "self.red_pct.set_k((100.0 / self.blank_red))" in make
+    for color in ("red", "green", "blue"):
+        assert "msg_connect((self.blanker, '%s'), (self.apply_%s, 'inpair'))" \
+            % (color, color) in make
+        assert "blocks.msg_pair_to_var(self.set_blank_%s)" % color in make
+    assert "msg_connect((self.blank_button, 'pressed'), (self.blanker, 'blank'))" in make
+    # It reads the ratios BEFORE the blank is divided out, or pressing the
+    # button a second time would blank against the first blank.
+    for i, color in enumerate(("red", "green", "blue")):
+        assert "((self.%s_ratio, 0), (self.blanker, %d))" % (color, i) in make
+
+
+@needs_gnuradio
+def test_the_sync_word_finds_the_byte_boundary(repo_root):
+    """The receive chain, on synthetic FSK, started mid-bit.
+
+    Over the air the capture begins wherever it begins, so a chain that
+    only works from sample zero is a chain that works on a file. The
+    skew here is deliberately not a multiple of anything.
+    """
+    payload = json.loads(run_in_gr('''
+        import json, math, sys
+        import numpy as np
+        from gnuradio import gr, blocks, analog, digital
+        from gnuradio import filter as gr_filter
+        from gnuradio.filter import firdes
+
+        RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
+        CODE = "00011010110011111111110000011101"
+        FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+        SKEW = 1373
+
+        bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
+        n = int(round(RX * BITLEN))
+        f = np.where(np.repeat(bits, n) == 1, F0 + DEV, F0 - DEV)
+        x = 0.14 * np.sin(2 * np.pi * np.cumsum(f) / RX)
+        rng = np.random.default_rng(7)
+        x = x + rng.normal(0, 0.14 / math.sqrt(2) / 10 ** 0.5, x.size)
+        volts = np.concatenate([np.zeros(SKEW), x])
+
+        tb = gr.top_block()
+        rate = RX / DECIM
+        out = blocks.vector_sink_b()
+        tb.connect(blocks.vector_source_f(volts.tolist(), False),
+                   gr_filter.freq_xlating_fir_filter_fcf(
+                       DECIM, firdes.low_pass(1.0, RX, 600.0, 600.0), F0, RX),
+                   analog.quadrature_demod_cf(rate / (2 * math.pi * DEV)),
+                   digital.symbol_sync_ff(
+                       digital.TED_ZERO_CROSSING, rate * BITLEN, 0.045, 1.0,
+                       1.0, 1.5, 1, digital.constellation_bpsk().base(),
+                       digital.IR_MMSE_8TAP, 128, []),
+                   digital.binary_slicer_fb(),
+                   digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
+                   blocks.tagged_stream_align(gr.sizeof_char, "sync"),
+                   blocks.pack_k_bits_bb(8),
+                   blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
+                   out)
+        tb.run()
+        print(json.dumps(list(out.data())))
+    '''))
+    got = bytes(payload)
+    assert len(got) >= 8 * 8, len(got)
+    frames = [got[i:i + 8] for i in range(0, len(got) - 7, 8)]
+    assert all(f == b"GRCON26 " for f in frames), frames[:4]
+
+
+BUFFER_TAGS = '''
+import json, math, sys, time
+import numpy as np
+import pmt
+from gnuradio import gr, blocks, analog, digital, pdu
+from gnuradio import filter as gr_filter
+from gnuradio.filter import firdes
+
+RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
+CODE = "00011010110011111111110000011101"
+FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+BUF, SKEW = 16384, 1373
+
+bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
+n = int(round(RX * BITLEN))
+f = np.where(np.repeat(bits, n) == 1, F0 + DEV, F0 - DEV)
+x = 0.14 * np.sin(2 * np.pi * np.cumsum(f) / RX)
+rng = np.random.default_rng(7)
+x = x + rng.normal(0, 0.14 / math.sqrt(2) / 10 ** 0.5, x.size)
+volts = np.concatenate([np.zeros(SKEW), x])
+
+# What analog_source does to every buffer it hands over, via
+# set_len_tag_key("packet_len"). A vector source emits none on its own,
+# which is exactly why the chain looked fine until it met a board.
+tags = []
+for off in range(0, volts.size, BUF):
+    t = gr.tag_t()
+    t.offset = off
+    t.key = pmt.intern("packet_len")
+    t.value = pmt.from_long(BUF)
+    tags.append(t)
+
+tb = gr.top_block()
+rate = RX / DECIM
+gate = blocks.tag_gate(gr.sizeof_float, False)
+gate.set_single_key("packet_len")
+to_pdu = pdu.tagged_stream_to_pdu(gr.types.byte_t, "packet_len")
+sink = blocks.message_debug()
+
+chain = [blocks.vector_source_f(volts.tolist(), False, 1, tags)]
+if sys.argv[1] == "gate":
+    chain.append(gate)
+chain += [
+    gr_filter.freq_xlating_fir_filter_fcf(
+        DECIM, firdes.low_pass(1.0, RX, 600.0, 600.0), F0, RX),
+    analog.quadrature_demod_cf(rate / (2 * math.pi * DEV)),
+    digital.symbol_sync_ff(
+        digital.TED_ZERO_CROSSING, rate * BITLEN, 0.045, 1.0,
+        1.0, 1.5, 1, digital.constellation_bpsk().base(),
+        digital.IR_MMSE_8TAP, 128, []),
+    digital.binary_slicer_fb(),
+    digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
+    blocks.tagged_stream_align(gr.sizeof_char, "sync"),
+    blocks.pack_k_bits_bb(8),
+    blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
+    blocks.stream_to_tagged_stream(gr.sizeof_char, 1, 8, "packet_len"),
+    to_pdu,
+]
+tb.connect(*chain)
+tb.msg_connect(to_pdu, "pdus", sink, "store")
+tb.run()
+time.sleep(0.2)
+print(json.dumps([list(pmt.u8vector_elements(pmt.cdr(sink.get_message(i))))
+                  for i in range(sink.num_messages())]))
+'''
+
+
+@needs_gnuradio
+def test_the_sources_buffer_tags_do_not_reach_the_pdu():
+    """`packet_len` means two things, and one of them is 16384.
+
+    `analog_source` labels every buffer with a `packet_len` tag and
+    nothing in this repo reads it. `tagged_stream_to_pdu` keys on the
+    same string, so on a board it saw 16384 where the flowgraph meant 8
+    and waited eleven minutes for a message. On the bench the transducers
+    looked right, the demod looked right, and no PDU ever came out.
+
+    A vector source emits no tags, so the chain above this one cannot
+    reach the bug. This one injects the tags the hardware really sends.
+    """
+    gated = json.loads(run_in_gr(BUFFER_TAGS, "gate"))
+    assert gated, "no PDUs at all -- something other than the tags is wrong"
+    assert all(bytes(p) == b"GRCON26 " for p in gated), gated[:4]
+
+    # The other half of the claim: without the gate this does not work.
+    # If GNU Radio ever stops confusing the two, this fails and the gate
+    # in the flowgraph can go.
+    ungated = json.loads(run_in_gr(BUFFER_TAGS, "nogate"))
+    assert not any(bytes(p) == b"GRCON26 " for p in ungated), (
+        "the collision no longer happens -- recheck whether the tag gate "
+        "in m2k_ultrasonic_fsk.grc is still needed")
