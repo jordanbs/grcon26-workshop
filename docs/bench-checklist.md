@@ -5,12 +5,13 @@ Ordered so that each step makes the next one meaningful.
 Nothing here needs the discovery tool. It needs an M2K, a wire, and
 ideally a meter.
 
-**State as of 2026-09-15:** every section passes. Section 4 was the last
+**State as of 2026-09-18:** every section passes except 15, which is new
+and has not been run -- it needs an LED on the bench rather than a board
+change. Section 4 was the last
 open one -- it passed on everything relative and failed on absolute
 accuracy -- and section 10 closes it with a metered gain and offset for
-all four signal paths. Section 14 is new: it settles whether the
-pattern generator and the ADC share a clock, which is what the
-colorimeter demo rests on.
+all four signal paths. Section 14 settles whether the pattern generator and the
+ADC share a clock, which is what the colorimeter demo rests on.
 
 Section 9 is where the multi-pin digital sink got fixed. gr-iio's
 `device_sink` can only drive one DIO pin -- silently -- so `digital_sink`
@@ -870,7 +871,52 @@ calling into a half-collected object. GRC-generated code never hits this
 because every block is stored on the flowgraph object. Hand-written
 scripts must hold their own references.
 
-## 15. Promote what passes
+## 15. An LED on a pin — NOT RUN YET
+
+The only demo whose result cannot be predicted from the datasheet, because
+the unknown is the LED rather than the board.
+
+```
+source gr-m2k/env.sh
+python3 bench/blinky.py pin
+python3 bench/blinky.py duty
+python3 bench/blinky.py led
+```
+
+**Wiring.** LED anode (long leg) to DIO0, cathode to GND. These are the
+integrated-resistor kind, so there is no separate resistor. For `pin` and
+`duty`, also run DIO0 to analog 1+ and 1- to ground, leaving the LED
+attached — the point is to measure the pin *while it is loaded*.
+
+The input range is `'low'`, which is the wide one. `'high'` is ±2.5 V and
+clips 3.3 V logic flat. Section 7 has the same warning for the same reason.
+
+**What each one answers:**
+
+- `pin` — is DIO0 producing a square wave at the rate it was asked for?
+  Reports the high level, the low level, the swing, and the measured rate
+  against the requested one. Passes under 2% rate error.
+- `duty` — is the PWM duty setting linear in the output? Sweeps 0 to 1 in
+  eleven steps and prints mean volts against expected. Passes if the worst
+  departure from the straight line is under 3% of the swing. The offline
+  version of this arithmetic is already exact in `tests/test_blinky.py`;
+  this is whether the pin agrees.
+- `led` — is the LED loading the pin down? Prompts for the LED connected,
+  then disconnected, and compares the two high levels. A droop over 0.4 V
+  means the pin is being pulled hard; under 0.05 V means the LED is drawing
+  almost nothing, which on a 12 V-rated part means it will also be dark.
+
+**The open question.** Integrated-resistor LEDs are sold for 3 V, 5 V, 12 V
+and 24 V, and the packaging often does not say which. At 3.3 V a 3 V part is
+bright, a 5 V red is dim but visible, and a 12 V part does not light. The
+`led` measurement is how to tell them apart without a meter and a datasheet.
+
+If they turn out to be 12 V parts, the fix is to drive the LED from W1
+through `m2k_analog_sink` instead — ±5 V and real current — which is a
+one-block swap in both flowgraphs. Section 6 already establishes that the
+generator does what it is told.
+
+## 16. Promote what passes
 
 Each entry in `iio_overlays.py` carries a `check` field describing how to
 confirm it. 58 of 74 are still `UNVERIFIED`. As they check out, change
@@ -906,6 +952,7 @@ settings you understand:
 | the decoder keeps up in the flowgraph | **measured** — three bus speeds, ~6 M samples each, no rotation |
 | non-cyclic digital output joins its buffers seamlessly | **not needed** — aligned frames never cross a seam; 20/20 sends whole at 100 kS/s |
 | an untriggered digital capture is gapped between rx buffers | **no** — 20 sends, no tear; the gap in section 11 is the trigger re-arming |
+| a 3.3 V DIO pin lights an integrated-resistor LED | **unknown** — depends on the part's rated voltage; `bench/blinky.py led` |
 | a gr-iio source survives a refill timeout | **wrong** — `work()` returns WORK_DONE on any refill error, and the block is done |
 
 ---
@@ -926,6 +973,9 @@ python3 bench/dc_point.py 0.0 --output w1       # 10, one point
 python3 bench/dc_point.py 1.0 --output w1 --meter 1.051
 python3 bench/spi_flowgraph.py M2K 8 --csv /tmp/bus.csv     # 13, on hardware
 python3 bench/colorimeter.py coherence          # 14, needs the colorimeter board
+python3 bench/blinky.py pin                     # 15, needs an LED on DIO0
+python3 bench/blinky.py duty                    # 15
+python3 bench/blinky.py led                     # 15
 ```
 
 Both want a gnuradio interpreter. The project `.venv` does not have one,

@@ -1,0 +1,330 @@
+options:
+  parameters:
+    author: GRCon26 workshop
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: 'LED anode (long leg) to DIO0, cathode to GND. Nothing else.
+
+
+      These are LEDs with the series resistor built in. A bare LED needs about 220
+      ohm in series, or the pin is driving a short.
+
+
+      The square wave on the canvas is the pin. Every sample is one bit, and the
+      sink hands them to DIO0 at 100 kS/s -- so the blink rate is a property of the
+      stream, not a setting on the board.'
+    copyright: ''
+    description: An LED on DIO0, blinking at whatever the slider says.
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: m2k_blinky
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: M2K blinky - an LED on DIO0
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 'The rate the DIO pin is clocked at. 100 kS/s with a 16384-sample buffer
+      is 6 pushes a second, so the slider takes about 160 ms to show up.'
+    value: '100000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12.0]
+    rotation: 0
+    state: enabled
+- name: view_decim
+  id: variable
+  parameters:
+    comment: 'Plain decimation, no filter. Legitimate here only because the thing
+      being drawn is a few hertz and this still leaves 100 S/s.'
+    value: '1000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [320, 12.0]
+    rotation: 0
+    state: enabled
+- name: blink_hz
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Blink rate (Hz)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.5'
+    step: '0.5'
+    stop: '10'
+    value: '2'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [456, 12.0]
+    rotation: 0
+    state: enabled
+- name: analog_sig_source_x_0
+  id: analog_sig_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: 'GNU Radio''s square wave is already 0 to amplitude, not plus and minus
+      it. So amplitude 1 is literally the two values the pin wants.'
+    freq: blink_hz
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    offset: '0'
+    phase: '0'
+    samp_rate: samp_rate
+    showports: 'False'
+    type: float
+    waveform: analog.GR_SQR_WAVE
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [96, 196.0]
+    rotation: 0
+    state: enabled
+- name: blocks_float_to_short_0
+  id: blocks_float_to_short
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Scale 1, so 0.0 and 1.0 arrive as 0 and 1. The sink wants one bit per
+      sample in a short, not a packed word.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: '1'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 228.0]
+    rotation: 0
+    state: enabled
+- name: m2k_digital_sink_0
+  id: m2k_digital_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    buffer_size: '16384'
+    comment: 'Idle low, so the LED is dark when the flowgraph is stopped rather than
+      stuck on.'
+    cyclic: 'False'
+    drive: '''push-pull'''
+    idle_level: '''low'''
+    name0: LED
+    name1: ''
+    name10: ''
+    name11: ''
+    name12: ''
+    name13: ''
+    name14: ''
+    name15: ''
+    name2: ''
+    name3: ''
+    name4: ''
+    name5: ''
+    name6: ''
+    name7: ''
+    name8: ''
+    name9: ''
+    num_lines: '1'
+    pin0: '0'
+    pin1: '1'
+    pin10: '10'
+    pin11: '11'
+    pin12: '12'
+    pin13: '13'
+    pin14: '14'
+    pin15: '15'
+    pin2: '2'
+    pin3: '3'
+    pin4: '4'
+    pin5: '5'
+    pin6: '6'
+    pin7: '7'
+    pin8: '8'
+    pin9: '9'
+    sample_rate: '100000'
+    uri: ip:192.168.2.1
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [608, 204.0]
+    rotation: 0
+    state: enabled
+- name: blocks_short_to_float_0
+  id: blocks_short_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'The scope leg watches exactly what the sink is given, so the trace and
+      the pin cannot disagree.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: '1'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [376, 340.0]
+    rotation: 0
+    state: enabled
+- name: blocks_keep_one_in_n_0
+  id: blocks_keep_one_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: view_decim
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [592, 348.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_x_0
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: DIO0
+    label10: Signal 10
+    label2: Signal 2
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"What DIO0 is being told to do"'
+    nconnections: '1'
+    size: '512'
+    srate: samp_rate/view_decim
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Pin level
+    ymax: '1.5'
+    ymin: '-0.5'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [784, 316.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [analog_sig_source_x_0, '0', blocks_float_to_short_0, '0']
+- [blocks_float_to_short_0, '0', m2k_digital_sink_0, '0']
+- [blocks_float_to_short_0, '0', blocks_short_to_float_0, '0']
+- [blocks_short_to_float_0, '0', blocks_keep_one_in_n_0, '0']
+- [blocks_keep_one_in_n_0, '0', qtgui_time_sink_x_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.9.2
