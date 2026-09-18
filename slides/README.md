@@ -28,6 +28,19 @@ A frame marked `cut` shows only its `<h2>` and its `.present` blocks on screen.
 Two present blocks in one `.stage` sit side by side on a laptop and stack on a
 phone: key points beside the table or the diagram they talk to.
 
+**Titles say what the frame is.** "The IIO Model", "What Are Raw Values",
+"GR-IIO", "Sample Flow", "The 6 M2K Instruments" — a noun phrase naming the
+subject, in title case. Not a claim about the slide ("Mode 0, in one
+sentence"), not a comma clause that withholds the subject until the second
+half ("Four nouns, and that is the whole model"), and not a joke. Cheekiness
+lands when it is rare, and a title is the wrong place to spend it.
+`check_deck.py` flags the constructions this deck kept reaching for.
+
+**Do not justify the work on a slide.** The room is about to watch the thing
+run, which settles it better than a claim does. No "this has been verified on
+a real board", no test counts, no "which also proves". Where a claim genuinely
+is still an assumption, say so in the notes.
+
 **The prose voice** follows ECE 444's `VOICE.md`, which is a calibration set
 built from Neil's own review corrections rather than a style opinion. The four
 that this deck kept breaking: do not narrate your own rhetorical moves ("worth

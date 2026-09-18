@@ -114,9 +114,9 @@ display), and the session material itself.
 **Phase 1 — crawl:** six blocks built and bench-verified, absolute error closed. Open:
 a DC power supply block, a capability GNU Radio does not have.
 
-**Timing:** GRCon26 is this month. Phase 3's ultrasonic link is closed; the colorimeter
-is untouched. The deck exists for everything that runs; setup is due two weeks prior.
-
+**Timing:** GRCon26 is this month. Phase 3's ultrasonic link is closed and the
+colorimeter reads end to end; both are in the deck. Participants need a short setup
+before the session: install the M2K drivers and download the flowgraphs.
 **Phase 2 — walk:** IIO block anatomy, one intro slide from `iio_explain.py
 --glossary`; `docs/reading-iio-attributes.md` is the participant-facing artifact.
 
@@ -134,12 +134,11 @@ beacon. Pico beacons, M2K as the attendee's receiver.
   source and sink, SPI decode and encode — 390 tests, all 13 bench-checklist sections
   passing, absolute error closed and meter-verified. Detail in the archive; numbers in
   the checklist.
-- **`slides/` — 48 frames**, 34 cut, read and present from one document. The present
-  layer is bullets and pictures; the prose is in `.depth`. Every figure and both
-  digital ymls are generated from source and a test fails when either drifts;
-  `check_deck.py` gates titles, ids, alt text and the 40-word budget. Toolchain and its
-  distro dependencies are in `slides/README.md`. Ultrasonic and the colorimeter are
-  labelled placeholders.
+- **`slides/` — 55 frames**, read and present from one document. The present layer is
+  bullets and pictures; the prose is in `.depth`. Every figure and both digital ymls
+  are generated from source and a test fails when either drifts; `check_deck.py` gates
+  titles, ids, alt text and the 40-word budget. Toolchain and its distro dependencies
+  are in `slides/README.md`. Ultrasonic and the colorimeter both have real frames.
 - **Live M2K at `ip:192.168.2.1`** (Rev.D Z7010, fw v0.33), network backend, no USB
   passthrough. Calibrated and held; all 16 DIO pins inputs, triggers off.
 - **Ultrasonic characterised and closed 2026-09-09.** f0 40.755 kHz, -6 dB band
@@ -187,7 +186,9 @@ beacon. Pico beacons, M2K as the attendee's receiver.
       `bench/spi_flowgraph.py M2K 8 --csv`, DIO0-2 wired to DIO4-6.
 - [ ] Delete the merged `m2k-discovery-gui` branch.
 - [ ] Decide which demo becomes the hands-on participant station.
-- [ ] Write participant setup instructions; send two weeks before the session.
+- [ ] Write the participant setup: install the M2K drivers, download the
+      flowgraphs. Short enough to do the morning of, and it is the only thing
+      anyone installs.
 - [ ] Turn on Settings -> Pages -> Source: GitHub Actions so `pages.yml` can publish.
 - [ ] Fill the `#colorimeter` placeholder frames once that demo runs.
 

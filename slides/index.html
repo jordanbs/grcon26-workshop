@@ -90,29 +90,25 @@
 </section>
 
 <section class="frame cut" id="roadmap">
-  <div class="wrap">
-    <h2>Where this goes</h2>
+  <div class="wrap narrow">
+    <h2>Our Roadmap</h2>
     <div class="stage">
       <div class="present">
-        <ol>
-          <li><strong>IIO</strong> — one interface for every converter Linux knows about.</li>
-          <li><strong>The M2K</strong> — fourteen IIO devices pretending to be a bench.</li>
-          <li><strong>Six blocks</strong> — the bench, in GNU&nbsp;Radio's vocabulary.</li>
-          <li><strong>An SPI bus</strong> — built one block at a time, then run.</li>
-        </ol>
-      </div>
-      <div class="present callout">
-        <p>Everything here has been run on a real Rev.D board. Where it has not, the frame says so.</p>
+        <ul>
+          <li><strong>Crawl</strong> — IIO, and a loopback on the board's own generator</li>
+          <li><strong>Walk</strong> — the M2K blocks, and what each parameter writes</li>
+          <li><strong>Run</strong> — an SPI bus on the digital pins</li>
+        </ul>
       </div>
     </div>
     <div class="depth">
-      <p>The shape is crawl / walk / run. The crawl is a loopback: the board's own
-      generator into the board's own input, so a station with no other hardware
-      still has something to measure. The walk is what a block parameter writes. The run is a protocol on the digital pins.</p>
-      <p>Two ground rules for the session. Nothing gets installed in the room —
-      the setup instructions went out two weeks ago and the tooling is standard
-      library only. And every number on a slide came off a bench or out of a
-      test; where a claim is still an assumption the frame says so.</p>
+      <p>We will follow a crawl, walk, run approach. The crawl is a loopback:
+      the board's own generator into the board's own input, so a station with
+      no other hardware still has something to measure. The walk is what a
+      block parameter writes. The run is a protocol on the digital pins.</p>
+      <p>Setup is short and happens before the session: install the M2K
+      drivers and download the flowgraphs. Nothing else gets installed in the
+      room.</p>
       <p><strong>Press <kbd>P</kbd></strong> to switch between the projected deck and
       these notes. The notes are always in the page, in both modes — the deck
       view hides them, it never drops them. Printing gives you the notes, one
@@ -135,7 +131,7 @@
 
 <section class="frame cut" id="iio-what" data-section="IIO">
   <div class="wrap">
-    <h2>What IIO is</h2>
+    <h2>What Is IIO</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -168,7 +164,7 @@
 
 <section class="frame cut" id="iio-tree" data-section="IIO">
   <div class="wrap">
-    <h2>Four nouns, and that is the whole model</h2>
+    <h2>The IIO Model</h2>
     <div class="stage">
       <div class="present">
 <pre><code>context      ip:192.168.2.1
@@ -204,7 +200,7 @@
 
 <section class="frame cut" id="iio-rule" data-section="IIO">
   <div class="wrap">
-    <h2>A <code>_raw</code> value is not a measurement</h2>
+    <h2>What Are Raw Values</h2>
     <div class="stage">
       <div class="present">
         <p class="pull">real value = (raw + offset) &times; scale</p>
@@ -240,7 +236,7 @@
 
 <section class="frame cut" id="iio-names" data-section="IIO">
   <div class="wrap">
-    <h2>The name is a sentence</h2>
+    <h2>Attribute Name Grammar</h2>
     <div class="stage">
       <div class="present">
 <pre><code>{in|out}_{type}{index}[_{modifier}]_{info}
@@ -276,7 +272,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 
 <section class="frame cut" id="iio-gr" data-section="IIO">
   <div class="wrap">
-    <h2>What gr-iio gives you, and what it does not</h2>
+    <h2>GR-IIO</h2>
     <div class="stage split-r">
       <div class="present">
         <ul>
@@ -316,7 +312,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 
 <section class="frame read-only" id="iio-meaning" data-section="IIO">
   <div class="wrap">
-    <h2>Where meaning comes from</h2>
+    <h2>Provenance Tags</h2>
     <p>Reference. Every line <code>iio_explain.py</code> prints is tagged with its source,
     so fact, convention and guesswork stay distinguishable.</p>
     <div class="tablewrap"><table>
@@ -349,7 +345,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 
 <section class="frame cut" id="m2k-what" data-section="ADALM2000">
   <div class="wrap">
-    <h2>One board, six instruments</h2>
+    <h2>The 6 M2K Instruments</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -381,7 +377,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 
 <section class="frame cut" id="m2k-devices" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Underneath, it is not an instrument at all</h2>
+    <h2>The 14 IIO Devices</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -418,7 +414,7 @@ ad9963  ad5627  ad5625  pll  xadc</code></pre>
 
 <section class="frame cut" id="m2k-scopy" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Scopy, and what is under it</h2>
+    <h2>Scopy and libm2k</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -447,7 +443,7 @@ ad9963  ad5627  ad5625  pll  xadc</code></pre>
 
 <section class="frame cut" id="m2k-translation" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Scopy's knobs, as sysfs names</h2>
+    <h2>Scopy Knobs and sysfs Names</h2>
     <div class="stage">
       <div class="present">
 <pre><code>gain               -> M2kAnalogIn::setRange
@@ -484,7 +480,7 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
 
 <section class="frame cut" id="m2k-traps" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Four things the board will not tell you</h2>
+    <h2>Four M2K Traps</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -528,14 +524,14 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
 <section class="frame section-frame" id="sec-blocks" data-section="The blocks">
   <div class="wrap">
     <div class="sec-n">Part three</div>
-    <h2>Six new blocks</h2>
+    <h2>GNU Radio Blocks for the M2K</h2>
     <p class="lede">The instrument, in GNU&nbsp;Radio's vocabulary. Two lines of setup, no build step.</p>
   </div>
 </section>
 
 <section class="frame" id="blocks-map" data-section="The blocks">
   <div class="wrap wide">
-    <h2>What is in <code>[ADALM2000]</code></h2>
+    <h2>The Six Blocks</h2>
         <div class="grid2">
           <div class="card"><h3>M2K Analog Source</h3><p>the scope — samples, range, trigger</p></div>
           <div class="card"><h3>M2K Analog Sink</h3><p>the generator</p></div>
@@ -608,7 +604,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="blocks-digital" data-section="The blocks">
   <div class="wrap">
-    <h2>M2K Digital Source / Sink</h2>
+    <h2>M2K Digital Source and Sink</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -644,7 +640,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="blocks-multipin" data-section="The blocks">
   <div class="wrap">
-    <h2>Why the digital sink had to be written</h2>
+    <h2>The Multi-Pin Sink Problem</h2>
     <div class="stage">
       <div class="present callout trap">
         <p><strong>gr-iio's <code>device_sink</code> drives one DIO pin, silently.</strong></p>
@@ -683,7 +679,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="blocks-rules" data-section="The blocks">
   <div class="wrap">
-    <h2>Three rules the blocks follow</h2>
+    <h2>Three Block Design Rules</h2>
     <div class="stage">
       <div class="present">
         <ol>
@@ -705,32 +701,17 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
       <p>A fourth rule, learned the hard way: <strong>quote every option label.</strong>
       <code>option_labels: [On, Off]</code> silently becomes <code>True / False</code>, because
       YAML 1.1 reads those as booleans. There is a test.</p>
-      <p>And a fifth, same category: GRC's <code>dtype: enum</code> values are raw
-      strings. <code>'0' + '3'</code> concatenates, <code>int("'6'")</code> raises, and an assert
+      <p>One capability is still missing. GNU&nbsp;Radio cannot control a power
+      rail at all, so there is no block for the M2K's two supplies yet; the
+      setpoint spans four places, including the context <code>cal,*</code>
+      attributes.</p>
+      <p>And a fifth rule, same category: GRC's <code>dtype: enum</code> values are
+      raw strings. <code>'0' + '3'</code> concatenates, <code>int("'6'")</code> raises, and an assert
       that raises makes GRC fall back to defaults without saying so.</p>
     </div>
   </div>
 </section>
 
-<section class="frame read-only" id="blocks-unchecked" data-section="The blocks">
-  <div class="wrap">
-    <h2>What has been checked, and what has not</h2>
-    <p><strong>Checked, with no hardware</strong> (<code>tests/test_grc_integration.py</code>):
-    GRC's real loader accepts every block; a flowgraph using one validates and
-    generates Python that parses; run headless it reaches
-    <code>RuntimeError: Unable to create context</code> — everything but the board. The
-    arithmetic is tested with no GNU&nbsp;Radio present, including that the
-    sample-rate list matches what a real M2K publishes.</p>
-    <p><strong>Checked on the bench:</strong> sections 1–13 of
-    <code>docs/bench-checklist.md</code>, including a real SPI mode-0 bus over all 256
-    byte values. Absolute error is closed and meter-verified: input gains within
-    0.31% of unity, offsets under 1&nbsp;mV. The generators keep 10–17&nbsp;mV, because
-    the internal loopback never sees a DMM's load.</p>
-    <p><strong>Not checked:</strong> the DC power supply block does not exist yet. It
-    is the one capability GNU&nbsp;Radio does not have at all, and the setpoint spans
-    four places including the context <code>cal,*</code> attributes.</p>
-  </div>
-</section>
 
 <!-- ===================================================================
      SPI
@@ -746,7 +727,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="spi-what" data-section="SPI">
   <div class="wrap">
-    <h2>Four wires</h2>
+    <h2>The Four SPI Wires</h2>
     <div class="stage split">
       <div class="present">
         <div class="tablewrap"><table>
@@ -783,7 +764,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="spi-mode0" data-section="SPI">
   <div class="wrap">
-    <h2>Mode 0, in one sentence</h2>
+    <h2>SPI Mode 0</h2>
     <div class="stage split">
       <div class="present">
         <figure class="shot wave">
@@ -819,7 +800,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="spi-cs" data-section="SPI">
   <div class="wrap">
-    <h2>Chip select is the framing</h2>
+    <h2>Chip Select and Framing</h2>
     <div class="stage split">
       <div class="present">
         <figure class="shot wave">
@@ -850,7 +831,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="spi-bitbang" data-section="SPI">
   <div class="wrap">
-    <h2>A bus made of samples</h2>
+    <h2>Sample Flow</h2>
     <div class="stage split-r">
       <div class="present">
         <figure class="shot wave">
@@ -897,14 +878,14 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 <section class="frame section-frame" id="sec-fg" data-section="Flow graph">
   <div class="wrap">
     <div class="sec-n">Part five</div>
-    <h2>The flow graph</h2>
+    <h2>The SPI Flow Graph</h2>
     <p class="lede">The map first. Then one block at a time, and what every parameter is for.</p>
   </div>
 </section>
 
 <section class="frame" id="fg-canvas" data-section="Flow graph">
   <div class="wrap wide">
-    <h2>The canvas, as GRC draws it</h2>
+    <h2>The GRC Canvas</h2>
     <figure class="shot canvas">
       <img src="img/flowgraph-spi-signal-path.png" alt="The signal path of m2k_spi_loopback.grc on the GNU Radio Companion canvas: a QT GUI Message Edit Box into M2K SPI Encode into M2K Digital Sink on DIO0-2, and M2K Digital Source on DIO4-6 into M2K SPI Decode into Message Debug, with three Short To Float blocks branching into a QT GUI Time Sink.">
       <figcaption>Every parameter sits on the face of every block. This is <code>flowgraphs/m2k_spi_loopback.grc</code>.</figcaption>
@@ -935,7 +916,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame" id="fg-map" data-section="Flow graph">
   <div class="wrap wide">
-    <h2>The half of it that is not on the canvas</h2>
+    <h2>The Wiring Diagram</h2>
     <figure>
       <svg viewBox="0 0 730 430" role="img" aria-label="Flow graph: a message edit box feeds M2K SPI Encode, which feeds M2K Digital Sink on DIO 0, 1 and 2. Three jumper wires carry those to DIO 4, 5 and 6, where M2K Digital Source reads them into M2K SPI Decode and on to Message Debug, with a branch through Short To Float into a QT GUI Time Sink.">
         <style>
@@ -1044,7 +1025,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="fg-vars" data-section="Flow graph">
   <div class="wrap">
-    <h2>Four variables, and the arithmetic between them</h2>
+    <h2>The Four Variables</h2>
     <div class="chain">
       <span class="lnk on">Variables</span><span class="arw">&#8594;</span>
       <span class="lnk">Edit Box</span><span class="arw">&#8594;</span>
@@ -1256,7 +1237,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="fg-wire" data-section="Flow graph">
   <div class="wrap">
-    <h2>Three jumper wires</h2>
+    <h2>Three Jumper Wires</h2>
     <div class="chain">
       <span class="lnk done">Variables</span><span class="arw">&#8594;</span>
       <span class="lnk done">Edit Box</span><span class="arw">&#8594;</span>
@@ -1400,7 +1381,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
 
 <section class="frame cut" id="fg-out" data-section="Flow graph">
   <div class="wrap">
-    <h2>Message Debug, and the trace beside it</h2>
+    <h2>Message Debug and the Time Sink</h2>
     <div class="chain">
       <span class="lnk done">Variables</span><span class="arw">&#8594;</span>
       <span class="lnk done">Edit Box</span><span class="arw">&#8594;</span>
@@ -1459,14 +1440,14 @@ pdu vector contents =
 <section class="frame section-frame" id="sec-demo" data-section="Demos">
   <div class="wrap">
     <div class="sec-n">Part six</div>
-    <h2>Run it</h2>
+    <h2>Demos</h2>
     <p class="lede">A loopback, the way it failed the first time, and an opinion from a decoder nobody here wrote.</p>
   </div>
 </section>
 
 <section class="frame cut" id="demo-loopback" data-section="Demos">
   <div class="wrap">
-    <h2>Demo: the loopback</h2>
+    <h2>The Loopback Demo</h2>
     <div class="stage">
       <div class="present">
 <pre><code>export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
@@ -1475,10 +1456,13 @@ gnuradio-companion flowgraphs/m2k_spi_loopback.grc</code></pre>
         <p>Type into the box. Press Enter. One transaction goes out; the bus
         rests at idle until you send again.</p>
       </div>
-      <div class="present callout win">
-        <p><strong>2026-09-04:</strong> twenty sends with varying text, one print
-        each, clean at 100&nbsp;kS/s — which also proves an untriggered capture is
-        not gapped.</p>
+      <div class="present">
+        <p><strong>What to watch:</strong></p>
+        <ul>
+          <li>Nothing prints until the first CS falls</li>
+          <li>The string changes without a restart</li>
+          <li>Change <code>half</code>, and the bus speed follows</li>
+        </ul>
       </div>
     </div>
     <div class="depth">
@@ -1505,7 +1489,7 @@ gnuradio-companion flowgraphs/m2k_spi_loopback.grc</code></pre>
 
 <section class="frame cut" id="demo-rotations" data-section="Demos">
   <div class="wrap">
-    <h2>The first run failed, and how is the point</h2>
+    <h2>Why the First Run Printed Rotations</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -1542,7 +1526,7 @@ gnuradio-companion flowgraphs/m2k_spi_loopback.grc</code></pre>
 
 <section class="frame cut" id="demo-sigrok" data-section="Demos">
   <div class="wrap">
-    <h2>Confirmation: <code>sigrok-cli</code> / PulseView</h2>
+    <h2>Checking Against sigrok</h2>
     <div class="stage">
       <div class="present">
         <ul>
@@ -1584,7 +1568,7 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="demo-negative" data-section="Demos">
   <div class="wrap">
-    <h2>The negative control</h2>
+    <h2>The Negative Control</h2>
     <div class="stage split-r">
       <div class="present">
         <p class="pull">A harness that cannot fail has not checked anything.</p>
@@ -1623,14 +1607,14 @@ sigrok-cli -i bus.csv \
 <section class="frame section-frame" id="sec-apps" data-section="Applications">
   <div class="wrap">
     <div class="sec-n">Part seven</div>
-    <h2>Two applications</h2>
+    <h2>Applications</h2>
     <p class="lede">Where the same three ideas — a rate, a range, and a conversion — go next.</p>
   </div>
 </section>
 
 <section class="frame cut" id="ultrasonic" data-section="Applications">
   <div class="wrap">
-    <h2>Ultrasonic FSK, over the air</h2>
+    <h2>Ultrasonic FSK</h2>
     <div class="stage split-r">
       <div class="present">
         <ul>
@@ -1673,7 +1657,7 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="ultrasonic-resonance" data-section="Applications">
   <div class="wrap">
-    <h2>It does not resonate at 40&nbsp;kHz</h2>
+    <h2>Transducer Resonance</h2>
     <div class="stage split">
       <div class="present">
         <figure class="shot wave">
@@ -1724,7 +1708,7 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="ultrasonic-tx" data-section="Applications">
   <div class="wrap">
-    <h2>Bits into a tone</h2>
+    <h2>The FSK Transmitter</h2>
     <div class="chain">
       <span class="lnk on">Frame</span><span class="arw">&#8594;</span>
       <span class="lnk">VCO</span><span class="arw">&#8594;</span>
@@ -1790,7 +1774,7 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="ultrasonic-rx" data-section="Applications">
   <div class="wrap">
-    <h2>Decimate, then demodulate</h2>
+    <h2>The FSK Receiver</h2>
     <div class="chain">
       <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
       <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
@@ -1855,7 +1839,7 @@ sigrok-cli -i bus.csv \
 
 <section class="frame cut" id="ultrasonic-sync" data-section="Applications">
   <div class="wrap">
-    <h2>Where the byte boundary comes from</h2>
+    <h2>Byte Sync</h2>
     <div class="chain">
       <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
       <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
@@ -1915,7 +1899,7 @@ pdu vector contents =
 
 <section class="frame cut" id="ultrasonic-result" data-section="Applications">
   <div class="wrap">
-    <h2>What it has done, and what it has not</h2>
+    <h2>Link Results</h2>
     <div class="stage split">
       <div class="present">
         <div class="tablewrap"><table class="params">
@@ -1958,7 +1942,7 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter" data-section="Applications">
   <div class="wrap">
-    <h2>Three colors at once</h2>
+    <h2>The CN0363 Optics</h2>
     <div class="stage split">
       <div class="present">
         <figure class="shot wave">
@@ -2007,7 +1991,7 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter-bins" data-section="Applications">
   <div class="wrap">
-    <h2>5004.9 Hz, not 5 kHz</h2>
+    <h2>The Chop Frequencies</h2>
     <div class="stage">
       <div class="present">
         <figure class="shot wave">
@@ -2053,7 +2037,7 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter-lockin" data-section="Applications">
   <div class="wrap">
-    <h2>A DFT bin is a lock-in amplifier</h2>
+    <h2>Lock-In Detection</h2>
     <div class="stage">
       <div class="present">
         <figure class="shot canvas">
@@ -2096,7 +2080,7 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter-result" data-section="Applications">
   <div class="wrap">
-    <h2>What it reads</h2>
+    <h2>Transmittance Readings</h2>
     <div class="stage split">
       <div class="present">
         <div class="tablewrap"><table class="params">
@@ -2157,7 +2141,7 @@ pdu vector contents =
 
 <section class="frame cut" id="close" data-section="Close">
   <div class="wrap">
-    <h2>If you keep four things</h2>
+    <h2>Four Things to Take Away</h2>
     <div class="stage">
       <div class="present">
         <ol>
@@ -2188,7 +2172,7 @@ pdu vector contents =
 
 <section class="frame read-only" id="resources" data-section="Close">
   <div class="wrap">
-    <h2>Where things are</h2>
+    <h2>Resources</h2>
     <div class="grid2">
       <div class="card"><h3>The repository</h3><p><a href="https://github.com/livethisdream/grcon26-workshop">github.com/livethisdream/grcon26-workshop</a></p></div>
       <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio_explain.py --glossary</code></p></div>
