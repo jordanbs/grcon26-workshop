@@ -186,7 +186,6 @@ tier that costs participants a compiler.
 - [ ] Write the participant setup: install the M2K drivers, download the flowgraphs.
       Short enough to do the morning of, and the only thing anyone installs. The pip
       route is what to send them.
-- [ ] Turn on Settings -> Pages -> Source: GitHub Actions so `pages.yml` can publish.
 - [ ] Decide which demo is the hands-on participant station.
 - [ ] Add `flowgraphs/m2k_digital_loopback.grc` — sink at DIO0, source at DIO1.
 - [ ] Raise `samp_rate` on `m2k_spi_loopback.grc` from 100 kS/s step by step and record
