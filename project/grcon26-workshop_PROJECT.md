@@ -127,8 +127,7 @@ tier that costs participants a compiler.
 # Status
 
 - **Repo:** `main`, everything merged — SPI, ultrasonic (PR #4), colorimeter (PR #5,
-  `13cbbc7`). 456 tests. `colorimeter`, `ultrasonic-fsk` and `m2k-discovery-gui` are
-  merged branches and can go.
+  `13cbbc7`). 456 tests.
 - **Phase 1 is done and verified.** Six blocks in `gr-m2k/`, all 15 bench-checklist
   sections passing, absolute error closed against the meter. Detail in the archive.
 - **`gr-m2k` is installable two ways** as of 2026-09-16: `source gr-m2k/env.sh` for one
@@ -192,9 +191,6 @@ tier that costs participants a compiler.
       where send-on-demand stops holding. Nothing in the repo knows that rate.
 - [ ] Run the sigrok check against a real M2K capture, not the encoder's arithmetic:
       `bench/spi_flowgraph.py M2K 8 --csv`, DIO0-2 wired to DIO4-6.
-- [ ] Delete the merged `colorimeter`, `ultrasonic-fsk`, `m2k-discovery-gui`,
-      `claude/spi-presentation-slides-4b4ld3` and `claude/project-status-6430gb`
-      branches.
 
 **If we have time**
 - [ ] Overlay coverage (~104 attributes, 57% → ~90%) is parked; see the archive,
