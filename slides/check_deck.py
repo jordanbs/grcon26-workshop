@@ -149,6 +149,19 @@ BANNED = {
 }
 
 
+# A frame title says what the frame is. The constructions below are the ones
+# this deck kept reaching for instead -- a comma clause that withholds the
+# subject, a promise about brevity, a leftover marker. Cheekiness lands when
+# it is rare, so the title is not where it goes.
+TITLE_TELLS = {
+    r",\s+and (that|how|what)\b": "comma clause; name the thing instead",
+    r"\bin one sentence\b": "a claim about the slide, not its subject",
+    r"\band what it does not\b": "comma clause; name the thing instead",
+    r"\bplaceholder\b": "say the subject; the body can say it is unbuilt",
+    r"\.$": "a title is not a sentence",
+}
+
+
 def prose(source):
     """The running text, which is what the voice rules govern.
 
@@ -201,6 +214,10 @@ def main():
         if f["present"] and "cut" not in f["classes"]:
             fails.append(f"{where}: has present blocks but is not `cut`, so "
                          f"they will not lay out side by side")
+        if f["title"]:
+            for pattern, why in TITLE_TELLS.items():
+                if re.search(pattern, f["title"], re.I):
+                    fails.append(f'{where}: title "{f["title"]}" -- {why}')
         total = 0
         for i, block in enumerate(f["present"]):
             n = len(words(block))

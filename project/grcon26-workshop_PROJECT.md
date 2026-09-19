@@ -1,7 +1,7 @@
 ---
 name: "#grcon26-workshop"
 dateCreated: 2026-08-18
-dateModified: 2026-09-16
+dateModified: 2026-09-19
 container: cdocker
 ---
 # Overview
@@ -107,8 +107,8 @@ display), and the session material itself.
 a DC power supply block, a capability GNU Radio does not have.
 
 **Timing:** GRCon26 is this month. Phases 1 and 3 are closed and merged; the deck
-covers everything that runs and is published. Setup instructions are due two weeks
-prior and are the nearest deadline.
+covers everything that runs and is published. Participants need a short setup before
+the session: install the M2K drivers and download the flowgraphs.
 
 **Phase 2 — walk:** IIO block anatomy, one intro slide from `iio_explain.py
 --glossary`; `docs/reading-iio-attributes.md` is the participant artifact.
@@ -142,10 +142,10 @@ tier that costs participants a compiler.
   green strip repeats to 0.3%, and color naming and the Blank button both passed on the
   board. `flowgraphs/m2k_colorimeter.grc`, `bench/colorimeter.py`; numbers in the
   archive. Provisional: the 85 / 5 / 1.3 thresholds rest on one filter.
-- **`slides/` — 56 frames**, 42 cut, 45 carrying depth, no placeholders left, published
+- **`slides/` — 57 frames**, 44 cut, 47 carrying depth, no placeholders left, published
   at <https://livethisdream.github.io/grcon26-workshop/> on every push to `slides/`.
   Figures are generated from source and a test fails on drift; `check_deck.py` gates
-  titles, ids, alt text and the 40-word budget. Stale facts to fix — see ToDo.
+  titles, ids, alt text, the 40-word budget and the title register.
 - **Live M2K at `ip:192.168.2.1`** (Rev.D Z7010, fw v0.33), network backend, no USB
   passthrough. Calibrated and held; all 16 DIO pins inputs, triggers off.
 - **Also in hand:** colorimeter accessory board, 10x Pico, instructor ultrasonic mic
@@ -166,11 +166,7 @@ tier that costs participants a compiler.
       85 / 5 / 1.3 thresholds are sized to one green strip; nothing else is measured.
 - [ ] Stretch: seven colors — a three-bit pattern, not winner-takes-all.
 
-**Deck — stale facts, before anyone reviews it**
-- [ ] `index.html:547` and `:1472` teach the two-export recipe; it is
-      `source gr-m2k/env.sh` now, and `:547` is the frame people photograph.
-- [ ] `:560` says 390 tests (456); the resources frame says 14 checklist sections (15)
-      and lists `flowgraphs/` without ultrasonic or the colorimeter.
+**Deck**
 - [ ] Add a resources card for installing the blocks afterwards — the deck says
       "nothing to install in the room" and never says how to get them later.
 
@@ -187,15 +183,18 @@ tier that costs participants a compiler.
       runs all day.
 
 **Loose ends**
-- [ ] Write participant setup instructions, to send two weeks out. The pip route is
-      what to send them.
+- [ ] Write the participant setup: install the M2K drivers, download the flowgraphs.
+      Short enough to do the morning of, and the only thing anyone installs. The pip
+      route is what to send them.
+- [ ] Turn on Settings -> Pages -> Source: GitHub Actions so `pages.yml` can publish.
 - [ ] Decide which demo is the hands-on participant station.
 - [ ] Add `flowgraphs/m2k_digital_loopback.grc` — sink at DIO0, source at DIO1.
 - [ ] Raise `samp_rate` on `m2k_spi_loopback.grc` from 100 kS/s step by step and record
       where send-on-demand stops holding. Nothing in the repo knows that rate.
 - [ ] Run the sigrok check against a real M2K capture, not the encoder's arithmetic:
       `bench/spi_flowgraph.py M2K 8 --csv`, DIO0-2 wired to DIO4-6.
-- [ ] Delete the merged `colorimeter`, `ultrasonic-fsk` and `m2k-discovery-gui`
+- [ ] Delete the merged `colorimeter`, `ultrasonic-fsk`, `m2k-discovery-gui`,
+      `claude/spi-presentation-slides-4b4ld3` and `claude/project-status-6430gb`
       branches.
 
 **If we have time**
