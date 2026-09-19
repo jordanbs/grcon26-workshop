@@ -5,9 +5,8 @@ Ordered so that each step makes the next one meaningful.
 Nothing here needs the discovery tool. It needs an M2K, a wire, and
 ideally a meter.
 
-**State as of 2026-09-18:** every section passes except 15, which is new
-and has not been run -- it needs an LED on the bench rather than a board
-change. Section 4 was the last
+**State as of 2026-09-18:** every section passes. Section 15 is new — an
+LED on DIO0, which is now the first thing to run at a station. Section 4 was the last
 open one -- it passed on everything relative and failed on absolute
 accuracy -- and section 10 closes it with a metered gain and offset for
 all four signal paths. Section 14 settles whether the pattern generator and the
@@ -871,10 +870,19 @@ calling into a half-collected object. GRC-generated code never hits this
 because every block is stored on the flowgraph object. Hand-written
 scripts must hold their own references.
 
-## 15. An LED on a pin — NOT RUN YET
+## 15. An LED on a pin — PASSES, THE PART THAT MATTERED
 
 The only demo whose result cannot be predicted from the datasheet, because
 the unknown is the LED rather than the board.
+
+**2026-09-18: it blinks.** An integrated-resistor LED marked 3--4.5 V on the
+package, anode to DIO0 and cathode to ground, nothing else on the
+breadboard. `flowgraphs/m2k_blinky.grc`, press play, drag the slider. That
+is the whole result, and it closes the one question this section was opened
+to answer.
+
+The three commands below measure the same pin in volts. None of them is a
+prerequisite for the demo -- run them if you want the numbers, or skip them.
 
 ```
 source gr-m2k/env.sh
@@ -904,17 +912,31 @@ clips 3.3 V logic flat. Section 7 has the same warning for the same reason.
 - `led` — is the LED loading the pin down? Prompts for the LED connected,
   then disconnected, and compares the two high levels. A droop over 0.4 V
   means the pin is being pulled hard; under 0.05 V means the LED is drawing
-  almost nothing, which on a 12 V-rated part means it will also be dark.
+  almost nothing, which means the LED is barely loading the pin.
 
-**The open question.** Integrated-resistor LEDs are sold for 3 V, 5 V, 12 V
-and 24 V, and the packaging often does not say which. At 3.3 V a 3 V part is
-bright, a 5 V red is dim but visible, and a 12 V part does not light. The
-`led` measurement is how to tell them apart without a meter and a datasheet.
+**What the open question turned out to be.** This section was written
+expecting the risk to be a high-rated part staying dark. That was wrong. The
+internal resistor is sized for about 20 mA at the rated voltage, so even a
+12 V part passes ~2.6 mA at 3.3 V — dim, but visible. The real failure mode
+is a *low*-rated part pulling harder on the pin than it would like, and the
+thing that actually goes dark is the color of the LED rather than its
+rating: blue and white drop nearly 3 V unaided and have no headroom left on
+a 3.3 V pin.
 
-If they turn out to be 12 V parts, the fix is to drive the LED from W1
-through `m2k_analog_sink` instead — ±5 V and real current — which is a
-one-block swap in both flowgraphs. Section 6 already establishes that the
-generator does what it is told.
+The part on the bench is 3--4.5 V and red, which is the comfortable case.
+
+If a blue or white LED ever needs to work here, drive it from W1 through
+`m2k_analog_sink` instead — +5 V and real current — a one-block swap in
+both flowgraphs. Section 6 already establishes that the generator does what
+it is told.
+
+**A trap found while measuring, not while blinking.** `bench/blinky.py pin`
+originally reported a clean PASS with `1+` connected to nothing at all: a
+few tens of millivolts of crosstalk from the pin next door carries the pin's
+own timing, so the frequency came out to 0.00% error on 32 mV of swing. The
+command now fails anything under a 1 V swing, and `blinky.py wires` holds
+DIO0 statically high and then low and checks that the input follows — which
+crosstalk cannot fake. Run that one first.
 
 ## 16. Promote what passes
 
@@ -952,7 +974,8 @@ settings you understand:
 | the decoder keeps up in the flowgraph | **measured** — three bus speeds, ~6 M samples each, no rotation |
 | non-cyclic digital output joins its buffers seamlessly | **not needed** — aligned frames never cross a seam; 20/20 sends whole at 100 kS/s |
 | an untriggered digital capture is gapped between rx buffers | **no** — 20 sends, no tear; the gap in section 11 is the trigger re-arming |
-| a 3.3 V DIO pin lights an integrated-resistor LED | **unknown** — depends on the part's rated voltage; `bench/blinky.py led` |
+| a 3.3 V DIO pin lights an integrated-resistor LED | **measured** — yes, a 3–4.5 V red part, straight off DIO0 |
+| how hard that LED loads the pin | not measured — ~10 mA by arithmetic, and nothing depends on it |
 | a gr-iio source survives a refill timeout | **wrong** — `work()` returns WORK_DONE on any refill error, and the block is done |
 
 ---
@@ -973,7 +996,8 @@ python3 bench/dc_point.py 0.0 --output w1       # 10, one point
 python3 bench/dc_point.py 1.0 --output w1 --meter 1.051
 python3 bench/spi_flowgraph.py M2K 8 --csv /tmp/bus.csv     # 13, on hardware
 python3 bench/colorimeter.py coherence          # 14, needs the colorimeter board
-python3 bench/blinky.py pin                     # 15, needs an LED on DIO0
+python3 bench/blinky.py wires                   # 15, is 1+ really on DIO0
+python3 bench/blinky.py pin                     # 15
 python3 bench/blinky.py duty                    # 15
 python3 bench/blinky.py led                     # 15
 ```

@@ -110,19 +110,33 @@ blocks rather than against our reading of the docs:
 - both sliders emit live callbacks, rather than being read once at startup
 - `bench/blinky.py` and both `.grc` files agree on 100 kS/s and 1 kHz
 
-Not checked, and the reason to put this on a bench:
+Checked on hardware, 2026-09-18: **it blinks.** An integrated-resistor LED
+marked 3--4.5 V on the package, anode to DIO0 and cathode to ground, lights
+from the pin with nothing else on the breadboard. That was the only thing
+about this demo that could not be settled from a desk, and it took one
+flowgraph and no instruments.
 
-- **Whether a 3.3 V pin lights these LEDs brightly enough to see.**
-  Integrated-resistor LEDs are sold rated for 3 V, 5 V, 12 V and 24 V, and
-  the packaging does not always say which. A 3 V part is bright, a 5 V red
-  is dim but visible, a 12 V part is dark. `bench/blinky.py led` measures
-  the pin's high level with the LED connected and disconnected and reports
-  the droop, which is how you find out which one is on the bench.
-- **The fallback if they are 12 V parts:** drive from W1 through
-  `m2k_analog_sink` instead, which swings ±5 V and sources real current.
-  One block swap; the rest of the flowgraph is unchanged.
-- **The DIO pin's actual drive current.** Nothing in this repo has measured
-  it, and the LED brightness above is the only evidence either way.
+Not measured, and not needed for the demo to work:
+
+- **How hard the LED loads the pin.** A 3--4.5 V part has a small internal
+  resistor and draws something like 10 mA at 3.3 V, which a logic pin
+  generally handles. `bench/blinky.py led` reports the droop if you want
+  the number; nothing depends on it. If it ever comes out large -- say a
+  volt -- putting 220 ohm in series with the LED costs almost no brightness.
+- **The DIO pin's drive current.** Still unmeasured. The LED lighting is
+  the only evidence either way, and for this demo it is enough evidence.
+
+**A correction worth keeping.** The first version of this section warned
+that a 12 V or 24 V part would be too dark to see. That is wrong, and the
+arithmetic is easy: the internal resistor is sized for roughly 20 mA at the
+rated voltage, so a 12 V part still passes about 2.6 mA at 3.3 V, which is
+dim but plainly visible. The failure that actually exists is at the other
+end -- a low-rated part asking a pin for more current than it wants to give
+-- and the thing that genuinely goes dark is **color, not rating**: a blue
+or white LED drops nearly 3 V by itself and has no headroom left on a 3.3 V
+pin. Red, yellow and green sit near 2 V and have room to spare. If you hit
+that case, W1 through `m2k_analog_sink` at +5 V is the one-block swap, and
+it fixes a headroom problem rather than a rating problem.
 
 ## Running it against hardware
 

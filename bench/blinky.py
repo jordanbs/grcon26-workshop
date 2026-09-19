@@ -13,10 +13,16 @@ Wiring, all three commands:
 Use the **'low'** input range. 3.3 V logic clips flat on 'high', which is
 the +/-2.5 V one despite the name.
 
+    python3 bench/blinky.py wires        # is analog 1 really on DIO0
     python3 bench/blinky.py pin          # does DIO0 toggle at the asked rate
     python3 bench/blinky.py pin 2000
     python3 bench/blinky.py duty         # is duty cycle linear in mean volts
     python3 bench/blinky.py led          # how hard is the LED loading the pin
+
+Run `wires` first. A disconnected input still reports the right frequency,
+because a few tens of millivolts of crosstalk from the pin next door carries
+the pin's own timing -- so `pin` can look like a pass on a wire that is
+attached to nothing. `wires` holds the pin still, which crosstalk cannot fake.
 
 `pin` and `duty` drive the same chains the flowgraphs do -- a square wave
 for one, a descending ramp into a comparator for the other -- so what is
@@ -43,6 +49,7 @@ PWM_HZ = 1000              # 100 samples per period, so 1% duty steps
 SCOPE_RATE = 1000000
 RANGE = "low"              # the wide one; 'high' is +/-2.5 V and clips 3.3 V
 BUF = 16384
+LOGIC_SWING = 1.0          # below this it is pickup, not a pin
 SETTLE = 1.5               # seconds of pin activity before anything is read
 CAPTURE = 200000           # samples read after settling, 200 ms at 1 MS/s
 
@@ -142,12 +149,25 @@ def cmd_pin():
     high, low, mid = found
     seconds = len(volts) / SCOPE_RATE
     got = crossings(volts, mid) / seconds
+    swing = high - low
 
     print("  high        %+.3f V" % high)
     print("  low         %+.3f V" % low)
-    print("  swing        %.3f V" % (high - low))
+    print("  swing        %.3f V" % swing)
     print("  asked for   %.4g Hz" % want)
     print("  measured    %.4g Hz over %.3f s" % (got, seconds))
+
+    # The rate can come out perfect on a wire that is not connected to
+    # anything, because a few tens of millivolts of crosstalk from the
+    # pin next door carries the pin's own timing. Measured that way once;
+    # it reads as a clean PASS if nobody checks the amplitude.
+    if swing < LOGIC_SWING:
+        print("\nRESULT FAIL -- %.0f mV is not a logic swing, whatever the "
+              "rate says.\n       This is what crosstalk looks like when 1+ "
+              "is not on DIO0.\n       Run `blinky.py wires` to see whether "
+              "the pin moves the input at all." % (1000 * swing))
+        return 1
+
     off = abs(got - want) / want
     print("\nRESULT %s -- %.2f%% from the requested rate"
           % ("PASS" if off < 0.02 else "FAIL", 100 * off))
@@ -178,9 +198,10 @@ def cmd_duty():
 
     dark, lit = rows[0][1], rows[-1][1]
     span = lit - dark
-    if abs(span) < 0.2:
+    if abs(span) < LOGIC_SWING:
         print("\nRESULT the pin barely moved between 0%% and 100%% duty "
-              "(%.3f V apart). Check the wiring." % span)
+              "(%.3f V apart), which is not a logic swing.\n       Run "
+              "`blinky.py wires` before reading anything into this." % span)
         return 1
 
     print("\n  duty 0 reads %+.3f V, duty 1 reads %+.3f V\n" % (dark, lit))
@@ -240,7 +261,57 @@ def cmd_led():
     return 0
 
 
-COMMANDS = {"pin": cmd_pin, "duty": cmd_duty, "led": cmd_led}
+def cmd_wires():
+    """Is analog 1 actually on DIO0? No timing, no flowgraph, no scheduler.
+
+    Hold the pin high, read the input. Hold it low, read it again. If the
+    two readings are the same the wire is somewhere else, and every other
+    command in this file is measuring the air.
+
+    This one goes straight at libm2k rather than through the blocks,
+    because a static level is not a stream and there is nothing to be
+    gained from making it one.
+    """
+    import libm2k
+    print("holding DIO0 still and reading analog 1\n")
+    ctx = libm2k.m2kOpen(URI)
+    if ctx is None:
+        print("RESULT no context at %s -- is Scopy holding the board?" % URI)
+        return 1
+    try:
+        ctx.calibrateADC()
+        dig, ain = ctx.getDigital(), ctx.getAnalogIn()
+        ain.enableChannel(0, True)
+        ain.setSampleRate(1000000)
+        ain.setRange(0, libm2k.PLUS_MINUS_25V)
+        dig.setDirection(0, libm2k.DIO_OUTPUT)
+        dig.enableChannel(0, True)
+        seen = {}
+        for level in (1, 0):
+            dig.setValueRaw(0, level)
+            time.sleep(0.3)
+            block = ain.getSamples(20000)[0]
+            seen[level] = sum(block) / len(block)
+            print("  DIO0 held %s   analog 1 reads %+.3f V"
+                  % ("high" if level else "low ", seen[level]))
+    finally:
+        libm2k.contextClose(ctx, True)
+
+    step = seen[1] - seen[0]
+    print("\n  difference    %+.3f V\n" % step)
+    if step < LOGIC_SWING:
+        print("RESULT FAIL -- the input does not follow the pin. 1+ is not "
+              "on DIO0.\n       Check, in this order: 1+ in the same "
+              "breadboard row as DIO0,\n       1- in the ground row, and "
+              "the flywire labelled DIO0 rather than a neighbour.")
+        return 1
+    print("RESULT PASS -- the input follows the pin. The other three "
+          "commands are measuring something real.")
+    return 0
+
+
+COMMANDS = {"wires": cmd_wires, "pin": cmd_pin, "duty": cmd_duty,
+            "led": cmd_led}
 
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""
