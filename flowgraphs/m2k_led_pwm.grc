@@ -7,14 +7,14 @@ options:
     comment: 'Same wiring as the blinky: LED anode to DIO0, cathode to GND.
 
 
-      The pin is still only ever 0 or 1. What changes is the fraction of each
-      millisecond it spends at 1, and your eye does the averaging -- which makes a
-      one-bit output into a brightness control.
+      The pin is still only ever 0 or 1. What changes is the fraction of each millisecond
+      it spends at 1, and your eye does the averaging -- which makes a one-bit output
+      into a brightness control.
 
 
       PWM here is not a block. It is a ramp and a comparator: the pin is on while
-      the ramp is below the duty setting. Drag the slider and watch the pulse on
-      the scope get wider at the same time the LED gets brighter.'
+      the ramp is below the duty setting. Drag the slider and watch the pulse on the
+      scope get wider at the same time the LED gets brighter.'
     copyright: ''
     description: PWM brightness on DIO0, built from a ramp and a comparator.
     gen_cmake: 'On'
@@ -43,32 +43,6 @@ options:
     state: enabled
 
 blocks:
-- name: samp_rate
-  id: variable
-  parameters:
-    comment: ''
-    value: '100000'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [184, 12.0]
-    rotation: 0
-    state: enabled
-- name: pwm_hz
-  id: variable
-  parameters:
-    comment: 'samp_rate / pwm_hz is 100 samples per period, so the duty resolution
-      is 1% and nothing finer than that exists. Fast enough that no one sees it
-      flicker; slow enough that 1% is a whole sample.'
-    value: '1000'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [312, 12.0]
-    rotation: 0
-    state: enabled
 - name: duty
   id: variable_qtgui_range
   parameters:
@@ -90,14 +64,40 @@ blocks:
     coordinate: [448, 12.0]
     rotation: 0
     state: enabled
+- name: pwm_hz
+  id: variable
+  parameters:
+    comment: samp_rate / pwm_hz is 100 samples per period, so the duty resolution
+      is 1% and nothing finer than that exists. Fast enough that no one sees it flicker;
+      slow enough that 1% is a whole sample.
+    value: '1000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [312, 12.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '100000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 12.0]
+    rotation: 0
+    state: enabled
 - name: analog_sig_source_x_0
   id: analog_sig_source_x
   parameters:
     affinity: ''
     alias: ''
     amp: '-1'
-    comment: 'A descending ramp, 0 down to -0.99. Negative amplitude is what makes
-      it descend, and descending is what makes duty read the right way round.'
+    comment: A descending ramp, 0 down to -0.99. Negative amplitude is what makes
+      it descend, and descending is what makes duty read the right way round.
     freq: pwm_hz
     maxoutbuf: '0'
     minoutbuf: '0'
@@ -119,8 +119,8 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    comment: 'duty minus the ramp. Positive while the ramp is still below duty, which
-      is the comparison the next block turns into a pin level.'
+    comment: duty minus the ramp. Positive while the ramp is still below duty, which
+      is the comparison the next block turns into a pin level.
     const: duty
     maxoutbuf: '0'
     minoutbuf: '0'
@@ -131,25 +131,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [344, 220.0]
-    rotation: 0
-    state: enabled
-- name: blocks_threshold_ff_0
-  id: blocks_threshold_ff
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: 'The comparator. Both thresholds at zero, so there is no hysteresis and
-      no dead band -- out is 1.0 above zero and 0.0 below it.'
-    high: '0'
-    init: '0'
-    low: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [528, 220.0]
     rotation: 0
     state: enabled
 - name: blocks_float_to_short_0
@@ -167,6 +148,43 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [712, 228.0]
+    rotation: 0
+    state: enabled
+- name: blocks_short_to_float_0
+  id: blocks_short_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 1024 samples at 100 kS/s is ten PWM periods, so the scope needs no decimation
+      here -- unlike the blinky, where the interesting thing is seconds long.
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    scale: '1'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 340.0]
+    rotation: 0
+    state: enabled
+- name: blocks_threshold_ff_0
+  id: blocks_threshold_ff
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: The comparator. Both thresholds at zero, so there is no hysteresis and
+      no dead band -- out is 1.0 above zero and 0.0 below it.
+    high: '0'
+    init: '0'
+    low: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [528, 220.0]
     rotation: 0
     state: enabled
 - name: m2k_digital_sink_0
@@ -219,25 +237,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [904, 204.0]
-    rotation: 0
-    state: enabled
-- name: blocks_short_to_float_0
-  id: blocks_short_to_float
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: '1024 samples at 100 kS/s is ten PWM periods, so the scope needs no
-      decimation here -- unlike the blinky, where the interesting thing is seconds
-      long.'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    scale: '1'
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [712, 340.0]
     rotation: 0
     state: enabled
 - name: qtgui_time_sink_x_0
@@ -334,17 +333,17 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [904, 332.0]
+    coordinate: [912, 416.0]
     rotation: 0
     state: enabled
 
 connections:
 - [analog_sig_source_x_0, '0', blocks_add_const_vxx_0, '0']
 - [blocks_add_const_vxx_0, '0', blocks_threshold_ff_0, '0']
-- [blocks_threshold_ff_0, '0', blocks_float_to_short_0, '0']
-- [blocks_float_to_short_0, '0', m2k_digital_sink_0, '0']
 - [blocks_float_to_short_0, '0', blocks_short_to_float_0, '0']
+- [blocks_float_to_short_0, '0', m2k_digital_sink_0, '0']
 - [blocks_short_to_float_0, '0', qtgui_time_sink_x_0, '0']
+- [blocks_threshold_ff_0, '0', blocks_float_to_short_0, '0']
 
 metadata:
   file_format: 1
