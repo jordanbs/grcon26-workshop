@@ -33,9 +33,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "slides", "img")
 
-# GRC_BLOCKS_PATH REPLACES the search path rather than adding to it, so the
-# stock blocks have to be named here too -- without them the platform cannot
-# find `options` and refuses to build a library at all.
+# `build_library` takes the list of directories to read, and it is not the
+# GRC_BLOCKS_PATH environment variable -- nothing here consults that. The
+# stock blocks have to be named explicitly because without them the platform
+# cannot find `options` and refuses to build a library at all.
 STOCK_BLOCKS = "/usr/share/gnuradio/grc/blocks"
 
 SUFFIX = ".png"
@@ -72,6 +73,24 @@ FIGURES = {
     },
     "m2k_scope.grc": {
         "grc-analog-source": ["m2k_analog_source_0"],
+    },
+    # The first flowgraph anyone runs. Four blocks, and the whole point is
+    # that none of them is a blink block -- so the signal path is drawn on
+    # its own, without the scope leg that only exists to make it visible.
+    "m2k_blinky.grc": {
+        "grc-blinky": [
+            "analog_sig_source_x_0", "blocks_float_to_short_0",
+            "m2k_digital_sink_0",
+        ],
+    },
+    # Same pin, same sink, two blocks in between. Drawn beside the blink to
+    # show that brightness is not a different kind of thing.
+    "m2k_led_pwm.grc": {
+        "grc-led-pwm": [
+            "analog_sig_source_x_0", "blocks_add_const_vxx_0",
+            "blocks_threshold_ff_0", "blocks_float_to_short_0",
+            "m2k_digital_sink_0",
+        ],
     },
     # The colorimeter's whole canvas is six parallel copies of the same three
     # blocks, which reads as wallpaper. Drawn as one color's chain instead --

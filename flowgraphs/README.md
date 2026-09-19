@@ -1,3 +1,157 @@
+# Blinky
+
+An LED on DIO0, and then the same LED dimmed. **Anode (the long leg) to
+DIO0, cathode to GND.** These LEDs have their resistor built in, so
+nothing else goes on the breadboard.
+
+| file | what it shows |
+| --- | --- |
+| `m2k_blinky.grc` | the blink rate is a property of the stream |
+| `m2k_led_pwm.grc` | one bit, plus an eye, is a brightness control |
+
+```
+gnuradio-companion flowgraphs/m2k_blinky.grc
+```
+
+This is the smallest thing in the repo that does something visible across
+a room, and it is the one to open first.
+
+## There is no blink block
+
+`m2k_blinky.grc` is a square wave, a type conversion, and the sink:
+
+```
+Signal Source (square, 2 Hz)  ->  Float To Short  ->  M2K Digital Sink
+```
+
+Nothing in it is about blinking. It is about a stream of ones and zeros
+arriving at a pin at 100 kS/s, and the LED following that stream because
+it has no choice. Drag the slider and the frequency of the *signal* moves;
+the LED changes because the signal changed, not because a setting did.
+
+That sounds like a distinction without a difference until the PWM file,
+where the same pin, at the same rate, produces something that is not
+blinking at all.
+
+**The square wave is already the right two values.** GNU Radio's
+`GR_SQR_WAVE` runs 0 to amplitude, not plus and minus it — so amplitude 1
+gives exactly the 0 and 1 the sink wants, and `Float To Short` is the whole
+conversion. No threshold block, no offset. (A sine or a triangle would need
+both. This is the only shape that gets away with it.)
+
+## Seeing it on a scope means throwing samples away
+
+The scope leg taps the same short stream the pin gets, and it needs
+`Keep 1 in N` with N = 1000 in front of it. Without that, 512 points at
+100 kS/s is a 5 ms window, and a 500 ms blink period is a flat line that
+occasionally jumps. With it the window is 5 seconds and you can watch the
+square wave the LED is following.
+
+That is the first appearance of a theme that comes back in every other
+demo: the rate the hardware wants and the rate a human can read are not
+the same number, and something has to bridge them.
+
+## PWM is a ramp and a comparator
+
+`m2k_led_pwm.grc` does not contain a PWM block, because there isn't one and
+there doesn't need to be:
+
+```
+Signal Source (saw, -1, 1 kHz)  ->  Add Const (duty)  ->  Threshold  ->  Float To Short  ->  sink
+```
+
+A ramp descending from 0 to -1, shifted up by the duty cycle, is above zero
+for exactly `duty` of each period. Threshold at zero and that fraction
+becomes the on-fraction of the pin. The measurement is in
+`tests/test_blinky.py`: the on-fraction equals the duty setting **to within
+one sample in 100000**, at every step of the slider.
+
+**The minus sign on the amplitude is load-bearing.** An ascending ramp runs
+0 to +1, so adding a positive duty puts the whole period above the
+threshold and the pin sticks on — the slider does nothing, at any setting.
+On the bench that looks like a broken control or a dead board rather than a
+sign error, which is why there is a test named after it.
+
+**1 kHz is chosen, not arbitrary.** 100 kS/s divided by 1 kHz is 100
+samples per period, so one sample is one percent and the slider's 0.01 step
+is exactly one sample wide. Pick a carrier that does not divide the rate
+and the slider grows dead zones.
+
+## The pin is still only ever 0 or 1
+
+Worth saying out loud at the front of the room: nothing here changes the
+voltage on DIO0. It is 3.3 V or 0 V, the same two values as the blink. What
+changed is how fast, and the averaging is done by the eye — and by the
+LED's own thermal mass, and by the phone camera that will not agree with
+either of them. That is the whole of PWM.
+
+## The exercise
+
+**Make it fade instead of sit at a setting.** Swap `Add Const` for a plain
+`Add`, and feed the second input a triangle wave at 0.2 Hz with a 0.5
+offset. The duty then sweeps 0 to 1 and back, five seconds each way, and
+the LED breathes. Two blocks changed, and it demonstrates that duty was
+never a parameter — it was always just another stream.
+
+## What has been checked, and what has not
+
+Verified without hardware, in `tests/test_blinky.py`, against real GNU Radio
+blocks rather than against our reading of the docs:
+
+- the comparator chain's on-fraction equals duty to one sample in 100000,
+  across 0, 0.01, 0.25, 0.5, 0.75, 0.99 and 1
+- flipping the ramp's sign sticks the pin on at every duty, so the guard
+  test fails the way it is supposed to
+- `GR_SQR_WAVE` at amplitude 1 really does emit only 0 and 1
+- the pin never sees a value other than 0 or 1 — the sink treats anything
+  non-zero as a one, so a stray 2 would drive the pin and look correct
+- both flowgraphs validate and generate Python that parses, with
+  `idle_level='low'` and `cyclic=False` in the emitted sink
+- both sliders emit live callbacks, rather than being read once at startup
+- `bench/blinky.py` and both `.grc` files agree on 100 kS/s and 1 kHz
+
+Checked on hardware, 2026-09-18: **it blinks.** An integrated-resistor LED
+marked 3--4.5 V on the package, anode to DIO0 and cathode to ground, lights
+from the pin with nothing else on the breadboard. That was the only thing
+about this demo that could not be settled from a desk, and it took one
+flowgraph and no instruments. `m2k_led_pwm.grc` ran the same afternoon on
+the same LED: the duty slider dims it smoothly from dark to full.
+
+Not measured, and not needed for the demo to work:
+
+- **How hard the LED loads the pin.** A 3--4.5 V part has a small internal
+  resistor and draws something like 10 mA at 3.3 V, which a logic pin
+  generally handles. `bench/blinky.py led` reports the droop if you want
+  the number; nothing depends on it. If it ever comes out large -- say a
+  volt -- putting 220 ohm in series with the LED costs almost no brightness.
+- **The DIO pin's drive current.** Still unmeasured. The LED lighting is
+  the only evidence either way, and for this demo it is enough evidence.
+
+**A correction worth keeping.** The first version of this section warned
+that a 12 V or 24 V part would be too dark to see. That is wrong, and the
+arithmetic is easy: the internal resistor is sized for roughly 20 mA at the
+rated voltage, so a 12 V part still passes about 2.6 mA at 3.3 V, which is
+dim but plainly visible. The failure that actually exists is at the other
+end -- a low-rated part asking a pin for more current than it wants to give
+-- and the thing that genuinely goes dark is **color, not rating**: a blue
+or white LED drops nearly 3 V by itself and has no headroom left on a 3.3 V
+pin. Red, yellow and green sit near 2 V and have room to spare. If you hit
+that case, W1 through `m2k_analog_sink` at +5 V is the one-block swap, and
+it fixes a headroom problem rather than a rating problem.
+
+## Running it against hardware
+
+```
+python3 bench/blinky.py pin        # is DIO0 doing what it was told
+python3 bench/blinky.py duty       # is the duty slider linear
+python3 bench/blinky.py led        # is the LED loading the pin
+```
+
+`pin` and `duty` want **DIO0 wired to analog 1+, and 1- to ground**, with
+the LED still attached. The analog input range is `'low'` — that is the
+wide one. `'high'` is ±2.5 V and clips 3.3 V logic flat, which presents as
+a signal that is present but the wrong shape.
+
 # Loopback
 
 The smallest end-to-end M2K flowgraph, and the first thing to run at a

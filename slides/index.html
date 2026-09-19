@@ -540,9 +540,8 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
           <div class="card"><h3>M2K SPI Encode</h3><p>a message becomes three waveforms</p></div>
           <div class="card"><h3>M2K SPI Decode</h3><p>three waveforms become a message</p></div>
         </div>
-<pre><code>export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
-gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
+<pre><code>source gr-m2k/env.sh
+gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
     <div class="depth">
       <p>Two environment variables, no build step, nothing to install.
       <code>[ADALM2000]</code> appears in the block tree. That constraint — a workshop
@@ -553,7 +552,104 @@ gnuradio-companion flowgraphs/m2k_scope.grc</code></pre>
       <code>m2k_calibrate.py</code> is a standalone script that runs once per session. The
       SPI encoder and decoder are the same shape — the arithmetic in a module
       with no GNU&nbsp;Radio import, and a thirty-line wrapper around it. That is
-      what makes 390 tests run on a laptop with no board and no gnuradio.</p>
+      what makes 472 tests run on a laptop with no board and no gnuradio.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="blocks-blinky" data-section="The blocks">
+  <div class="wrap">
+    <h2>The Blinking LED</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-blinky.png" alt="Three blocks on the GNU Radio Companion canvas: a Signal Source set to a square wave at blink_hz with amplitude 1, feeding Float To Short, feeding M2K Digital Sink on pin 0 named LED at 100 kS/s.">
+          <figcaption>The whole signal path. There is no blink block. Nothing here requires one.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>One LED, two wires, no resistor</li>
+          <li>Anode to <code>DIO0</code>, cathode to ground</li>
+          <li>If it lights, the blocks loaded and the board is reachable</li>
+        </ul>
+        <p class="pull">The blink rate is a property of the stream, not a setting on the board.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>This is the go/no-go. Everything in the last two parts — the block
+      tree, the two search paths, the network context to
+      <code>ip:192.168.2.1</code> — is either working or it is not, and an LED
+      says which from across the room. Do it before any of the six blocks gets
+      explained: a wrong answer here invalidates the next forty minutes,
+      and takes ten seconds to find.</p>
+      <p><strong>The square wave is already the right two values.</strong>
+      GNU&nbsp;Radio's <code>GR_SQR_WAVE</code> runs 0 to amplitude rather than
+      plus and minus it, so amplitude&nbsp;1 gives exactly the ones and zeros the
+      sink wants and <code>Float To Short</code> is the entire conversion. No
+      threshold, no offset. A sine or a triangle would need both — this is the
+      one shape that gets away with it.</p>
+      <p><strong>Nothing in the flowgraph is about blinking.</strong> It is a
+      stream of bits arriving at a pin at 100&nbsp;kS/s, and the LED follows
+      because it has no choice. Drag the slider and the frequency of the
+      <em>signal</em> moves. That sounds like a distinction without a difference
+      until the next slide, where the same pin at the same rate stops blinking
+      altogether.</p>
+      <p><strong>Seeing it on a scope means throwing samples away.</strong> The
+      canvas above leaves out a fourth branch: the same short stream into
+      <code>Keep 1 in N</code> with N&nbsp;=&nbsp;1000, then a time sink. Without
+      the decimation, 512 points at 100&nbsp;kS/s is a 5&nbsp;ms window and a
+      half-second blink is a flat line. The rate the hardware wants and the rate
+      a person can read are not the same number — which comes back in every demo
+      after this one.</p>
+      <p><strong>On the bench, 2026-09-18:</strong> an integrated-resistor LED
+      marked 3–4.5&nbsp;V on the package, straight off the pin, nothing else on
+      the breadboard. Red, yellow and green work; blue and white drop nearly
+      3&nbsp;V unaided and have no headroom left on 3.3&nbsp;V logic.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="blocks-blinky-pwm" data-section="The blocks">
+  <div class="wrap">
+    <h2>PWM on the Same Pin</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-led-pwm.png" alt="Five blocks on the canvas: a Signal Source set to a saw wave at pwm_hz with amplitude minus one, into Add Const set to duty, into Threshold with all three limits at zero, into Float To Short, into M2K Digital Sink on pin 0.">
+          <figcaption>Brightness, from a pin that still only knows 0 and 1.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>A ramp, shifted up by the duty cycle, compared against zero</li>
+          <li>On-fraction equals duty to one sample in 100000</li>
+          <li>The eye does the averaging; the pin does not</li>
+        </ul>
+        <p class="pull">PWM is not a block. It is a ramp and a comparator.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>A ramp descending from 0 to &minus;1, shifted up by <code>duty</code>,
+      is above zero for exactly that fraction of every period. Threshold at zero
+      and the fraction lands on the pin. GNU&nbsp;Radio ships no PWM block, and this
+      chain wants none — the same lesson as the previous slide, arrived at from
+      the other side.</p>
+      <p><strong>The minus sign is load-bearing.</strong> An ascending ramp runs
+      0 to +1, so adding a positive duty puts the whole period above the
+      threshold: the pin sticks on and the slider does nothing at any setting.
+      From the front of a room that looks like a broken control or a dead board
+      rather than a sign error. There is a test named after it.</p>
+      <p><strong>1&nbsp;kHz is chosen, not arbitrary.</strong> 100&nbsp;kS/s over
+      1&nbsp;kHz is 100 samples per period, so one sample is one percent and the
+      slider's 0.01 step is exactly one sample wide. Pick a carrier that does not
+      divide the rate and the slider grows dead zones — a brightness control that
+      sticks.</p>
+      <p><strong>The exercise.</strong> Make it fade. Swap <code>Add Const</code>
+      for a plain <code>Add</code> and feed the second input a triangle at
+      0.2&nbsp;Hz with a 0.5 offset. The duty then sweeps 0 to 1 and back, five
+      seconds each way. Two blocks changed, and it shows that duty was never a
+      parameter — it was always another stream.</p>
     </div>
   </div>
 </section>
@@ -1450,8 +1546,7 @@ pdu vector contents =
     <h2>The Loopback Demo</h2>
     <div class="stage">
       <div class="present">
-<pre><code>export PYTHONPATH=$PWD/gr-m2k:$PYTHONPATH
-export GRC_BLOCKS_PATH=$PWD/gr-m2k/grc:$GRC_BLOCKS_PATH
+<pre><code>source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_spi_loopback.grc</code></pre>
         <p>Type into the box. Press Enter. One transaction goes out; the bus
         rests at idle until you send again.</p>
@@ -1942,7 +2037,7 @@ pdu vector contents =
 
 <section class="frame cut" id="colorimeter" data-section="Applications">
   <div class="wrap">
-    <h2>The CN0363 Optics</h2>
+    <h2>The Colorimeter Optics</h2>
     <div class="stage split">
       <div class="present">
         <figure class="shot wave">
@@ -2177,9 +2272,9 @@ pdu vector contents =
       <div class="card"><h3>The repository</h3><p><a href="https://github.com/livethisdream/grcon26-workshop">github.com/livethisdream/grcon26-workshop</a></p></div>
       <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio_explain.py --glossary</code></p></div>
       <div class="card"><h3>The block reference</h3><p><code>gr-m2k/README.md</code> — every parameter, and what it quietly becomes</p></div>
-      <div class="card"><h3>The bench checklist</h3><p><code>docs/bench-checklist.md</code> — 14 sections, what passed and what it cost</p></div>
+      <div class="card"><h3>The bench checklist</h3><p><code>docs/bench-checklist.md</code> — 16 sections, what passed and what it cost</p></div>
       <div class="card"><h3>The multi-pin sink note</h3><p><code>docs/gr-iio-multipin-sink.md</code> — why the digital sink had to be written</p></div>
-      <div class="card"><h3>The flow graphs</h3><p><code>flowgraphs/</code> — loopback, scope, SPI on demand, SPI continuous</p></div>
+      <div class="card"><h3>The flow graphs</h3><p><code>flowgraphs/</code> — blinky, LED PWM, loopback, scope, SPI, ultrasonic, colorimeter</p></div>
     </div>
     <p class="meta">Deck keys: <kbd>&rarr;</kbd> / <kbd>&larr;</kbd> move,
     <kbd>P</kbd> present or read, <kbd>D</kbd> detail, <kbd>G</kbd> contents,

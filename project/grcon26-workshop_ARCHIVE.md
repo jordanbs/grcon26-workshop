@@ -1,8 +1,37 @@
 ---
 name: "#grcon26-workshop"
-dateModified: 2026-09-11
+dateModified: 2026-09-16
 ---
 # Superseded Decisions
+
+- **2026-09-01** — Calibration is a standalone script run once per session, not block
+  init. Reason: it seizes the whole analog front end, is a closed loop `attr_sink`
+  cannot express, and its result persists on the device.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
+- **2026-09-04** — Standing-wave / VSWR is out of the workshop. Reason: scope control
+  with GRCon26 this month; it carried the most unbuilt work of the three.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
+- **2026-09-04** — Discovery tooling drops to "if we have time"; the intro gets one
+  slide on what IIO is and which M2K attributes matter. Reason: the blocks need no
+  overlays, and `iio_explain.py --glossary` generates the slide content.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
+- **2026-09-04** — Ultrasonic transmits at 750 kS/s and receives at 1 MS/s. Reason:
+  DAC and ADC have different rate ladders, and 40 kHz needs the third rung of each.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
+- **2026-09-09** — Ultrasonic runs at the measured f0, 40.755 kHz, not 40 kHz nominal;
+  tones 40.455 / 41.055. Reason: resonance is 755 Hz high and 40.0 kHz gives a third
+  of the signal. Checked against a standing-wave artifact by re-sweeping at 2x spacing.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
+- **2026-09-09** — The receiver decimates 1 MS/s by 200 before the demod, where ECE448
+  decimated by 1. Reason: 1 MS/s against a 1023 Hz channel is almost all empty spectrum;
+  5 kS/s still leaves 25 samples per bit.
+  Rotated 2026-09-16, settled -- embodied in merged code.
+
 
 - **2026-09-01** — The filter corrections are arithmetic, not calibration, and live in
   `m2k_scale.py`. Reason: fixed property of the converters, same on every board.
@@ -283,6 +312,58 @@ implementation rather than open choices; the code and its docstrings carry them.
 
 # Session Log
 
+## 2026-09-16 — Three traps rotated out, now enforced by code and tests
+
+Each is fully encoded in a shipped block and its test, so it can no longer bite
+silently. Kept here because the reasoning is not obvious from the code:
+
+- **Calibration mode reads the same counts on both ranges.** Its references and the
+  generator loopback arrive past the input amplifier, so `volts_per_count()` mis-scales
+  them by 4.7x. Convert at a fixed 0.29297 mV/count instead.
+- **A triggered digital capture is gapped between buffers and re-arms per buffer**, so
+  the trigger edge is a frame boundary. CS framed per byte makes every buffer start on
+  an arbitrary byte: the stream prints rotations, every byte individually correct.
+- **A non-cyclic digital sink pushes one DMA buffer at a time and need not join them.**
+  A frame lying across the seam tears mid-message. `m2k_spi_encode`'s "Align frames to"
+  holds a queued frame until the next boundary; its sample count is the sink's position.
+
+
+## 2026-09-16 — Ultrasonic detail rotated out of Status
+
+Rotated because the ultrasonic link is closed and its flowgraph is merged. Status
+now carries the one-line verdict. The detail, still accurate:
+
+- **Characterised and closed 2026-09-09.** f0 40.755 kHz, -6 dB band 1023 Hz, level
+  following 1/r: ~143 mV projected at 1 m over an 8.4 mV crosstalk floor.
+- **`bench/ultrasonic_fsk.py`** sends from W1 and reads the message back off 1+,
+  0 errors in 395 bits, no underruns. 395 bits bounds BER below 1/395; it does not
+  measure it.
+- **The receiver decimates by 200 to 5 kS/s**, 4015-tap 600 Hz low-pass, quadrature
+  demod, 25 samples per bit. Byte alignment comes from a sync word --
+  `correlate_access_code_tag_bb`, `tagged_stream_align`, `pack_k_bits_bb`.
+- Sweep and three CSVs in `bench/`. Ported to `flowgraphs/m2k_ultrasonic_fsk.grc`
+  and merged to `main` in PR #4.
+
+## 2026-09-16 — Colorimeter detail, as it stood at close
+
+The demo is closed; Status carries the verdict. Kept here because these are the
+numbers the deck quotes and the thresholds are still provisional:
+
+- **Frequency plan:** 4096-sample cyclic DIO buffer at 100 kS/s. Red 205 cycles
+  (5004.9 Hz), green 246 (6005.9 Hz), blue 287 (7006.8 Hz) -- each a whole number of
+  cycles per buffer, so each lands on exactly one bin of a 4096-point FFT at the same
+  rate. Bin width 24.4140625 Hz, 41 ms integration, rectangular window.
+- **Coherence measured 2026-09-15:** the pattern generator and the ADC share a clock
+  to better than 0.02 ppm, which is what licenses the FFT-as-lock-in claim.
+- **Blank constants** 1.0046 / 0.9757 / 0.9939 (red/green/blue), measured with empty
+  cuvettes. An empty beam then reads 100.0% on all three, holding 0.06% peak to peak
+  -- about 3 OD of usable range. Green strip 9.3 / 66.0 / 24.4, repeatable to 0.3%.
+- **Optics:** straight through to the Reference well on analog 1, reflected 90 degrees
+  at the 45-degree splitter slot to the Sample well on analog 2. The DIO bit steers
+  rather than gates -- MAX4619 triple SPDT, only J5 populated, so select low is lit.
+  Hence `idle_level='high'`.
+
+
 ## 2026-09-10 — Phase 1 detail rotated out of Status
 
 Rotated because Phase 1 is closed; Status now carries the one-line verdict. The
@@ -445,6 +526,14 @@ Now a Trap.
 
 Board parked cold afterwards: both DAC registers at 0, all four fabric powerdowns set,
 triggers back to `always`.
+
+### Positive digital `trigger_delay` is approximate
+
+Rotated 2026-09-16 out of Traps. Measured on the M2K digital trigger: a positive
+`trigger_delay` lands tens of samples away from where it was asked for, and by a
+different amount on each run, while reading back as the value that was set. Zero and
+negative delays are exact and repeat. Nothing in the repo depends on a positive delay;
+`docs/bench-checklist.md` records the measurement.
 
 # Ruled Out
 
