@@ -879,7 +879,9 @@ the unknown is the LED rather than the board.
 package, anode to DIO0 and cathode to ground, nothing else on the
 breadboard. `flowgraphs/m2k_blinky.grc`, press play, drag the slider. That
 is the whole result, and it closes the one question this section was opened
-to answer.
+to answer. `flowgraphs/m2k_led_pwm.grc` was run the same afternoon and the
+duty slider dims the same LED across its whole travel, so both flowgraphs
+have now been seen working on hardware.
 
 The three commands below measure the same pin in volts. None of them is a
 prerequisite for the demo -- run them if you want the numbers, or skip them.

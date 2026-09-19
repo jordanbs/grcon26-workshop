@@ -114,7 +114,8 @@ Checked on hardware, 2026-09-18: **it blinks.** An integrated-resistor LED
 marked 3--4.5 V on the package, anode to DIO0 and cathode to ground, lights
 from the pin with nothing else on the breadboard. That was the only thing
 about this demo that could not be settled from a desk, and it took one
-flowgraph and no instruments.
+flowgraph and no instruments. `m2k_led_pwm.grc` ran the same afternoon on
+the same LED: the duty slider dims it smoothly from dark to full.
 
 Not measured, and not needed for the demo to work:
 
