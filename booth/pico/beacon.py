@@ -42,26 +42,26 @@ FSPACE = F0 - SPACING / 2.0
 FMARK = F0 + SPACING / 2.0
 
 
-def payload(flag):
-    """The flag as exactly CAPACITY bytes, space-padded on the right.
+def payload(message):
+    """The message as exactly CAPACITY bytes, space-padded on the right.
 
-    A flag that is too long is a setup mistake worth catching at boot
+    A message that is too long is a setup mistake worth catching at boot
     rather than discovering from a truncated capture at the booth, so
     this refuses rather than trimming.
     """
-    if len(flag) > CAPACITY:
-        raise ValueError("flag is %d characters; the frame carries %d"
-                         % (len(flag), CAPACITY))
-    for c in flag:
+    if len(message) > CAPACITY:
+        raise ValueError("message is %d characters; the frame carries %d"
+                         % (len(message), CAPACITY))
+    for c in message:
         if not 0x20 <= ord(c) <= 0x7E:
-            raise ValueError("flag has a character the frame cannot carry: %r"
-                             % (c,))
-    return tuple(ord(c) for c in flag) + (0x20,) * (CAPACITY - len(flag))
+            raise ValueError("message has a character the frame "
+                             "cannot carry: %r" % (c,))
+    return tuple(ord(c) for c in message) + (0x20,) * (CAPACITY - len(message))
 
 
-def frame(flag):
+def frame(message):
     """Sync word, then payload. The twelve bytes that go on the air."""
-    return SYNC + payload(flag)
+    return SYNC + payload(message)
 
 
 def bits(values):
@@ -78,7 +78,7 @@ def bits(values):
     return out
 
 
-def burst(flag, frames=3):
+def burst(message, frames=3):
     """One transmission: preamble, the frame `frames` times, sync again.
 
     The preamble goes at the front and not before every frame. Once the
@@ -93,12 +93,12 @@ def burst(flag, frames=3):
     Without them the receiver decodes two frames out of three, which
     looks like a marginal link and is not one.
     """
-    return bits(PREAMBLE) + bits(frame(flag) * frames) + bits(SYNC)
+    return bits(PREAMBLE) + bits(frame(message) * frames) + bits(SYNC)
 
 
-def burst_ms(flag, frames=3):
+def burst_ms(message, frames=3):
     """How long that takes on the air, in milliseconds."""
-    return 1000 * len(burst(flag, frames)) // BAUD
+    return 1000 * len(burst(message, frames)) // BAUD
 
 
 def pwm_top(sysclk, freq):

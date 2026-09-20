@@ -1,9 +1,9 @@
-"""Ultrasonic FSK beacon for the booth CTF. Copy this to a Pico as main.py.
+"""Ultrasonic FSK beacon for the booth. Copy this to a Pico as main.py.
 
-Stage one of the CTF hands the attendee f0, the baud rate and the access
-code off the SPI bus. This is what those three numbers unlock: a 40 kHz
-transducer repeating an eight-character flag, which their M2K receives
-with flowgraphs/m2k_ultrasonic_fsk.grc and nothing else.
+A 40 kHz transducer repeating an eight-character message, which an
+attendee's M2K receives with flowgraphs/m2k_ultrasonic_fsk.grc and
+nothing else. It is the ultrasonic half of the workshop, running on a
+table instead of a bench.
 
     GP16 -> transducer +
     GP17 -> transducer -
@@ -32,7 +32,7 @@ import beacon
 
 # Eight characters, which is msg_capacity in the flowgraph. Shorter is
 # fine and gets space-padded; longer refuses at boot.
-FLAG = "GRC-4A7F"
+MESSAGE = "GRC-4A7F"
 
 # 0 or 1. Two beacons in one booth transmit the same two tones, so they
 # take turns: slot 1 starts half a period after slot 0. A burst is 1.76 s
@@ -91,14 +91,14 @@ BIT_US = 1000000 // beacon.BAUD
 
 if SLOT not in (0, 1):
     raise ValueError("SLOT is 0 or 1; there are two beacons")
-if beacon.burst_ms(FLAG, BURST_FRAMES) > PERIOD_MS // 2:
+if beacon.burst_ms(MESSAGE, BURST_FRAMES) > PERIOD_MS // 2:
     raise ValueError("a %d ms burst does not fit in half of a %d ms period, "
                      "so the two slots would overlap"
-                     % (beacon.burst_ms(FLAG, BURST_FRAMES), PERIOD_MS))
+                     % (beacon.burst_ms(MESSAGE, BURST_FRAMES), PERIOD_MS))
 
 # Precomputed once. The transmit loop allocates nothing, so a garbage
 # collection cannot land in the middle of a bit.
-PLAN = tuple(TONE[b] for b in beacon.burst(FLAG, BURST_FRAMES))
+PLAN = tuple(TONE[b] for b in beacon.burst(MESSAGE, BURST_FRAMES))
 
 
 # ------------------------------------------------------------- the pins
@@ -150,14 +150,14 @@ def transmit():
 
 
 def report():
-    print("beacon %r   slot %d   sysclk %d Hz" % (FLAG, SLOT, SYSCLK))
+    print("beacon %r   slot %d   sysclk %d Hz" % (MESSAGE, SLOT, SYSCLK))
     for name, want, (top, _) in (("space", beacon.FSPACE, TONE[0]),
                                  ("mark ", beacon.FMARK, TONE[1])):
         got = beacon.pwm_freq(SYSCLK, top)
         print("  %s  want %9.1f   TOP %5d   got %9.1f  (%+.1f Hz)"
               % (name, want, top, got, got - want))
     print("  burst %d bits, %d ms, once every %d ms"
-          % (len(PLAN), beacon.burst_ms(FLAG, BURST_FRAMES), PERIOD_MS))
+          % (len(PLAN), beacon.burst_ms(MESSAGE, BURST_FRAMES), PERIOD_MS))
 
 
 def main():

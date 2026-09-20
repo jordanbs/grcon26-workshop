@@ -1,10 +1,14 @@
 # The beacon
 
 A Pico driving a 40 kHz transducer with the same FSK the workshop's
-ultrasonic section builds. It repeats an eight-character flag, and an
-attendee receives it with `flowgraphs/m2k_ultrasonic_fsk.grc` once
-stage one of the CTF has told them f0, the baud rate and the access
-code.
+ultrasonic section builds. It repeats an eight-character message, and
+an attendee receives it with `flowgraphs/m2k_ultrasonic_fsk.grc`.
+
+This is the booth demo: the ultrasonic half of the workshop running on
+a table instead of a bench, so somebody who did not attend the session
+can still watch bits cross a room. Nothing is hidden and nothing has to
+be unlocked -- the flowgraph has f0, the baud rate and the sync word in
+it already. The receiver is the exercise.
 
 Two files go on the board:
 
@@ -34,8 +38,8 @@ resistor, no amplifier.
 2. Copy both files to the board with `mpremote`:
 
    ```
-   mpremote cp ctf/pico/beacon.py :beacon.py
-   mpremote cp ctf/pico/main.py :main.py
+   mpremote cp booth/pico/beacon.py :beacon.py
+   mpremote cp booth/pico/main.py :main.py
    ```
 
 3. Reset. `main.py` runs on power-up from then on, so the beacon needs
@@ -47,13 +51,13 @@ Everything to change is at the top of `main.py`.
 
 | constant | default | what to do with it |
 |---|---|---|
-| `FLAG` | `"GRC-4A7F"` | Eight characters or fewer, printable ASCII. Shorter gets space-padded; longer refuses at boot rather than transmitting a truncated flag. |
+| `MESSAGE` | `"GRC-4A7F"` | Eight characters or fewer, printable ASCII. Shorter gets space-padded; longer refuses at boot rather than transmitting a truncated one. |
 | `SLOT` | `0` | `0` on the first beacon, `1` on the second. |
 | `BURST_FRAMES` | `3` | Frames per burst. Three gives the receiver three chances at the correlation. |
 | `PERIOD_MS` | `5000` | How often a burst goes out. |
 
-Both beacons carry the same flag by default. Giving them different ones
-is a one-line edit and tells you which station somebody stood at.
+Both beacons carry the same message by default. Giving them different
+ones is a one-line edit and tells you which station somebody stood at.
 
 **`SLOT` is why two beacons in one room work.** They transmit the same
 two tones, so they take turns: slot 1 starts half a period after slot 0.
@@ -78,7 +82,7 @@ few hertz low; the demodulator's gain maps 300 Hz onto 1.0, so 4 Hz is
 about one percent of a full-scale eye. Anything tens of hertz out is a
 different problem and worth chasing before the room fills up.
 
-Then point an M2K at it, run the flowgraph, and read the flag out of
+Then point an M2K at it, run the flowgraph, and read the message out of
 Message Debug. That is the same thing an attendee does, and it is the
 only check that covers the transducer.
 

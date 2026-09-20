@@ -28,11 +28,12 @@ import pytest
 from test_grc_integration import needs_gnuradio, run_in_gr
 
 sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ctf", "pico"))
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "booth", "pico"))
 
 import beacon  # noqa: E402
 
-FLAG = "GRC-4A7F"
+MESSAGE = "GRC-4A7F"
 
 
 @pytest.fixture(scope="module")
@@ -70,8 +71,9 @@ def test_the_payload_length_is_the_flowgraphs_capacity(grc):
 def test_the_frame_is_the_length_the_receiver_strips_to(grc):
     """`frame_len` is an expression in the flowgraph, so check both halves."""
     assert "value: len(code_bytes) + msg_capacity" in grc
-    assert (len(beacon.frame(FLAG))
-            == len(variable(grc, "code_bytes")) + variable(grc, "msg_capacity"))
+    assert (len(beacon.frame(MESSAGE))
+            == len(variable(grc, "code_bytes"))
+            + variable(grc, "msg_capacity"))
 
 
 def test_the_tones_and_the_baud_rate_match(grc):
@@ -105,20 +107,20 @@ def test_the_burst_is_a_preamble_then_frames_then_one_more_sync_word():
     stream is payload-then-sync. Drop the last sync and the last
     payload never finishes its group of twelve.
     """
-    burst = beacon.burst(FLAG, 3)
+    burst = beacon.burst(MESSAGE, 3)
     head, tail = 8 * len(beacon.PREAMBLE), 8 * len(beacon.SYNC)
     assert len(burst) == head + 8 * 3 * 12 + tail
     assert burst[:head] == beacon.bits(beacon.PREAMBLE)
-    assert burst[head:-tail] == beacon.bits(beacon.frame(FLAG) * 3)
+    assert burst[head:-tail] == beacon.bits(beacon.frame(MESSAGE) * 3)
     assert burst[-tail:] == beacon.bits(beacon.SYNC)
-    assert beacon.burst_ms(FLAG, 3) == 1760
+    assert beacon.burst_ms(MESSAGE, 3) == 1760
 
 
 def test_the_burst_leaves_room_for_the_other_beacon():
     """Two beacons share the air by taking turns, which only works if a
     burst fits in half a period. main.py refuses to boot otherwise; this
     is the same arithmetic where it can be seen without a Pico."""
-    assert beacon.burst_ms(FLAG, 3) <= 5000 // 2
+    assert beacon.burst_ms(MESSAGE, 3) <= 5000 // 2
 
 
 @pytest.mark.parametrize("sysclk", [125000000, 150000000])
@@ -144,7 +146,7 @@ def test_the_beacons_burst_decodes_through_the_real_receive_chain():
     back, which also says the preamble converged the timing loop before
     the first sync word rather than during it.
     """
-    bits = beacon.burst(FLAG, 3)
+    bits = beacon.burst(MESSAGE, 3)
     payload = json.loads(run_in_gr('''
         import json, math, sys
         import numpy as np
@@ -189,4 +191,4 @@ def test_the_beacons_burst_decodes_through_the_real_receive_chain():
     assert len(got) >= 3 * beacon.CAPACITY, got
     frames = [got[i:i + beacon.CAPACITY]
               for i in range(0, 3 * beacon.CAPACITY, beacon.CAPACITY)]
-    assert all(f == FLAG.encode() for f in frames), frames
+    assert all(f == MESSAGE.encode() for f in frames), frames
