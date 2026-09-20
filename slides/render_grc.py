@@ -17,7 +17,7 @@ import.
     ./slides/render_grc.py --list       # what is in each flowgraph
     ./slides/render_grc.py --scale 3    # denser, for print
 
-**Uses the system interpreter,** the same way `iio_discover.py` does and for
+**Uses the system interpreter,** the same way `iio-tools/iio_discover.py` does and for
 the same reason: it needs PyGObject, which is a native binding that lands in
 system site-packages where the project venv cannot see it. On Debian and
 Ubuntu the packages are `gnuradio` and `gir1.2-gtk-3.0`.
@@ -128,14 +128,22 @@ FIGURES = {
         "grc-ultrasonic-clock": [
             "digital_symbol_sync_xx_0", "digital_binary_slicer_fb_0",
         ],
-        "grc-ultrasonic-sync": [
-            "digital_correlate_access_code_tag_xx_0",
-            "blocks_tagged_stream_align_0", "blocks_pack_k_bits_bb_0",
-        ],
-        "grc-ultrasonic-out": [
-            "blocks_keep_m_in_n_0", "blocks_stream_to_tagged_stream_0",
-            "pdu_tagged_stream_to_pdu_0", "blocks_message_debug_0",
-        ],
+        # The byte-boundary and output figures are NOT here, and their
+        # .pngs are not committed, because the chain changed and this
+        # machine cannot render (PyGObject and GNU Radio are native).
+        # Committing the old pictures would put a correlator that no
+        # longer exists on a projector. To put them back, add:
+        #
+        #   "grc-ultrasonic-bytes": ["digital_binary_slicer_fb_0",
+        #                            "m2k_ascii_offsets_0"],
+        #   "grc-ultrasonic-out":   ["blocks_skiphead_0",
+        #                            "blocks_pack_k_bits_bb_0",
+        #                            "blocks_stream_to_tagged_stream_0",
+        #                            "pdu_tagged_stream_to_pdu_0",
+        #                            "blocks_message_debug_0"],
+        #
+        # then `xvfb-run -a ./slides/render_grc.py` and reference the two
+        # files from the "Finding the Byte Boundary" frame.
     },
 }
 

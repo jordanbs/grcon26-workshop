@@ -78,6 +78,39 @@ body.pointing .deck { touch-action: none; }
 .title-rule { height: 3px; background: var(--blue-dark); width: 5.5rem; border-radius: 2px; }
 .meta { color: var(--muted); font-size: var(--step--1); }
 
+/* The setup code on the title frame.
+ *
+ * slides/img/setup-qr.svg carries no quiet zone of its own -- baking one
+ * into the file would shrink the code inside a box of fixed width, which
+ * is backwards for a reader at the back of the room. So the card supplies
+ * it, with more padding than the four-module minimum: a projected code is
+ * read off-axis, from a screen that may be washing out, and the margin is
+ * free here.
+ *
+ * White background and a fixed dark stroke, not palette tokens. The SVG
+ * paints in #000 and a scanner wants that on white whatever the deck is
+ * doing around it. */
+.qr {
+  display: flex; align-items: center;
+  gap: clamp(.9rem, 2.2vw, 1.7rem);
+  margin-top: clamp(.4rem, 1.5vh, 1.2rem);
+  flex-wrap: wrap;
+}
+.qr img {
+  width: clamp(132px, 19vh, 208px); height: auto; display: block;
+  background: #fff; padding: .7rem; border-radius: 7px;
+  border: 1px solid var(--rule); box-shadow: var(--shadow);
+}
+/* Wide enough for the URL to sit on one line. It is the fallback for
+   anyone whose camera will not focus, so breaking it mid-word -- which
+   is what overflow-wrap would do -- defeats the point of printing it. */
+.qr-what { font-size: var(--step--1); color: var(--muted); max-width: 46ch; }
+.qr-what b {
+  display: block; color: var(--ink);
+  font-size: var(--step-0); font-weight: 600; margin-bottom: .18rem;
+}
+.qr-what code { font-size: .9em; white-space: nowrap; }
+
 /* A section divider: the frame that says which act we are in. */
 .section-frame .wrap { gap: clamp(.6rem, 2vh, 1.1rem); }
 .section-frame h2 { border-bottom: none; font-size: var(--step-3); padding-bottom: 0; }

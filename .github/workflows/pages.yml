@@ -34,6 +34,15 @@ jobs:
       - name: Structure
         run: python3 slides/check_deck.py
 
+      # The QR code on the title frame is generated from one URL, and it
+      # is the only figure in the deck nobody can proofread by looking at
+      # it. A stale one publishes a working slide pointing somewhere
+      # wrong, so it fails here instead.
+      - name: Setup QR is current
+        run: |
+          python3 -m pip install --quiet segno
+          python3 slides/render_qr.py --check
+
   publish:
     needs: check
     runs-on: ubuntu-latest

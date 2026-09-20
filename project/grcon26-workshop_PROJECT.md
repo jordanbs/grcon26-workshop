@@ -56,6 +56,18 @@ display), and the session material itself.
   with no error. `docs/gr-iio-multipin-sink.md`.
 - **GRC `dtype: enum` values are raw strings.** `'0' + '3'` concatenates, `int("'6'")`
   raises, and an assert that raises makes GRC fall back to defaults without saying so.
+- **`keep_m_in_n` cannot frame a transmitter that stops.** It is aligned once and
+  then counts: every N items it keeps the first M, forever. Exact while the
+  transmitter never stops, which is why the continuous loopback was happy with it for
+  weeks. A burst gap is not a whole number of frames, so from the second burst the
+  phase is wrong and never re-aligns — bit-perfect garbage, indistinguishable from bad
+  range. Use the Sync-to-Sync Framer, or send no sync word at all and find the
+  boundary at the receiver.
+- **A vendored copy is a copy, and it drifts in the reader's head before it drifts in
+  git.** A firmware directory sat here byte-identical to a copy maintained in another
+  repo, which had since overridden one of its constants. Both were correct; reading
+  the wrong one cost an hour and produced confidently wrong arithmetic. Deleted
+  2026-09-20 — if the authoritative copy is elsewhere, do not keep a second one.
 - **gr-iio's `device_source` ends itself on any refill error.** `work()` returns
   WORK_DONE on a timeout, so a triggered source waiting on a human never comes back,
   and `set_timeout_ms` never reaches libiio. Free-run the source; trigger the display.
@@ -87,9 +99,40 @@ display), and the session material itself.
 - **2026-09-04** — Build a DC power supply block, reversing the 2026-09-02 "no supply
   block" decision. Reason: GNU Radio cannot control a rail at all, and the setpoint
   spans four places including the context `cal,*` attributes.
-- **2026-09-11** — The booth CTF is the chained tier: decode the SPI bus for the
-  ultrasonic parameters, then use them on the beacon. Reason: it is the only tier that
-  makes the two halves of the workshop one story, and both halves already run.
+
+- **2026-09-20** — **Work that lives in another repo stays there.** Not its
+  contents, not its structure, not how to build against it. This repo is public, so
+  that rule covers a doc, a docstring, a code comment and a test fixture exactly as
+  much as it covers code — which is the lesson from having got it wrong repeatedly on
+  2026-09-20 and having to scrub afterwards.
+
+- **2026-09-20** — The workshop's ultrasonic receiver drops sync framing. Reason:
+  `keep_m_in_n` counts, so it is exact only while the transmitter never stops, and a
+  chain that cannot survive a bursty link is the wrong thing to teach. Out go
+  `correlate_access_code_tag`, `tagged_stream_align`, `keep_m_in_n` and the
+  `access_code` / `code_bytes` / `frame_len` variables; in comes ASCII at Every
+  Offset. Net deletion of machinery. Costs a re-bench.
+
+- **2026-09-20** — The loopback sends a 32-bit `0xAA` preamble then a 32-byte
+  payload, repeating. The preamble is for `symbol_sync` to converge on, not for
+  framing; nothing correlates on it. `msg_capacity` went 8 → 32 because `0xAA` is not
+  printable and cuts every readable run to the payload length: at 8 the run is under
+  the sixteen-character floor and nothing prints at any offset.
+
+- **2026-09-20** — The receive chain ends at ASCII at Every Offset. `skip_bits`,
+  `Skip Head`, `Pack K Bits`, `Stream to Tagged Stream`, `Tagged Stream to PDU` and
+  `Message Debug` are all deleted. Reason: the block already searches all eight
+  offsets and prints the one that reads, so the offset only earns its keep when
+  something downstream consumes bytes — a File Sink meant for offline analysis, say.
+  The workshop's payoff is the console line, and a second branch was a fiddlier route
+  to text already on screen.
+
+- **2026-09-20** — Both byte-boundary mechanisms ship as `gr-m2k` blocks:
+  **ASCII at Every Offset** and **Sync-to-Sync Framer**. Reason: a custom block used
+  to be unreachable for anyone who had not cloned the repo, and the installer plus
+  the QR on slide 1 made that false. The framer is the right answer for any bursty
+  signal that carries a marker, and `keep_m_in_n` is the wrong one; ASCII at Every
+  Offset is the answer when there is no marker at all.
 - **2026-09-16** — The colorimeter board is ADI's **M2k Colorimeter Accessory Board**
   from `education_tools`, not the CN0363. Reason: it borrows the CN0363's cuvette
   holder and nothing else — no ADC, no mux, no driver.
@@ -107,18 +150,19 @@ display), and the session material itself.
 a DC power supply block, a capability GNU Radio does not have.
 
 **Timing:** GRCon26 is this month. Phases 1 and 3 are closed and merged; the deck
-covers everything that runs and is published. Participants need a short setup before
-the session: install the M2K drivers and download the flowgraphs.
+covers everything that runs and is published. Participant setup is written and on the
+deck — one script per platform in `install/`.
 
-**Phase 2 — walk:** IIO block anatomy, one intro slide from `iio_explain.py
+**Phase 2 — walk:** IIO block anatomy, one intro slide from `iio-tools/iio_explain.py
 --glossary`; `docs/reading-iio-attributes.md` is the participant artifact.
 
 **Phase 3 — run:** ultrasonic FSK and the colorimeter, both closed on the bench with
 participant-facing `.grc` files merged. Time-of-flight ranging and the seven-color
 exercise are the stretch goals.
 
-**Booth CTF:** chained — decode the SPI bus for the ultrasonic parameters, then the
-beacon. Pico beacons, M2K as the receiver.
+**OTA demo:** the ultrasonic link, off the bench and across a table.
+`flowgraphs/m2k_ultrasonic_fsk.grc` is the participant artifact. Anything about the
+transmitting side is tracked in its own repo, not here.
 
 **`gr-m2k` packaging:** crawl (`env.sh`) and walk (pip from GitHub) done. The run tier
 — its own repo with a gr-modtool `CMakeLists.txt` — is post-workshop, and the only
@@ -127,13 +171,47 @@ tier that costs participants a compiler.
 # Status
 
 - **Repo:** `main`, everything merged — SPI, ultrasonic (PR #4), colorimeter (PR #5,
-  `13cbbc7`), blinky LED and PWM (PR #7, `9d863dd`). 455 tests.
+  `13cbbc7`), blinky LED and PWM (PR #7, `9d863dd`). 482 tests.
+- **Reorganized 2026-09-20.** The root led with the IIO discovery suite, which is not
+  what the workshop teaches. The seven `iio_*.py`, their caches, `browse/` and
+  `fixtures/` moved to `iio-tools/` behind their own README; a stale firmware
+  directory went; the root README now leads with the blocks and the setup script.
 - **Phase 1 is done and verified.** Six blocks in `gr-m2k/`, all 15 bench-checklist
   sections passing, absolute error closed against the meter. Detail in the archive.
 - **`gr-m2k` is installable two ways** as of 2026-09-16: `source gr-m2k/env.sh` for one
   shell, or a pip `#subdirectory=gr-m2k` install plus `m2k-blocks install` for every
   terminal. No CMake. `m2k-blocks check` diagnoses an empty block tree, which has two
   unrelated causes that look identical until Run. `gr-m2k/README.md`.
+- **Participant setup exists as of 2026-09-20.** `install/m2k-setup.sh` (Linux and
+  macOS) and `install/m2k-setup.ps1` (Windows) find the interpreter GRC uses, check
+  gr-iio, install pylibiio and gr-m2k, register the block path and scan for the board.
+  `install/README.md` is the written version. **Neither script has run on Windows or
+  macOS** — the bash one is exercised end to end against a stub GNU Radio, the
+  PowerShell one only parses. That is the outstanding risk.
+- **The M2K address is not the same on every platform.** Every block defaults to
+  `ip:192.168.2.1`, the USB ethernet gadget. Linux has it natively, Windows gets it
+  from ADI's driver package, and macOS has not had it since HoRNDIS stopped loading —
+  the kext is unmaintained and is x86_64 only, so it cannot load on Apple silicon at
+  all. A Mac has to use `usb:`, which libiio resolves itself with one board attached.
+  `m2k-blocks scan` prints the right string per machine. Written up in
+  `install/README.md`, `gr-m2k/README.md` and on the deck.
+- **The ultrasonic flowgraph changed 2026-09-20 and is NOT re-benched.** The front
+  end is untouched — same tones, rates, decimation and `Symbol Sync` — but the frame
+  now carries a preamble, the payload is 32 bytes, and the receive chain ends at
+  ASCII at Every Offset with six blocks deleted. 0 errors in 395 bits was measured
+  through `keep_m_in_n` on an 8-byte unprefixed frame, so it does not carry over.
+  The search half is covered by `tests/test_ascii_scan.py`, differential-tested
+  against the implementation it was ported from across 400 randomized streams, and the whole
+  link was simulated from the flowgraph's own resolved variables: the text is
+  recovered at all eight bit offsets and inverted. The over-the-air half has not run.
+  **Re-bench before the session.**
+- **The vendored firmware directory is gone 2026-09-20.** It had no receiver in this
+  repo and used a framing geometry since shown to fail on a bursty link. It is
+  maintained elsewhere and nothing there depends on this copy.
+- **Two deck figures are not committed.** `grc-ultrasonic-sync` and
+  `grc-ultrasonic-out` showed blocks that no longer exist. Rather than ship pictures of
+  a chain that is gone, both were removed; `slides/render_grc.py` carries the exact
+  block lists to restore them on a machine with GNU Radio.
 - **Ultrasonic closed 2026-09-09**, merged 2026-09-16. f0 40.755 kHz, 0 errors in
   395 bits over the air; `flowgraphs/m2k_ultrasonic_fsk.grc`. Numbers in the archive.
 - **Colorimeter closed 2026-09-16.** Three colors chopped at 5004.9 / 6005.9 /
@@ -153,7 +231,7 @@ tier that costs participants a compiler.
 # ToDo
 
 **DC power supply block**
-- [ ] Fetch `m2kpowersupply_impl.cpp` via `iio_libm2k_fetch.py` for the raw-to-rail
+- [ ] Fetch `m2kpowersupply_impl.cpp` via `iio-tools/iio_libm2k_fetch.py` for the raw-to-rail
       expression; sweep two points against the meter and let the meter win.
 - [ ] Block: float setpoint in volts, rate-limited writes, one per rail. Clears
       `powerdown` on `m2k-fabric` user_supply and `ad5627`, applies `cal,*`.
@@ -166,25 +244,30 @@ tier that costs participants a compiler.
 - [ ] Stretch: seven colors — a three-bit pattern, not winner-takes-all.
 
 **Deck**
-- [ ] Add a resources card for installing the blocks afterwards — the deck says
-      "nothing to install in the room" and never says how to get them later.
+- [x] Setup is on the deck as of 2026-09-20: a QR to the repository on the title
+      frame, then two frames covering the script, `m2k-blocks check` and the macOS
+      address. A resources card points at `install/README.md`.
+- [ ] Render the two ultrasonic canvas figures the byte-boundary rework removed.
+      `slides/render_grc.py` has the block lists and the reason they are absent;
+      needs `xvfb-run -a ./slides/render_grc.py` on a box with GNU Radio.
+- [ ] `grc-ultrasonic-frame.png` still shows the old `frame` value with `code_bytes`
+      in it. Same re-render fixes it.
 
 **Ultrasonic**
 - [x] Swept, benched, ported to `flowgraphs/m2k_ultrasonic_fsk.grc` and merged.
 - [ ] Measure range and off-axis falloff, and run long enough for a real BER — 395 bits
       bounds it below 1/395 rather than measuring it.
 
-**Booth CTF (chained tier)**
-- [ ] Pico beacon firmware: FSK at the measured tones, framed with the access code.
-- [ ] Stage-one SPI payload: f0, baud, access code.
-- [ ] Booth setup doc: wiring, what the attendee gets, the flag.
-- [ ] Decide the beacon duty cycle — 40 kHz is in a dog's hearing range and the booth
-      runs all day.
+**OTA demo**
+- [x] Transmitter side, over the air, on hardware. Tracked outside this repo.
+- [ ] Re-bench `m2k_ultrasonic_fsk.grc` end to end on the new frame and chain.
+- [ ] Range at the table.
 
 **Loose ends**
-- [ ] Write the participant setup: install the M2K drivers, download the flowgraphs.
-      Short enough to do the morning of, and the only thing anyone installs. The pip
-      route is what to send them.
+- [x] Participant setup written 2026-09-20: `install/m2k-setup.sh` and
+      `install/m2k-setup.ps1`, one script per platform, plus `install/README.md`.
+      Neither the Windows nor the macOS script has run on its own platform yet —
+      that is the outstanding risk before the session.
 - [ ] Decide which demo is the hands-on participant station.
 - [ ] Add `flowgraphs/m2k_digital_loopback.grc` — sink at DIO0, source at DIO1.
 - [ ] Raise `samp_rate` on `m2k_spi_loopback.grc` from 100 kS/s step by step and record

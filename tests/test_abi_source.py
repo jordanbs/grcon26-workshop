@@ -55,7 +55,7 @@ def test_normalise_handles_indices_and_placeholders():
 def test_cached_data_is_present_and_covers_the_basics():
     """The checked-in cache must actually answer the common attributes."""
     data = abi.load()
-    assert data, "run ./iio_abi_fetch.py to build iio_abi_data.json"
+    assert data, "run ./iio-tools/iio_abi_fetch.py to build iio_abi_data.json"
     for name in ("in_voltage0_raw", "in_voltage0_scale", "in_voltage0_offset",
                  "sampling_frequency"):
         assert abi.lookup(data, name), name

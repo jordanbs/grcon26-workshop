@@ -4,10 +4,47 @@ GNU Radio blocks that treat the ADALM2000 as a scope and a signal
 generator, rather than as fourteen IIO devices you have to understand
 first.
 
+## What it needs
+
+Nothing here compiles: the blocks are Python, so there is no CMake step
+and no `gnuradio-dev`. That is not the same as having no dependencies, and
+the difference is where people get stuck.
+
+| | import | comes from | used by |
+| --- | --- | --- | --- |
+| **GNU Radio** | `gnuradio.gr` | your distro, or radioconda | everything |
+| **gr-iio** | `from gnuradio import iio` | ships inside GNU Radio, not pip | every block that streams |
+| **pylibiio** | `import iio` | `python3-libiio`, brew, or pip | `digital.py`, `m2k_config.py` |
+| **numpy, pmt** | | GNU Radio brings both | the digital and SPI blocks |
+
+**The two `iio`s are different libraries.** `from gnuradio import iio` is
+gr-iio, the GNU Radio blocks that move samples. `import iio` is pylibiio,
+the binding round the C library, which is what reads and writes the
+attributes gr-iio has no block for -- `direction` on a DIO pin, the
+trigger registers, the supply's calibration constants. Having one does not
+give you the other, and they fail differently: gr-iio missing breaks the
+block at construction, pylibiio missing breaks it at the first attribute
+write.
+
+Neither is in `pyproject.toml`. gr-iio cannot be -- it does not exist on
+any package index, and naming it would make every install fail. pylibiio
+deliberately is not either: it wraps a native library, so a pip install
+without the matching `libiio.so` gives you an import that fails at run
+time instead of at install time, which is worse than not having it.
+`install/README.md` covers getting both, per platform.
+
+The hardware needs nothing installed on Linux or macOS beyond permissions.
+Windows needs ADI's USB driver package. Also in `install/README.md`.
+
 ## Installing
 
-Two routes. Neither compiles anything -- this is a pure-Python block
-collection, so there is no CMake step and no `gnuradio-dev`.
+Two routes, and a script that does the second one for you.
+
+**The script**, if you just want it working -- see `install/README.md`:
+
+```
+bash install/m2k-setup.sh
+```
 
 **For this shell only**, from a clone of the workshop repo:
 
@@ -52,8 +89,13 @@ A venv on a different Python installs cleanly, puts `m2k-blocks` on your
 ### When the blocks are not in the tree
 
 ```
-m2k-blocks check
+m2k-blocks check          # or: python -m m2k_blocks check
 ```
+
+The `python -m` spelling is the one to reach for when things are wrong: a
+`pip install --user` routinely puts the `m2k-blocks` script somewhere that
+is not on PATH, and then the tool for diagnosing a bad install is itself
+missing. Naming the interpreter cannot miss.
 
 It prints the block directory, the interpreter it is running under, whether
 `m2k_blocks` imports, and the full list of directories GRC will search with
@@ -118,6 +160,18 @@ Every parameter says what it does and what its values are:
 
 The last two appear only once the trigger is on. The range fields appear
 only for channels that are enabled.
+
+**`ip:192.168.2.1` is not universal.** It is the board's USB ethernet
+gadget, which Linux provides natively and Windows provides once ADI's
+driver package is in. macOS does not provide it at all any more -- the
+RNDIS kext it needed is unmaintained and does not load on Apple silicon.
+On a Mac the address is `usb:`, which libiio resolves by itself when one
+board is plugged in. `m2k-blocks scan` prints the right string for
+whatever machine it is run on:
+
+```
+python -m m2k_blocks scan
+```
 
 Those settings live on **three different IIO devices**, which is why a
 stock Device Source cannot express them: its `params` go to exactly one.
@@ -286,6 +340,88 @@ Like the decoder, the arithmetic lives in a module that imports nothing
 — `m2k_blocks/spi_encode.py` — so a message that survives a round trip
 through both halves has been checked against an independent reading of
 the same three rules, on a machine with no gnuradio and no board.
+
+## ASCII at Every Offset
+
+Neither this block nor the next one touches the board. Both are about
+finding where a byte begins in a stream of bits, which is the thing that
+goes wrong after the demodulator is already working.
+
+| parameter | values | what it means |
+| --- | --- | --- |
+| Shortest run to print | 16 | how many printable characters in a row to believe |
+| Also try inverted | Yes / No | covers a demodulator that handed the tones back upside down |
+| Window (bits) | 2048 | how much is searched at once |
+| Lines per window | 4 | longest first, so the payload leads |
+
+Use it when the transmitter sends no sync word. `Pack K Bits` still has
+to pick a boundary and picks the arbitrary one, right about an eighth of
+the time; the other seven eighths are mojibake, and mojibake reads as a
+broken link rather than as bad framing. People go and move the antenna.
+
+So this does not pick. It packs the same bits eight ways -- sixteen with
+inversion -- and prints what reads as text, with the offset it read at:
+
+```
+offset 4   96 chars  A=00000 B=XXXXXX C=example      A=00000 B=...
+```
+
+The offset is the useful part. If you only want to read the text, the
+console line is the whole job. The offset matters when something
+downstream consumes bytes -- a File Sink for offline analysis -- and
+then it goes into a `Skip Head` ahead of `Pack K Bits` so the capture
+lands where the console did.
+
+**Sixteen characters, and eight is the tempting wrong answer.** Random
+bytes are printable about 37% of the time, so eight in a row turns up
+roughly once in every 3500 positions -- constantly, across sixteen
+offset-and-polarity combinations scanning every position. Sixteen in a
+row is about one in five million, which works out to silence between
+bursts. That is the property worth having: silence on the console then
+means silence on the air, not a wrong guess about framing.
+
+## Sync-to-Sync Framer
+
+The other answer, for a signal that *does* carry a marker. Put it
+downstream of `Correlate Access Code - Tag` with the same tag key.
+
+| parameter | values | what it means |
+| --- | --- | --- |
+| Tag key | `sync` | must match the correlator's Tag Name |
+| Sync word (bits) | 32 | how much of the span the closing marker takes |
+| Shortest / Longest payload | 64 / 1024 | bounds, not a length |
+| Preamble byte | `0xAA` | a span ending in this crossed a burst boundary; -1 turns the check off |
+
+**Use it instead of `Tagged Stream Align` plus `Keep M in N` whenever the
+transmitter stops and starts.** Keep M in N is handed an alignment once
+and from then on it counts: every N items it keeps the first M, forever.
+That is exact while the transmitter never stops. A transmitter that
+bursts breaks it on the second burst -- the counter runs through the
+silence, the silence is not a whole number of frames, and nothing
+re-aligns. The error is permanent, and it arrives as bit-perfect garbage.
+
+This block throws the counter away. The correlator tags the first bit
+after each marker, so a payload is whatever lies between one tag and the
+next, less the marker that closes it. Nothing counts across the gap
+because nothing counts at all.
+
+That buys the property the counter never had: **it never needs to know
+how long a payload is.** One instance decodes an eight-byte frame and a
+thirty-two-byte frame in the same run, untouched.
+
+A transmitter using it has to send a trailing sync word after its last
+frame, or that frame has no closing delimiter and is dropped.
+
+**The bounds are bounds.** A span longer than the maximum is the gap
+between two bursts; a span shorter than the minimum is the join where one
+burst's trailing marker meets the next one's preamble. Both are thrown
+away, and both are tallied rather than logged -- at 200 baud the
+rejections are the normal shape of a bursty link, and a line each would
+bury the frames.
+
+Like the SPI blocks, the logic in both of these lives in a module that
+imports nothing -- `ascii_scan.py` and `sync_frames.py` -- so it is
+tested in an ordinary interpreter with no GNU Radio present.
 
 ## What has been checked
 

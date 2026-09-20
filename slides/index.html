@@ -54,6 +54,7 @@
        width. shell.js measures and places them. -->
   <div class="pop" id="sitepop" role="group" aria-label="Workshop links" hidden>
     <a href="https://github.com/livethisdream/grcon26-workshop">repository<kbd>git</kbd></a>
+    <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/install/README.md">setup</a>
     <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/docs/reading-iio-attributes.md">IIO handout</a>
     <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/gr-m2k/README.md">block reference</a>
   </div>
@@ -86,6 +87,110 @@
     <div class="title-rule"></div>
     <p class="lede">The board is the instrument. IIO is how you talk to it.</p>
     <p class="meta">90 minutes &middot; crawl, walk, run &middot; nothing to install in the room</p>
+    <div class="qr">
+      <img src="img/setup-qr.svg" width="176" height="176"
+           alt="QR code linking to github.com/livethisdream/grcon26-workshop">
+      <div class="qr-what">
+        <b>Set up before we start</b>
+        One script installs the blocks. The next two frames walk through it.
+        <br><code>github.com/livethisdream/grcon26-workshop</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="setup" data-section="Setup">
+  <div class="wrap">
+    <h2>Setup Before the Session</h2>
+    <div class="stage">
+      <div class="present">
+        <p class="pull">Bring a laptop with GNU Radio on it. One script does the rest.</p>
+<pre><code>bash m2k-setup.sh      # Linux, macOS
+m2k-setup.ps1          # Windows</code></pre>
+      </div>
+      <div class="present">
+        <ul>
+          <li>Both are in <code>install/</code> — scan the code on the title frame</li>
+          <li>Installs gr-iio, pylibiio, the blocks, the GRC block path, USB access</li>
+          <li>Windows: run it from the Radioconda Prompt</li>
+          <li><code>--yes</code> answers every prompt</li>
+        </ul>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Do this before you travel. It reaches the internet, and a conference
+      network is not the place to find that out.</p>
+      <p>The download, in full:</p>
+<pre><code>curl -fsSLO https://raw.githubusercontent.com/livethisdream/\
+grcon26-workshop/main/install/m2k-setup.sh
+bash m2k-setup.sh</code></pre>
+      <p>The script asks before it changes anything outside your own account —
+      the udev rule on Linux, the driver package on Windows. Download it and
+      read it first if you would rather; that is why the instructions do not
+      pipe it straight into a shell.</p>
+      <p><strong>There are two libraries called <code>iio</code> and you want
+      both.</strong> <code>from gnuradio import iio</code> is gr-iio, which
+      moves samples and arrives inside GNU Radio. <code>import iio</code> is
+      pylibiio, the binding around the C library, which reads and writes the
+      attributes gr-iio has no block for — pin direction, the trigger
+      registers, the supply calibration. Having one tells you nothing about
+      the other, and they break at different moments: gr-iio missing stops the
+      block from constructing, pylibiio missing stops it at the first
+      attribute write.</p>
+      <p>Neither comes from <code>pip install gr-m2k</code>, and that is
+      deliberate. gr-iio is on no package index at all. pylibiio wraps a
+      native library, so installing the wheel alone gives you an import that
+      fails at run time rather than at install time.</p>
+      <p><code>install/README.md</code> in the repository has the same ground
+      in more detail, including the four commands to run by hand instead.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="setup-check" data-section="Setup">
+  <div class="wrap">
+    <h2>Two Checks After Setup</h2>
+    <div class="stage">
+      <div class="present">
+<pre><code>python -m m2k_blocks check
+python -m m2k_blocks scan</code></pre>
+        <ul>
+          <li><strong>check</strong> — will GRC find the blocks</li>
+          <li><strong>scan</strong> — is the board there, and at what address</li>
+        </ul>
+      </div>
+      <div class="present callout">
+        <p>On a Mac the address is <code>usb:</code>, not the
+        <code>ip:192.168.2.1</code> every block defaults to.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p><strong>One thing goes wrong more than everything else together.</strong>
+      <code>pip install</code> has to land in the same interpreter
+      gnuradio-companion imports from. On a distro GNU Radio that is the
+      system Python; under radioconda it is the environment's. A fresh venv on
+      some third Python installs cleanly, puts the scripts on your PATH, and
+      leaves the block tree empty — because GRC never looks there. The script
+      works the interpreter out from the shebang of gnuradio-companion and
+      prints what it picked, and <code>--python</code> overrides it.</p>
+      <p><code>check</code> answers that question directly: the block
+      directory, the interpreter, whether <code>m2k_blocks</code> imports, and
+      every directory GRC will search with ours marked. Exit status 0 means
+      the blocks will appear. Two unrelated faults look identical from the
+      block tree — a path GRC never saw, and a package it cannot import — and
+      only one of them waits until you press Run.</p>
+      <p><strong>The address.</strong> <code>ip:192.168.2.1</code> is the
+      board's USB ethernet gadget. Linux provides that natively and Windows
+      provides it once ADI's driver package is in. macOS does not provide it
+      any more: it needed HoRNDIS, a kernel extension that is unmaintained,
+      built for x86_64, and unable to load on Apple silicon at all. So a Mac
+      uses the USB backend instead, and the address is the bare
+      <code>usb:</code>, which libiio resolves by itself when one board is
+      plugged in. <code>scan</code> prints the right string for whatever
+      machine it runs on.</p>
+      <p>Restart gnuradio-companion after installing. A running one will not
+      pick up a block directory it did not have at launch.</p>
+    </div>
   </div>
 </section>
 
@@ -106,9 +211,9 @@
       the board's own generator into the board's own input, so a station with
       no other hardware still has something to measure. The walk is what a
       block parameter writes. The run is a protocol on the digital pins.</p>
-      <p>Setup is short and happens before the session: install the M2K
-      drivers and download the flowgraphs. Nothing else gets installed in the
-      room.</p>
+      <p>Setup is short and happens before the session: one script, which
+      installs the blocks and sorts out USB access. Nothing else gets
+      installed in the room.</p>
       <p><strong>Press <kbd>P</kbd></strong> to switch between the projected deck and
       these notes. The notes are always in the page, in both modes — the deck
       view hides them, it never drops them. Printing gives you the notes, one
@@ -191,7 +296,7 @@
       also context attributes, which on the M2K carry the factory calibration
       constants — <code>cal,ad9963_adc_ch0_gain</code> and friends.</p>
       <p><code>iio_info</code> prints all of it and is already on your machine if libiio
-      is. <code>./iio_discover.py --json</code> in the repo captures the same tree to a file so you can read it later, on a laptop with no board attached — which is
+      is. <code>./iio-tools/iio_discover.py --json</code> in the repo captures the same tree to a file so you can read it later, on a laptop with no board attached — which is
       how twenty people share one M2K.</p>
       <p>An attribute whose name ends <code>_available</code> is not a knob. It is the list of legal values for the knob whose name it shares, published by the hardware itself. The generated GRC dropdowns come from that list.</p>
     </div>
@@ -224,7 +329,7 @@
       millivolts and millidegrees keep useful resolution without floating point
       in the kernel. Twenty-four channel types have a fixed unit this way; the
       full table is in <code>docs/reading-iio-attributes.md</code>, generated from the
-      kernel's own ABI documentation by <code>iio_explain.py --glossary</code>.</p>
+      kernel's own ABI documentation by <code>iio-tools/iio_explain.py --glossary</code>.</p>
       <p><strong>The M2K is where this rule runs out.</strong> Its scope does not
       publish a usable <code>scale</code> — libm2k computes the conversion itself, and
       volts-per-count turns out to depend on the sample rate through the
@@ -257,7 +362,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       <p>The grammar is worth teaching because it makes an unfamiliar attribute
       readable without documentation. <code>in_temp0_calibbias</code> parses on sight:
       a calibration offset, in counts, on the device's first temperature channel.</p>
-      <p><code>iio_explain.py</code> does exactly this parse and then quotes the kernel's
+      <p><code>iio-tools/iio_explain.py</code> does exactly this parse and then quotes the kernel's
       own words for the <code>info</code> part — 826 documented attribute names, fetched
       from <code>Documentation/ABI/testing/sysfs-bus-iio</code> and cached in the repo so
       it works offline.</p>
@@ -300,7 +405,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       field wants a value that lives somewhere else — in <code>iio_info</code> output,
       in a driver, in a datasheet.</p>
       <p>There are two ways to close that gap. One is a discovery tool that shows
-      you the tree and hands you the field values: <code>iio_browse.py</code> in the
+      you the tree and hands you the field values: <code>iio-tools/iio_browse.py</code> in the
       repo does that, and it can generate a GRC block definition from a capture,
       dropdowns and all, because the legal values are in the capture already.</p>
       <p>The other is to stop asking the participant to think in IIO at all, and
@@ -313,7 +418,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 <section class="frame read-only" id="iio-meaning" data-section="IIO">
   <div class="wrap">
     <h2>Provenance Tags</h2>
-    <p>Reference. Every line <code>iio_explain.py</code> prints is tagged with its source,
+    <p>Reference. Every line <code>iio-tools/iio_explain.py</code> prints is tagged with its source,
     so fact, convention and guesswork stay distinguishable.</p>
     <div class="tablewrap"><table>
       <tr><th>tag</th><th>source</th><th>trust</th></tr>
@@ -324,7 +429,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       <tr><td><code>[overlay: sourced]</code></td><td>traced to vendor source</td><td>good, not bench-checked</td></tr>
       <tr><td><code>[overlay: UNVERIFIED]</code></td><td>written from documentation</td><td><strong>do not teach as fact</strong></td></tr>
     </table></div>
-    <p><code>./iio_explain.py FILE --unknown</code> reports how much of a capture is
+    <p><code>./iio-tools/iio_explain.py FILE --unknown</code> reports how much of a capture is
     explained and by what. On the real M2K capture that is 57%: real hardware
     exposes a great deal the ABI never described, mostly logic-analyzer trigger
     attributes.</p>
@@ -1810,8 +1915,8 @@ sigrok-cli -i bus.csv \
       <span class="lnk wire">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
@@ -1857,12 +1962,22 @@ sigrok-cli -i bus.csv \
       <em>Unable to push buffer</em> means the graph fell behind rather than
       meaning nothing at all.</p>
       <figure class="shot canvas">
-        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is code_bytes plus a list comprehension padding the message to msg_capacity characters.">
+        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is a list comprehension padding the message to msg_capacity characters.">
         <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
       </figure>
-      <p>The transmitter pads every payload to <code>msg_capacity</code>, so every
-      frame is the same length. That matters at the far end, where a fixed frame
-      length is what lets the receiver discard the next frame's sync word.</p>
+      <p>What goes on the air is a 32-bit preamble of <code>0xAA</code>, then
+      the message padded to 32 bytes, repeating. A preamble and a
+      fixed-length payload is the ordinary shape for a link like this.</p>
+      <p><strong>The preamble is for the timing loop, not for framing.</strong>
+      Symbol Sync needs roughly twenty symbols to converge, and alternating
+      ones and zeros give the zero-crossing detector a transition on every
+      bit. Nothing correlates on it. Nothing marks where one copy of the
+      payload ends and the next begins, which is a problem the receiver solves
+      rather than the transmitter.</p>
+      <p><strong>Why 32 bytes.</strong> <code>0xAA</code> is not printable, so
+      the preamble cuts every readable run down to the payload length. At 8
+      the run is 8 characters, under the sixteen-character floor, and nothing
+      prints at any offset.</p>
     </div>
   </div>
 </section>
@@ -1876,8 +1991,8 @@ sigrok-cli -i bus.csv \
       <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk on">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk on">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
@@ -1932,58 +2047,63 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-sync" data-section="Applications">
+<section class="frame cut" id="ultrasonic-bytes" data-section="Applications">
   <div class="wrap">
-    <h2>Byte Sync</h2>
+    <h2>Finding the Byte Boundary</h2>
     <div class="chain">
       <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
       <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
       <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk done">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk done">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk on">Sync word</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk on">Byte boundary</span><span class="arw">&#8594;</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
-        <figure class="shot">
-          <img src="img/grc-ultrasonic-sync.png" alt="Two GNU Radio Companion blocks: Correlate Access Code Tag with the 32-bit access code, threshold 0 and tag name sync, feeding Tagged Stream Align keyed on the same sync tag.">
-          <figcaption>One block finds the word. The next throws away everything before it.</figcaption>
-        </figure>
-      </div>
-      <div class="present">
         <ul>
           <li>A bit stream has no bytes in it</li>
-          <li>Every frame starts with the same 32 bits</li>
-          <li>Correlate on those, tag the hit, align to the tag</li>
+          <li>Pack eight and you get a byte &mdash; in the wrong place seven times out of eight</li>
+          <li><strong>ASCII at Every Offset</strong> packs all eight ways and prints what reads as text</li>
         </ul>
-        <p class="pull">The transmitter sends the byte boundary.</p>
+      </div>
+      <div class="present callout">
+        <p class="pull">Nothing counts, so nothing can lose count.</p>
       </div>
     </div>
     <div class="depth">
       <p>The slicer emits one bit per symbol and nothing else. Pack eight of
-      them and you get a byte — but a byte starting wherever the graph happened
-      to begin, which is seven times out of eight the wrong place. Nothing
-      downstream can tell, because a wrongly aligned byte is still a byte.</p>
-      <p>The access code is <strong><code>0x1ACFFC1D</code></strong>, the CCSDS
-      attached sync marker. It correlates badly against shifted copies of
-      itself, so a false hit needs a specific 32-bit accident rather than any
-      long run of ones. Threshold 0 rejects any match carrying a bit error, and
-      this link is clean enough that it rejects nothing real.</p>
-      <p><strong>Correlate Access Code Tag</strong> does not remove the code —
-      it drops a tag on the sample after it. <strong>Tagged Stream Align</strong>
-      is what acts on that: it discards everything before the first tag, so the
-      stream handed on begins on a byte boundary.</p>
-      <figure class="shot canvas">
-        <img src="img/grc-ultrasonic-out.png" alt="Four GNU Radio Companion blocks: Keep M in N with M of msg_capacity and N of frame_len, into Stream to Tagged Stream with packet length msg_capacity, into Tagged Stream to PDU, into Message Debug.">
-        <figcaption>Keep the payload, drop the next frame's sync word, hand it over as a message.</figcaption>
-      </figure>
-      <p>Once aligned, the stream repeats: sync bytes, then payload, then sync
-      bytes again. <strong>Keep M in N</strong> keeps <code>msg_capacity</code> of every
-      <code>frame_len</code> bytes, which is the payload alone — and that only
-      works because the transmitter pads every message to the same length.
-      Stream to Tagged Stream and Tagged Stream to PDU then turn the bytes into
-      a message, which is what Message Debug prints.</p>
+      them and you get a byte &mdash; but a byte starting wherever the graph
+      happened to begin, which is seven times out of eight the wrong place.
+      Nothing downstream can tell, because a wrongly aligned byte is still a
+      byte, and what comes out is mojibake that reads as a broken link. People
+      go and move the transducer.</p>
+      <p><strong>So do not pick a boundary.</strong> The block packs the same
+      bits all eight ways &mdash; sixteen, if the demodulator may have handed
+      the two tones back upside down &mdash; and prints any run of printable
+      ASCII long enough to believe, with the offset it turned up at. That is
+      the whole receiver output &mdash; the block has already searched every
+      offset, so carrying the answer back into a Pack K Bits would be a
+      fiddlier route to text that is already on the screen.</p>
+      <p>Sixteen characters is the floor, and eight is the tempting wrong
+      answer: random bytes are printable about 37% of the time, so eight in a
+      row turns up roughly once in every 3500 positions &mdash; constantly,
+      across sixteen offset-and-polarity combinations. Sixteen in a row is
+      about one in five million. Silence on the console then means silence on
+      the air rather than a wrong guess about framing.</p>
+      <p><strong>An earlier version of this flowgraph framed on a sync word</strong>
+      &mdash; <code>0x1ACFFC1D</code>, the CCSDS marker &mdash; with Correlate
+      Access Code Tag, Tagged Stream Align and Keep M in N. That chain is
+      correct while the transmitter never stops, and this link transmits
+      continuously, so it ran clean on the bench. Point it at a transmitter
+      that stops and starts and it breaks on the second burst: Keep M in N
+      counts, the silence is not a whole number of frames, and the phase is
+      wrong from then on. It never re-aligns. A chain that cannot count is
+      the one that survives both cases, so this is that chain.</p>
+      <p>The <strong>Sync-to-Sync Framer</strong> block in
+      <code>[ADALM2000]</code> is the other answer, for a signal that does
+      carry a marker: it frames on the gap between one sync and the next, so
+      it never counts and never has to be told how long a payload is.</p>
       <pre><code>***** MESSAGE DEBUG PRINT PDU VERBOSE *****
 pdu length =          8 bytes
 pdu vector contents =
@@ -2270,7 +2390,8 @@ pdu vector contents =
     <h2>Resources</h2>
     <div class="grid2">
       <div class="card"><h3>The repository</h3><p><a href="https://github.com/livethisdream/grcon26-workshop">github.com/livethisdream/grcon26-workshop</a></p></div>
-      <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio_explain.py --glossary</code></p></div>
+      <div class="card"><h3>Installing the blocks later</h3><p><code>install/README.md</code> — one script per platform, what each piece is for, and the address a Mac has to use</p></div>
+      <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio-tools/iio_explain.py --glossary</code></p></div>
       <div class="card"><h3>The block reference</h3><p><code>gr-m2k/README.md</code> — every parameter, and what it quietly becomes</p></div>
       <div class="card"><h3>The bench checklist</h3><p><code>docs/bench-checklist.md</code> — 16 sections, what passed and what it cost</p></div>
       <div class="card"><h3>The multi-pin sink note</h3><p><code>docs/gr-iio-multipin-sink.md</code> — why the digital sink had to be written</p></div>

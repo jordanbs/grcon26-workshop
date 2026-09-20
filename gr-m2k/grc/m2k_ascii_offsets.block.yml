@@ -1,0 +1,108 @@
+id: m2k_ascii_offsets
+label: ASCII at Every Offset
+category: '[ADALM2000]'
+flags: [python]
+
+parameters:
+-   id: min_chars
+    label: Shortest run to print
+    dtype: int
+    default: '16'
+
+-   id: try_inverted
+    label: Also try inverted
+    dtype: enum
+    default: 'True'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+
+-   id: window_bits
+    label: Window (bits)
+    dtype: int
+    default: '2048'
+
+-   id: max_lines
+    label: Lines per window
+    dtype: int
+    default: '4'
+
+inputs:
+-   label: bits
+    domain: stream
+    dtype: byte
+
+asserts:
+- ${ 4 <= min_chars <= 256 }
+- ${ window_bits > 8 * min_chars }
+- ${ max_lines >= 1 }
+
+templates:
+    imports: from m2k_blocks.ascii_offsets import ascii_offsets
+    make: |-
+        ascii_offsets(
+            min_chars=${min_chars},
+            window_bits=${window_bits},
+            try_inverted=${try_inverted},
+            max_lines=${max_lines})
+
+documentation: |-
+    Print whatever reads as text, at whichever byte offset it reads at.
+    Wire it off a Binary Slicer and watch the console.
+
+    Use this when the transmitter sends no sync word, so nothing in the
+    bit stream says where a byte begins. Pack K Bits still has to pick a
+    boundary, and picks the arbitrary one -- right about an eighth of
+    the time. The other seven eighths come out as mojibake and look
+    exactly like a broken link, which is the worst way for a receiver to
+    fail: you go and move the antenna.
+
+    So this block does not pick. It packs the same bits eight ways, and
+    sixteen with inversion on, and prints any run of printable ASCII
+    long enough to be worth believing, with the offset it turned up at:
+
+        offset 4   96 chars  A=00000 B=XXXXXX C=example      A=000...
+
+    The offset is the useful part. It stays put for as long as the
+    flowgraph runs, because the bit stream is continuous and every burst
+    lands on the same boundary.
+
+    If all you want is to read the text, that is the whole job and this
+    block is the only receiver output you need. The offset matters when
+    something downstream consumes BYTES -- a File Sink you mean to
+    analyse offline, say. Then put it in a Skip Head ahead of Pack K
+    Bits and the capture lands on the same boundary the console did.
+
+    Shortest run to print
+      Sixteen characters, and eight is the tempting wrong answer.
+      Random bytes are printable about 37% of the time, so eight in a
+      row turns up roughly once in 3500 positions -- constantly, across
+      sixteen offset-and-polarity combinations scanning every position.
+      Sixteen in a row is about one in five million, which is silence
+      between bursts. That is the property worth having: silence here
+      means silence on the air, not a wrong guess about framing. Lower
+      it only for a payload you know is short, and expect chatter.
+
+    Also try inverted
+      Covers a demodulator that handed back the two tones the wrong way
+      up, which swaps every bit. Costs a second pass and saves an
+      afternoon the first time it happens. INVERTED appears in the line
+      when that is the pass that found the text.
+
+    Window (bits)
+      How much is searched at once. Windows overlap by the shortest run,
+      so a payload straddling a boundary stays whole and is reported
+      once, not twice.
+
+    Lines per window
+      Longest first, so the real payload is nearly always the first
+      line. The rest are there for when it is not.
+
+    This block does not touch the board, and it decodes whatever it is
+    given -- a File Source capture reads the same as a live M2K Analog
+    Source.
+
+    The search itself is in `m2k_blocks/ascii_scan.py`, which imports
+    nothing, so it is tested in an ordinary interpreter with no GNU
+    Radio present.
+
+file_format: 1
