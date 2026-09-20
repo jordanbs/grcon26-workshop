@@ -127,7 +127,7 @@ tier that costs participants a compiler.
 # Status
 
 - **Repo:** `main`, everything merged — SPI, ultrasonic (PR #4), colorimeter (PR #5,
-  `13cbbc7`). 456 tests.
+  `13cbbc7`), blinky LED and PWM (PR #7, `9d863dd`). 455 tests.
 - **Phase 1 is done and verified.** Six blocks in `gr-m2k/`, all 15 bench-checklist
   sections passing, absolute error closed against the meter. Detail in the archive.
 - **`gr-m2k` is installable two ways** as of 2026-09-16: `source gr-m2k/env.sh` for one
