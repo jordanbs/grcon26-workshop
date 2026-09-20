@@ -1962,7 +1962,7 @@ sigrok-cli -i bus.csv \
       <em>Unable to push buffer</em> means the graph fell behind rather than
       meaning nothing at all.</p>
       <figure class="shot canvas">
-        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is a list comprehension padding the message to msg_capacity characters.">
+        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is preamble plus a list comprehension padding the message to msg_capacity characters.">
         <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
       </figure>
       <p>What goes on the air is a 32-bit preamble of <code>0xAA</code>, then
@@ -2061,13 +2061,17 @@ sigrok-cli -i bus.csv \
     </div>
     <div class="stage split">
       <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-ultrasonic-bytes.png" alt="Two GNU Radio Companion blocks: Binary Slicer feeding ASCII at Every Offset, whose parameters read shortest run to print 16, also try inverted Yes, window 2.048k bits and 4 lines per window.">
+          <figcaption>The last two blocks. Nothing downstream of them.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
         <ul>
           <li>A bit stream has no bytes in it</li>
-          <li>Pack eight and you get a byte &mdash; in the wrong place seven times out of eight</li>
-          <li><strong>ASCII at Every Offset</strong> packs all eight ways and prints what reads as text</li>
+          <li>Pack eight and you get a byte &mdash; wrong seven times in eight</li>
+          <li>This packs all eight ways and prints what reads as text</li>
         </ul>
-      </div>
-      <div class="present callout">
         <p class="pull">Nothing counts, so nothing can lose count.</p>
       </div>
     </div>

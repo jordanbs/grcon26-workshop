@@ -397,7 +397,8 @@ def test_every_instrument_block_loads(repo_root):
     assert set(loaded) == {"m2k_analog_source", "m2k_analog_sink",
                            "m2k_digital_source", "m2k_digital_sink",
                            "m2k_spi_decode", "m2k_spi_encode",
-                           "m2k_power_supply"}
+                           "m2k_power_supply",
+                           "m2k_ascii_offsets", "m2k_sync_framer"}
 
 
 @needs_gnuradio

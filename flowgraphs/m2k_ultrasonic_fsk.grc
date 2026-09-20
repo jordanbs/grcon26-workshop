@@ -137,7 +137,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1056, 8.0]
+    coordinate: [200, 136.0]
     rotation: 0
     state: enabled
 - name: fspace
@@ -569,7 +569,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [336, 960.0]
+    coordinate: [1432, 496.0]
     rotation: 0
     state: enabled
 - name: qtgui_freq_sink_x_0
