@@ -4,12 +4,11 @@ These run in the ordinary test interpreter, not the borrowed gnuradio
 one, because `m2k_blocks.ascii_scan` imports nothing. That is the whole
 reason it is a separate module from the block that wraps it.
 
-The block this backs is what a player uses at the booth: the beacon
-sends no sync word, so `Pack K Bits` has no boundary to be told about
-and picks the arbitrary one. Seven times in eight that is mojibake, and
-mojibake looks like bad range rather than like bad framing -- which
-sends somebody off to move the transducer instead of shifting the
-offset by one.
+The block this backs is for a link that sends no sync word, so `Pack K
+Bits` has no boundary to be told about and picks the arbitrary one.
+Seven times in eight that is mojibake, and mojibake looks like bad range
+rather than like bad framing -- which sends somebody off to move the
+transducer instead of shifting the offset by one.
 """
 
 import os

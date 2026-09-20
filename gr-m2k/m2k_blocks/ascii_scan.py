@@ -7,9 +7,9 @@ GNU Radio and no numpy anywhere near it.
 
 The problem it solves. A receiver that frames on a sync word knows where
 each byte starts because the correlator told it. Take the sync word away
--- which is what a beacon that bursts has to do, see the ultrasonic
-notes in `flowgraphs/README.md` -- and nothing in the stream marks a
-boundary. `Pack K Bits` still has to pick one, and picks the arbitrary
+-- which a transmitter that stops and starts often has to do, see the
+ultrasonic notes in `flowgraphs/README.md` -- and nothing in the stream
+marks a boundary. `Pack K Bits` still has to pick one, and picks the arbitrary
 one, which is right about an eighth of the time. The other seven eighths
 come out as mojibake and look exactly like a broken link.
 
@@ -27,7 +27,7 @@ more than it sounds: it means silence here is silence on the air, rather
 than a wrong guess about framing.
 """
 
-# Space through tilde. The printable range, and the one a beacon's
+# Space through tilde. The printable range, which is what a readable
 # payload is written in.
 LOW, HIGH = 0x20, 0x7E
 

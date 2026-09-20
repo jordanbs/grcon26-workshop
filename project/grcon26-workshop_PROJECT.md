@@ -64,9 +64,9 @@ display), and the session material itself.
   range. Use the Sync-to-Sync Framer, or send no sync word at all and find the
   boundary at the receiver.
 - **A vendored copy is a copy, and it drifts in the reader's head before it drifts in
-  git.** `booth/pico/` sat here byte-identical to the CTF's firmware while the CTF
-  overrode `beacon.CAPACITY` to 32 in `main.py`. Both were correct; reading the wrong
-  one cost an hour and produced confidently wrong arithmetic. Deleted 2026-09-20.
+  git.** `booth/pico/` sat here byte-identical to a copy maintained elsewhere, which
+  had since diverged. Both were correct; reading the wrong one cost an hour and
+  produced confidently wrong arithmetic. Deleted 2026-09-20.
 - **gr-iio's `device_source` ends itself on any refill error.** `work()` returns
   WORK_DONE on a timeout, so a triggered source waiting on a human never comes back,
   and `set_timeout_ms` never reaches libiio. Free-run the source; trigger the display.
@@ -102,31 +102,22 @@ display), and the session material itself.
   transmitting, an attendee's M2K receiving. Reason: both halves already run, and it is
   the part of the workshop somebody can watch without attending the session.
 
-- **2026-09-20** — The CTF is alive and lives in `livethisdream/grcon26-ctf`, at
-  `ADI/did_you_hear_that`. An earlier note here claimed the chained tier was dropped;
-  that was wrong. What changed is where it lives and which way the chaining runs: the
-  beacon payload carries this challenge's flag *and* the unlock sequences for two
-  other ADI tables, so the beacon is a source of unlocks rather than a thing
-  unlocked. It is vendored out of this public repo precisely because committing it
-  here would publish all three in the clear -- and that applies to quoting it in a
-  doc, a docstring or a test fixture just as much as to the firmware.
-  See `2026-09-18-beacon-firmware-in-ctf-repo.md` in that repo.
+- **2026-09-20** — The CTF lives in its own repo. An earlier note here claimed it
+  had been dropped; that was wrong. **Nothing about it belongs in this repo** — not
+  its contents, not its structure, not how to build a receiver for it. That applies
+  to a doc, a docstring, a code comment and a test fixture exactly as much as to
+  firmware, which is the lesson from having got it wrong on 2026-09-20.
 
-- **2026-09-20** — The workshop's ultrasonic receiver drops sync framing and matches
-  the CTF's. Reason: three different decode stacks across the loopback, the booth
-  firmware and the CTF was a trap for participants. A player who learned the framed
-  chain here and carried it to the booth gets **nothing at all** — the beacon sends no
-  sync word, so the correlator never fires, and silence reads as bad range. Out go
+- **2026-09-20** — The workshop's ultrasonic receiver drops sync framing. Reason:
+  `keep_m_in_n` counts, so it is exact only while the transmitter never stops, and a
+  chain that cannot survive a bursty link is the wrong thing to teach. Out go
   `correlate_access_code_tag`, `tagged_stream_align`, `keep_m_in_n` and the
-  `access_code` / `code_bytes` / `frame_len` variables; in comes ASCII at Every Offset
-  and a `skip_bits` offset. Net deletion of machinery. Costs a re-bench.
+  `access_code` / `code_bytes` / `frame_len` variables; in comes ASCII at Every
+  Offset. Net deletion of machinery. Costs a re-bench.
 
-- **2026-09-20** — The workshop loopback carries the beacon's frame: a 32-bit
-  `0xAA` preamble then a 32-byte payload, repeating. Reason: modelling the workshop
-  on the CTF only pays if the shapes match, and then the participant's job at the
-  booth is purely subtractive — delete the transmitter, add nothing, re-tune nothing.
-  The preamble is for `symbol_sync` to converge on, not for framing; nothing
-  correlates on it, there or here. `msg_capacity` went 8 → 32 because `0xAA` is not
+- **2026-09-20** — The loopback sends a 32-bit `0xAA` preamble then a 32-byte
+  payload, repeating. The preamble is for `symbol_sync` to converge on, not for
+  framing; nothing correlates on it. `msg_capacity` went 8 → 32 because `0xAA` is not
   printable and cuts every readable run to the payload length: at 8 the run is under
   the sixteen-character floor and nothing prints at any offset.
 
@@ -134,17 +125,16 @@ display), and the session material itself.
   `Skip Head`, `Pack K Bits`, `Stream to Tagged Stream`, `Tagged Stream to PDU` and
   `Message Debug` are all deleted. Reason: the block already searches all eight
   offsets and prints the one that reads, so the offset only earns its keep when
-  something downstream consumes bytes. The CTF has a File Sink for offline analysis
-  and `rx/slide8.py` as the do-it-yourself path, which is a challenge-design choice;
-  the workshop's payoff is the console line, and a second branch was a fiddlier route
+  something downstream consumes bytes — a File Sink meant for offline analysis, say.
+  The workshop's payoff is the console line, and a second branch was a fiddlier route
   to text already on screen.
 
 - **2026-09-20** — Both byte-boundary mechanisms ship as `gr-m2k` blocks:
   **ASCII at Every Offset** and **Sync-to-Sync Framer**. Reason: the CTF rejected the
   framer on 2026-09-18 because "a player cannot obtain a custom block", and the
-  installer plus the QR on slide 1 made that premise false. The framer is still not
-  what solves the booth — the beacon has no sync word — but it is the right answer for
-  any bursty signal that does carry one, and `keep_m_in_n` is the wrong one.
+  installer plus the QR on slide 1 made that premise false. The framer is the right
+  answer for any bursty signal that carries a marker, and `keep_m_in_n` is the wrong
+  one.
 - **2026-09-16** — The colorimeter board is ADI's **M2k Colorimeter Accessory Board**
   from `education_tools`, not the CN0363. Reason: it borrows the CN0363's cuvette
   holder and nothing else — no ADC, no mux, no driver.
@@ -216,16 +206,9 @@ tier that costs participants a compiler.
   link was simulated from the flowgraph's own resolved variables: the text is
   recovered at all eight bit offsets and inverted. The over-the-air half has not run.
   **Re-bench before the session.**
-- **The participant turns the loopback into the booth receiver themselves.** That is
-  the exercise, and the solution lives in the CTF repo, not here. Deleting the
-  transmitter is the whole change. Leaving it in at the booth makes the M2K drive its
-  own transducer on the beacon's two tones, jamming the beacon, its own receiver and
-  the rest of the table — worth saying out loud in the room.
 - **`booth/` is gone 2026-09-20.** It was firmware with no receiver in this repo, in
-  the framing geometry the CTF proved fails on the second burst. The live firmware is
-  `grcon26-ctf/ADI/did_you_hear_that/pico/`; that repo's `verify.py` hashes its own
-  vendored copy and pins upstream by commit `ad86590`, so deleting the folder here
-  breaks nothing there.
+  a framing geometry since shown to fail on a bursty link. It is maintained elsewhere
+  and nothing there depends on this copy.
 - **Two deck figures are not committed.** `grc-ultrasonic-sync` and
   `grc-ultrasonic-out` showed blocks that no longer exist. Rather than ship pictures of
   a chain that is gone, both were removed; `slides/render_grc.py` carries the exact
@@ -276,14 +259,12 @@ tier that costs participants a compiler.
 - [ ] Measure range and off-axis falloff, and run long enough for a real BER — 395 bits
       bounds it below 1/395 rather than measuring it.
 
-**Booth / OTA demo**
-- [x] Beacon firmware, duty cycle and two-slot scheme: all in
-      `grcon26-ctf/ADI/did_you_hear_that/`, decoded over the air on a real board.
-- [x] Workshop receiver aligned to the booth's 2026-09-20 — one decode stack now.
-- [ ] Re-bench `m2k_ultrasonic_fsk.grc` end to end on the new chain.
-- [ ] Rename the demo in the deck and the docs: "booth" is not accurate for a thing
-      that is also the workshop's own OTA exercise. "OTA demo" is the candidate.
-- [ ] Range at the table, which the CTF's STATUS.md also lists as unchecked.
+**OTA demo**
+- [x] Transmitter side, over the air, on hardware. Tracked outside this repo.
+- [ ] Re-bench `m2k_ultrasonic_fsk.grc` end to end on the new frame and chain.
+- [ ] Rename the demo in the deck and the docs: "booth" is not accurate for the
+      workshop's own OTA exercise. "OTA demo" is the candidate.
+- [ ] Range at the table.
 
 **Loose ends**
 - [x] Participant setup written 2026-09-20: `install/m2k-setup.sh` and

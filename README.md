@@ -147,8 +147,7 @@ golden output.
   for a real bit error rate. 395 bits bounds it below 1/395 rather than
   measuring it.
 - Every `[overlay: UNVERIFIED]` entry in `iio-tools/iio_overlays.py`.
-- **Re-bench the ultrasonic link.** Its receive chain changed on 2026-09-20
-  to match the booth beacon's, and 0 errors in 395 bits was measured through
-  the old one.
+- **Re-bench the ultrasonic link.** Its frame and receive chain both changed
+  on 2026-09-20, and 0 errors in 395 bits was measured through the old ones.
 - **Re-render two deck figures.** `slides/render_grc.py` says which blocks
   and why they are not committed.

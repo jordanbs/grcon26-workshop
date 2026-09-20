@@ -493,9 +493,8 @@ padded to `msg_capacity`, repeating:
 AA AA AA AA   G R C O N 2 6 <padded to 32>   AA AA AA AA   G R C ...
 ```
 
-That is the booth beacon's frame exactly, and deliberately so — the only
-difference left between this and the beacon is that the beacon bursts and
-this transmits continuously. Turning one into the other is the exercise.
+A preamble and a fixed-length payload is the ordinary shape for a link
+like this, and it is the shape the rest of this section assumes.
 
 **What the preamble is for.** `Symbol Sync` needs roughly twenty symbols
 to converge, and `0xAA` is alternating ones and zeros, so it gives the
@@ -523,9 +522,8 @@ carrying the answer back into a `Pack K Bits` would only be a fiddlier
 route to text already on the screen.
 
 **Why the payload is 32 bytes.** `0xAA` is not printable, so the preamble
-cuts every run down to the payload length. At 8 the run is 8 characters,
-under the floor, and nothing prints at any offset. 32 also happens to be
-the beacon's payload, which is the better reason.
+cuts every readable run down to the payload length. At 8 the run is 8
+characters, under the floor, and nothing prints at any offset.
 
 Sixteen characters is the floor, and eight is the tempting wrong answer:
 random bytes are printable about 37% of the time, so eight in a row turns
@@ -547,29 +545,12 @@ not a whole number of frames, so the phase is wrong from the second burst
 on and never re-aligns — bit-perfect garbage, which reads as bad range and
 sends people off to move the transducer.
 
-The GRCon booth beacon bursts. A participant who learned the framed chain
-here and carried it to the booth would get **nothing at all**, because the
-beacon sends no sync word for the correlator to fire on. Matching the two
-receivers is the point of this change; one mechanism, taught once, working
-in both places.
-
 **If your signal does carry a sync word,** use the `Sync-to-Sync Framer`
 block instead of `Keep M in N`. It frames on the gap between one marker and
 the next rather than counting, so it survives bursts, and it never has to
 be told how long a payload is — one instance decodes an eight-byte frame
 and a thirty-two-byte frame in the same run.
 
-### Turning this into the booth receiver
-
-Delete the transmitter — the Message entry, `frame`, the vector source,
-`Unpack K Bits`, `Repeat`, the scaling blocks, the VCO and the M2K Analog
-Sink. What is left is the receive chain, and it is the one the beacon
-wants. Nothing needs adding and nothing needs re-tuning; the tones, the
-baud and the decimation are already the beacon's.
-
-Leave the transmitter in at the booth and the M2K will drive its own
-transducer at the beacon's two tones, which jams the beacon, your own
-receiver, and everyone else at the table.
 
 ## What has been checked, and what has not
 

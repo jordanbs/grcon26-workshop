@@ -131,7 +131,7 @@ blocks:
 - name: frame
   id: variable
   parameters:
-    comment: Preamble then payload -- the beacon's frame, minus the bursting.
+    comment: Preamble, then the payload. This is what goes on the air.
     value: preamble + [ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]
   states:
     bus_sink: false
@@ -171,7 +171,7 @@ blocks:
 - name: msg_capacity
   id: variable
   parameters:
-    comment: 32, matching the beacon. Under 16 the preamble hides the text.
+    comment: Under 16 the preamble cuts the run below the ASCII floor.
     value: '32'
   states:
     bus_sink: false

@@ -1966,9 +1966,8 @@ sigrok-cli -i bus.csv \
         <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
       </figure>
       <p>What goes on the air is a 32-bit preamble of <code>0xAA</code>, then
-      the message padded to 32 bytes, repeating. That is the booth beacon's
-      frame exactly, and deliberately so: the only difference left is that the
-      beacon bursts and this transmits continuously.</p>
+      the message padded to 32 bytes, repeating. A preamble and a
+      fixed-length payload is the ordinary shape for a link like this.</p>
       <p><strong>The preamble is for the timing loop, not for framing.</strong>
       Symbol Sync needs roughly twenty symbols to converge, and alternating
       ones and zeros give the zero-crossing detector a transition on every
@@ -2096,11 +2095,11 @@ sigrok-cli -i bus.csv \
       &mdash; <code>0x1ACFFC1D</code>, the CCSDS marker &mdash; with Correlate
       Access Code Tag, Tagged Stream Align and Keep M in N. That chain is
       correct while the transmitter never stops, and this link transmits
-      continuously, so it ran clean on the bench. Point it at a beacon that
-      bursts and it breaks on the second burst: Keep M in N counts, the silence
-      between bursts is not a whole number of frames, and the phase is wrong
-      from then on. It never re-aligns. The booth beacon bursts, so the booth
-      receiver cannot count, and this one matches it.</p>
+      continuously, so it ran clean on the bench. Point it at a transmitter
+      that stops and starts and it breaks on the second burst: Keep M in N
+      counts, the silence is not a whole number of frames, and the phase is
+      wrong from then on. It never re-aligns. A chain that cannot count is
+      the one that survives both cases, so this is that chain.</p>
       <p>The <strong>Sync-to-Sync Framer</strong> block in
       <code>[ADALM2000]</code> is the other answer, for a signal that does
       carry a marker: it frames on the gap between one sync and the next, so
