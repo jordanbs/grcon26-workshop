@@ -17,7 +17,7 @@ import.
     ./slides/render_grc.py --list       # what is in each flowgraph
     ./slides/render_grc.py --scale 3    # denser, for print
 
-**Uses the system interpreter,** the same way `iio_discover.py` does and for
+**Uses the system interpreter,** the same way `iio-tools/iio_discover.py` does and for
 the same reason: it needs PyGObject, which is a native binding that lands in
 system site-packages where the project venv cannot see it. On Debian and
 Ubuntu the packages are `gnuradio` and `gir1.2-gtk-3.0`.

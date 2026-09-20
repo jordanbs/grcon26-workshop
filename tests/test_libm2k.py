@@ -44,7 +44,8 @@ def test_plumbing_classes_are_not_instruments():
 
 def test_cached_data_covers_the_knobs_the_workshop_uses():
     data = lib.load()
-    assert data, "run ./iio_libm2k_fetch.py to build iio_libm2k_data.json"
+    assert data, ("run ./iio-tools/iio_libm2k_fetch.py to build "
+                  "iio_libm2k_data.json")
     for name, instrument in [("gain", "Oscilloscope"),
                              ("oversampling_ratio", "Oscilloscope"),
                              ("trigger_level", "Trigger"),

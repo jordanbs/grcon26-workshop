@@ -160,7 +160,7 @@ station. **Wire W1 to 1+, and ground to 1-.**
 | file | uses |
 | --- | --- |
 | `m2k_loopback.grc` | the stock gr-iio blocks — works with nothing installed |
-| `m2k_loopback_generated.grc` | blocks `iio_grc.py` generated from a capture |
+| `m2k_loopback_generated.grc` | blocks `iio-tools/iio_grc.py` generated from a capture |
 
 ```
 gnuradio-companion flowgraphs/m2k_loopback.grc
@@ -169,7 +169,7 @@ gnuradio-companion flowgraphs/m2k_loopback.grc
 For the generated variant, point GRC at the blocks first:
 
 ```
-uv run ./iio_grc.py fixtures/m2k-real.json --out blocks/
+uv run ./iio-tools/iio_grc.py iio-tools/fixtures/m2k-real.json --out blocks/
 GRC_BLOCKS_PATH=$PWD/blocks gnuradio-companion flowgraphs/m2k_loopback_generated.grc
 ```
 

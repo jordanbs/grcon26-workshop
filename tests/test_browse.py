@@ -11,9 +11,9 @@ import iio_browse
 
 
 @pytest.fixture(scope="module")
-def server(repo_root):
+def server(tools_root):
     import os
-    path = os.path.join(repo_root, "fixtures", "m2k-snapshot.json")
+    path = os.path.join(tools_root, "fixtures", "m2k-snapshot.json")
     snapshot = iio_browse.load_snapshot(path)
     import iio_explain
     handler = iio_browse.make_handler(snapshot, iio_explain.annotate(snapshot),
