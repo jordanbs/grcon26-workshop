@@ -1,12 +1,16 @@
 """Where the block definitions went, and how to tell GRC about them.
 
-Installed by `pip install` as `m2k-blocks`. Four subcommands, of which
+Installed by `pip install` as `m2k-blocks`. Five subcommands, of which
 exactly two write anything:
 
     m2k-blocks path        print the installed grc directory
     m2k-blocks check       say whether GRC will find the blocks, and why not
+    m2k-blocks scan        find the board and print the URI to paste
     m2k-blocks install     add that directory to ~/.gnuradio/config.conf
     m2k-blocks uninstall   take it back out
+
+Also spelled `python -m m2k_blocks <command>`, which is what the setup
+scripts use: it needs no PATH entry, only the right interpreter.
 
 `check` is the one that earns its place at a bench. "The blocks are not in
 the tree" has two unrelated causes -- a block path GRC never saw, and a
@@ -174,7 +178,79 @@ def cmd_check(argv):
     return 0 if ok else 1
 
 
-COMMANDS = {"path": cmd_path, "check": cmd_check,
+def _describe(uri, description):
+    """One scan result, with the M2K ones called out."""
+    text = description or ""
+    board = "ADALM2000" if "M2k" in text or "ADALM2000" in text else ""
+    return "  %-24s %s%s" % (uri, text, "   <-- an M2K" if board else "")
+
+
+def cmd_scan(argv):
+    """Find the board and print the URI to paste into the block.
+
+    Every block's *M2K address* field defaults to `ip:192.168.2.1`, which
+    is the USB ethernet gadget. That is a Linux answer: Windows gets the
+    same interface from ADI's driver package, and macOS does not get it at
+    all any more, because the RNDIS kext it needed is dead on Apple
+    silicon. The USB backend works everywhere the drivers do, so what a
+    participant should type is not the same string on every machine and
+    guessing it is not fun in a room of twenty.
+    """
+    try:
+        import iio as pyiio
+    except ImportError:
+        print("pylibiio is not installed in this interpreter (%s)."
+              % sys.executable)
+        print("It is what talks to the board. See install/README.md, or "
+              "run the setup script for your platform.")
+        return 1
+
+    print("scanning     %s" % sys.executable)
+    try:
+        found = dict(pyiio.scan_contexts())
+    except Exception as problem:            # pragma: no cover - libiio fault
+        print("             libiio could not scan: %s" % problem)
+        found = {}
+
+    for uri in sorted(found):
+        print(_describe(uri, found[uri]))
+
+    # A board at a static address advertises nothing, so a scan cannot see
+    # it. Probe the one address the blocks default to, but only when the
+    # scan came up empty: the connect has libiio's own timeout behind it
+    # and there is no reason to spend it when a USB context was found.
+    if not found:
+        print("             nothing advertised itself, trying "
+              "ip:192.168.2.1 (this can take a moment)")
+        try:
+            ctx = pyiio.Context("ip:192.168.2.1")
+            found["ip:192.168.2.1"] = ctx.description
+            print(_describe("ip:192.168.2.1", ctx.description))
+        except Exception:
+            pass
+
+    if not found:
+        print("verdict      no board found")
+        print("             Check the cable, then that the drivers are "
+              "installed -- install/README.md has the per-platform list.")
+        return 1
+
+    pick = None
+    for uri in sorted(found):
+        if "M2k" in (found[uri] or "") or "ADALM2000" in (found[uri] or ""):
+            pick = uri
+            break
+    if pick is None:
+        pick = sorted(found)[0]
+        print("verdict      found a board, but nothing that names itself "
+              "an M2K")
+    print("address      %s" % pick)
+    print("             Paste that into the M2K address field of every "
+          "block in the flowgraph.")
+    return 0
+
+
+COMMANDS = {"path": cmd_path, "check": cmd_check, "scan": cmd_scan,
             "install": cmd_install, "uninstall": cmd_uninstall}
 
 

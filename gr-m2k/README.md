@@ -4,10 +4,47 @@ GNU Radio blocks that treat the ADALM2000 as a scope and a signal
 generator, rather than as fourteen IIO devices you have to understand
 first.
 
+## What it needs
+
+Nothing here compiles: the blocks are Python, so there is no CMake step
+and no `gnuradio-dev`. That is not the same as having no dependencies, and
+the difference is where people get stuck.
+
+| | import | comes from | used by |
+| --- | --- | --- | --- |
+| **GNU Radio** | `gnuradio.gr` | your distro, or radioconda | everything |
+| **gr-iio** | `from gnuradio import iio` | ships inside GNU Radio, not pip | every block that streams |
+| **pylibiio** | `import iio` | `python3-libiio`, brew, or pip | `digital.py`, `m2k_config.py` |
+| **numpy, pmt** | | GNU Radio brings both | the digital and SPI blocks |
+
+**The two `iio`s are different libraries.** `from gnuradio import iio` is
+gr-iio, the GNU Radio blocks that move samples. `import iio` is pylibiio,
+the binding round the C library, which is what reads and writes the
+attributes gr-iio has no block for -- `direction` on a DIO pin, the
+trigger registers, the supply's calibration constants. Having one does not
+give you the other, and they fail differently: gr-iio missing breaks the
+block at construction, pylibiio missing breaks it at the first attribute
+write.
+
+Neither is in `pyproject.toml`. gr-iio cannot be -- it does not exist on
+any package index, and naming it would make every install fail. pylibiio
+deliberately is not either: it wraps a native library, so a pip install
+without the matching `libiio.so` gives you an import that fails at run
+time instead of at install time, which is worse than not having it.
+`install/README.md` covers getting both, per platform.
+
+The hardware needs nothing installed on Linux or macOS beyond permissions.
+Windows needs ADI's USB driver package. Also in `install/README.md`.
+
 ## Installing
 
-Two routes. Neither compiles anything -- this is a pure-Python block
-collection, so there is no CMake step and no `gnuradio-dev`.
+Two routes, and a script that does the second one for you.
+
+**The script**, if you just want it working -- see `install/README.md`:
+
+```
+bash install/m2k-setup.sh
+```
 
 **For this shell only**, from a clone of the workshop repo:
 
@@ -52,8 +89,13 @@ A venv on a different Python installs cleanly, puts `m2k-blocks` on your
 ### When the blocks are not in the tree
 
 ```
-m2k-blocks check
+m2k-blocks check          # or: python -m m2k_blocks check
 ```
+
+The `python -m` spelling is the one to reach for when things are wrong: a
+`pip install --user` routinely puts the `m2k-blocks` script somewhere that
+is not on PATH, and then the tool for diagnosing a bad install is itself
+missing. Naming the interpreter cannot miss.
 
 It prints the block directory, the interpreter it is running under, whether
 `m2k_blocks` imports, and the full list of directories GRC will search with
@@ -118,6 +160,18 @@ Every parameter says what it does and what its values are:
 
 The last two appear only once the trigger is on. The range fields appear
 only for channels that are enabled.
+
+**`ip:192.168.2.1` is not universal.** It is the board's USB ethernet
+gadget, which Linux provides natively and Windows provides once ADI's
+driver package is in. macOS does not provide it at all any more -- the
+RNDIS kext it needed is unmaintained and does not load on Apple silicon.
+On a Mac the address is `usb:`, which libiio resolves by itself when one
+board is plugged in. `m2k-blocks scan` prints the right string for
+whatever machine it is run on:
+
+```
+python -m m2k_blocks scan
+```
 
 Those settings live on **three different IIO devices**, which is why a
 stock Device Source cannot express them: its `params` go to exactly one.
