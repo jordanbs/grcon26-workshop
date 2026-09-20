@@ -202,9 +202,10 @@ fetch.
 ## Which attributes actually matter
 
 The kernel says what an attribute *means*. It cannot say whether you will
-ever need it. For this board libm2k can — it is the library Scopy is built
-on, so anything it reads or writes is something operating the M2K as an
-instrument requires, and the method that touches it says which instrument:
+ever need it. For this board libm2k can — it is the library ADI wrote to
+drive this board, so anything it reads or writes is something operating the
+M2K as an instrument requires, and the method that touches it says which
+instrument:
 
 ```
 gain                -> M2kAnalogIn::setRange                 -> Oscilloscope
@@ -212,7 +213,7 @@ trigger_level       -> M2kHardwareTrigger::setAnalogLevelRaw -> Trigger
 oversampling_ratio  -> M2kAnalogIn::setOversamplingRatio     -> Oscilloscope
 ```
 
-That is a translation table from the knobs people already know in Scopy to
+That is a translation table from the controls an instrument presents to
 the sysfs names a flowgraph needs — which is the gap `gr-m2k` closes.
 `iio_libm2k_fetch.py` extracts it from vendor source into
 `iio_libm2k_data.json`; the explainer and the browser both show it.
@@ -238,7 +239,7 @@ four sources in order and reports which one answered:
    `extend_name`/`datasheet_name`. Usually empty; believe it when it is not.
 2. **The `label` attribute** — same idea, settable from the device tree.
 3. **The board pack** (`iio_overlays.py`) — hand-written, carries a confidence.
-   For the M2K this is traced to libm2k, which is what Scopy itself uses.
+   For the M2K this is traced to libm2k, ADI's own library for the board.
 4. **The ABI convention** — the kernel says an indexed channel corresponds to
    an externally available input, and that drivers should use a *named*
    channel when it does not. A strong hint, not a promise.

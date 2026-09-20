@@ -137,5 +137,6 @@ Nothing in libiio says which pin a channel is wired to. Ask these in order:
 
 - `Documentation/ABI/testing/sysfs-bus-iio` in the Linux source — the definitive description of every generic attribute. `./iio-tools/iio_abi_fetch.py --show in_voltage0_raw` prints it.
 - The driver's `iio_chan_spec` table — says which index is which input.
-- For the M2K: the libm2k source, which is what Scopy itself uses.
+- For the M2K: the libm2k source, the library ADI wrote to drive this board.
 - The datasheet, for anything the software cannot know.
+

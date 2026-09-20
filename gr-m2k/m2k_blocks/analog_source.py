@@ -12,8 +12,9 @@ Everything this block hides, and where it goes:
 That spread across three devices is the reason a stock Device Source
 cannot do this on its own: its params go to exactly one of them.
 
-Channel-to-attribute mapping is read out of libm2k, the library Scopy is
-built on -- see iio-tools/iio_libm2k_fetch.py in the repository. Values that
+Channel-to-attribute mapping is read out of libm2k, the library ADI
+wrote to drive this board -- see iio-tools/iio_libm2k_fetch.py in the
+repository. Values that
 are not attributes at all (the volts-per-count numbers) come from
 libm2k's getScalingFactor() and are marked below.
 """

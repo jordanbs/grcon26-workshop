@@ -380,8 +380,8 @@ pdu vector contents =
 ```
 
 The payload is the words that were actually on the wire; the text rides
-in the metadata, which is Scopy's text column and the quickest way for
-somebody to see that what they typed is what came back. Bytes outside
+in the metadata, which is the quickest way for somebody to see that what
+they typed is what came back. Bytes outside
 printable ASCII show as `\xNN`. Turn *Text in metadata* off on a bus
 that is not carrying text.
 

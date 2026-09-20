@@ -89,8 +89,8 @@ documentation: |-
     Text in metadata
       Adds the bytes as characters to the message's metadata, so a
       Message Debug prints `((text . M2K))` above the `4d 32 4b` hex
-      dump -- the text column Scopy shows beside the hex, and the
-      quickest proof that a loopback carried what you typed. Bytes
+      dump -- the quickest proof that a loopback carried what you
+      typed. Bytes
       outside printable ASCII come out as `\xNN` rather than as dots,
       so nothing is thrown away. Ignored above 8 bits per word, where a
       word is not a character. Turn it off for a binary bus.

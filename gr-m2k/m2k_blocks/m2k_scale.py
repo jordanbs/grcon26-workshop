@@ -4,7 +4,8 @@ Kept clear of GNU Radio on purpose: these are the conversions everything
 else in the block depends on, and they should be testable on a machine
 that has no gnuradio, no libiio and no board.
 
-Every figure here is traceable to libm2k, the library Scopy is built on.
+Every figure here is traceable to libm2k, the library ADI wrote to
+drive this board.
 The ones that have now met a signal say so.
 """
 

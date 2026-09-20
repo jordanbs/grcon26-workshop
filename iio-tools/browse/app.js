@@ -509,7 +509,7 @@ function attrDetail(channel, attr) {
     if (attr.libm2k.instruments.length) {
       out.push(el("p", null,
         "Part of the " + attr.libm2k.instruments.join(" and ").toLowerCase() +
-        ". A knob you already know from Scopy, under its sysfs name."));
+        ". So this is an instrument control, under its sysfs name."));
     }
     out.push(el("p", "hint",
       "libm2k reaches it from " + attr.libm2k.methods.slice(0, 3).join(", ")));

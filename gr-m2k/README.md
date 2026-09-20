@@ -266,8 +266,7 @@ pdu vector contents =
 0000: 4d 32 4b
 ```
 
-which is the text column Scopy shows and the quickest proof a loopback
-carried what someone typed. Bytes outside printable ASCII come out as
+which is the quickest proof a loopback carried what someone typed. Bytes outside printable ASCII come out as
 `\xNN`, not as dots, so nothing is thrown away. Above 8 bits per word
 there is no text to give and none is added.
 

@@ -57,8 +57,8 @@ class spi_decode(gr.sync_block):
     DIO numbers they came from.
 
     With `add_text` the outgoing PDU's metadata carries the bytes as
-    characters as well, the way Scopy shows a text column beside the
-    hex. Ignored for words wider than eight bits.
+    characters as well -- a text column beside the hex. Ignored for
+    words wider than eight bits.
     """
 
     def __init__(self, bits_per_word=8, cs_active_low=True, add_text=True):

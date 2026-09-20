@@ -488,7 +488,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
         <ul>
           <li>One context. <strong>Fourteen IIO devices</strong></li>
           <li>Nothing in the tree says which one is "the scope"</li>
-          <li>One Scopy knob can span three of them</li>
+          <li>One instrument setting can span three of them</li>
         </ul>
       </div>
       <div class="present">
@@ -504,7 +504,7 @@ ad9963  ad5627  ad5625  pll  xadc</code></pre>
     </div>
     <div class="depth">
       <p>This is the gap the workshop exists to close. "Set the scope's input
-      range to &plusmn;2.5&nbsp;V" is one knob in Scopy. In IIO it is an attribute on
+      range to &plusmn;2.5&nbsp;V" is one control on the instrument. In IIO it is an attribute on
       <code>m2k-fabric</code>, while the samples come from <code>m2k-adc</code> and the trigger
       lives on <code>m2k-adc-trigger</code> — three devices for one idea.</p>
       <p>That is also the concrete reason a stock <em>IIO Device Source</em> cannot
@@ -517,38 +517,53 @@ ad9963  ad5627  ad5625  pll  xadc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="m2k-scopy" data-section="ADALM2000">
+<section class="frame cut" id="m2k-stack" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Scopy and libm2k</h2>
+    <h2>The Stack Above IIO</h2>
     <div class="stage">
       <div class="present">
-        <ul>
-          <li><strong>Scopy</strong> — ADI's instrument GUI</li>
-          <li>built on <strong>libm2k</strong>, built on libiio</li>
-          <li>under that: the attributes we just read</li>
-        </ul>
+<pre><code>a GUI, or your own code
+     |
+  libm2k     instruments: scope, generator
+     |
+  libiio     devices, channels, attributes
+     |
+  sysfs      what we just read</code></pre>
       </div>
-      <div class="present callout">
-        <p>Scopy is the <strong>second opinion</strong>. Disagree with it and one of
-        you is wrong.</p>
+      <div class="present">
+        <ul>
+          <li>Every layer above writes the same attributes</li>
+          <li><strong>libm2k</strong> is ADI's own library for this board</li>
+          <li>A second opinion has to be independent &mdash; use a meter</li>
+        </ul>
       </div>
     </div>
     <div class="depth">
-      <p>Scopy is not a competitor to what we are building. It is an instrument;
-      GNU&nbsp;Radio is a signal processing environment. Scopy shows you a waveform and will not let you filter it, decode it, demodulate it, or wire its output into anything else.</p>
-      <p>What Scopy is worth to this session is calibration of expectations. It
-      is the tool everyone in the room can already drive, and every knob in it
-      has a name we are about to map onto a sysfs attribute. Starting from
-      "you know what the range control does" is a much shorter walk than
-      starting from <code>m2k-fabric</code>.</p>
-      <p>Open it when a measurement looks wrong. The bench work behind these slides did that repeatedly, and each disagreement pointed at a real error.</p>
+      <p>Nothing above the bottom layer can do anything the bottom layer cannot.
+      A vendor GUI, libm2k, a flowgraph: all of them end up writing the same
+      sysfs attributes. That is worth knowing because it sets a ceiling. If an
+      attribute cannot express what you want, no tool above it can either.</p>
+      <p><strong>libm2k is named here for one reason.</strong> It is the
+      library ADI wrote to drive this board, so the set of attributes it reads
+      and writes is a decent answer to "which of these 800 attributes does
+      operating an M2K actually need?" The kernel ABI cannot answer that; it
+      says what an attribute means, not whether you will ever reach for it.
+      That is where the numbers in <code>m2k_scale.py</code> came from.</p>
+      <p><strong>When a measurement looks wrong, check it against something
+      that cannot share the mistake.</strong> Two programs built on the same
+      library agreeing tells you they agree. The bench work behind these slides
+      closed absolute error against a multimeter, and a meter is the reason we
+      know the volts conversion is right rather than merely self-consistent.</p>
+      <p>The same applies to the SPI decoder, which is checked against
+      libsigrokdecode rather than against itself &mdash; the last of the four
+      takeaways at the end.</p>
     </div>
   </div>
 </section>
 
 <section class="frame cut" id="m2k-translation" data-section="ADALM2000">
   <div class="wrap">
-    <h2>Scopy Knobs and sysfs Names</h2>
+    <h2>The libm2k Translation Table</h2>
     <div class="stage">
       <div class="present">
 <pre><code>gain               -> M2kAnalogIn::setRange
@@ -570,8 +585,9 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
     </div>
     <div class="depth">
       <p>The kernel says what an attribute <em>means</em>. It cannot say whether you
-      will ever need it. For this board libm2k can, because Scopy itself runs on
-      libm2k: anything it reads or writes is something driving the M2K as an instrument requires.</p>
+      will ever need it. For this board libm2k can: it is the library ADI wrote to
+      drive the M2K, so anything it reads or writes is something operating the board
+      as an instrument requires.</p>
       <p><strong>Absence is not a verdict.</strong> <code>scale</code> and <code>offset</code> are
       not in that table, because libm2k computes the scope's conversion itself
       instead of reading them back. That means "not part of this board's
