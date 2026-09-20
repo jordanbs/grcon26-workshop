@@ -1915,7 +1915,7 @@ sigrok-cli -i bus.csv \
       <span class="lnk wire">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
       <span class="lnk">Msg Debug</span>
     </div>
     <div class="stage split">
@@ -1962,12 +1962,13 @@ sigrok-cli -i bus.csv \
       <em>Unable to push buffer</em> means the graph fell behind rather than
       meaning nothing at all.</p>
       <figure class="shot canvas">
-        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is code_bytes plus a list comprehension padding the message to msg_capacity characters.">
+        <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is a list comprehension padding the message to msg_capacity characters.">
         <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
       </figure>
-      <p>The transmitter pads every payload to <code>msg_capacity</code>, so every
-      frame is the same length. That matters at the far end, where a fixed frame
-      length is what lets the receiver discard the next frame's sync word.</p>
+      <p>The transmitter pads every payload to <code>msg_capacity</code>, so the
+      same bytes repeat on the air at a fixed spacing. Nothing marks where one
+      copy ends and the next begins &mdash; there is no sync word here &mdash;
+      which is a problem the receiver solves rather than the transmitter.</p>
     </div>
   </div>
 </section>
@@ -1981,7 +1982,7 @@ sigrok-cli -i bus.csv \
       <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk on">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk on">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
       <span class="lnk">Msg Debug</span>
     </div>
     <div class="stage split">
@@ -2037,58 +2038,62 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-sync" data-section="Applications">
+<section class="frame cut" id="ultrasonic-bytes" data-section="Applications">
   <div class="wrap">
-    <h2>Byte Sync</h2>
+    <h2>Finding the Byte Boundary</h2>
     <div class="chain">
       <span class="lnk done">Frame</span><span class="arw">&#8594;</span>
       <span class="lnk done">VCO</span><span class="arw">&#8594;</span>
       <span class="lnk wire done">W1 &rarr; air &rarr; 1+</span><span class="arw">&#8594;</span>
       <span class="lnk done">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk done">Demod</span><span class="arw">&#8594;</span>
-      <span class="lnk on">Sync word</span><span class="arw">&#8594;</span>
+      <span class="lnk on">Byte boundary</span><span class="arw">&#8594;</span>
       <span class="lnk">Msg Debug</span>
     </div>
     <div class="stage split">
       <div class="present">
-        <figure class="shot">
-          <img src="img/grc-ultrasonic-sync.png" alt="Two GNU Radio Companion blocks: Correlate Access Code Tag with the 32-bit access code, threshold 0 and tag name sync, feeding Tagged Stream Align keyed on the same sync tag.">
-          <figcaption>One block finds the word. The next throws away everything before it.</figcaption>
-        </figure>
-      </div>
-      <div class="present">
         <ul>
           <li>A bit stream has no bytes in it</li>
-          <li>Every frame starts with the same 32 bits</li>
-          <li>Correlate on those, tag the hit, align to the tag</li>
+          <li>Pack eight and you get a byte &mdash; in the wrong place seven times out of eight</li>
+          <li><strong>ASCII at Every Offset</strong> packs all eight ways and prints what reads as text</li>
         </ul>
-        <p class="pull">The transmitter sends the byte boundary.</p>
+      </div>
+      <div class="present callout">
+        <p class="pull">Nothing counts, so nothing can lose count.</p>
       </div>
     </div>
     <div class="depth">
       <p>The slicer emits one bit per symbol and nothing else. Pack eight of
-      them and you get a byte — but a byte starting wherever the graph happened
-      to begin, which is seven times out of eight the wrong place. Nothing
-      downstream can tell, because a wrongly aligned byte is still a byte.</p>
-      <p>The access code is <strong><code>0x1ACFFC1D</code></strong>, the CCSDS
-      attached sync marker. It correlates badly against shifted copies of
-      itself, so a false hit needs a specific 32-bit accident rather than any
-      long run of ones. Threshold 0 rejects any match carrying a bit error, and
-      this link is clean enough that it rejects nothing real.</p>
-      <p><strong>Correlate Access Code Tag</strong> does not remove the code —
-      it drops a tag on the sample after it. <strong>Tagged Stream Align</strong>
-      is what acts on that: it discards everything before the first tag, so the
-      stream handed on begins on a byte boundary.</p>
-      <figure class="shot canvas">
-        <img src="img/grc-ultrasonic-out.png" alt="Four GNU Radio Companion blocks: Keep M in N with M of msg_capacity and N of frame_len, into Stream to Tagged Stream with packet length msg_capacity, into Tagged Stream to PDU, into Message Debug.">
-        <figcaption>Keep the payload, drop the next frame's sync word, hand it over as a message.</figcaption>
-      </figure>
-      <p>Once aligned, the stream repeats: sync bytes, then payload, then sync
-      bytes again. <strong>Keep M in N</strong> keeps <code>msg_capacity</code> of every
-      <code>frame_len</code> bytes, which is the payload alone — and that only
-      works because the transmitter pads every message to the same length.
-      Stream to Tagged Stream and Tagged Stream to PDU then turn the bytes into
-      a message, which is what Message Debug prints.</p>
+      them and you get a byte &mdash; but a byte starting wherever the graph
+      happened to begin, which is seven times out of eight the wrong place.
+      Nothing downstream can tell, because a wrongly aligned byte is still a
+      byte, and what comes out is mojibake that reads as a broken link. People
+      go and move the transducer.</p>
+      <p><strong>So do not pick a boundary.</strong> The block packs the same
+      bits all eight ways &mdash; sixteen, if the demodulator may have handed
+      the two tones back upside down &mdash; and prints any run of printable
+      ASCII long enough to believe, with the offset it turned up at. Put that
+      offset into <code>skip_bits</code> and the Message Debug branch agrees
+      with what you are reading.</p>
+      <p>Sixteen characters is the floor, and eight is the tempting wrong
+      answer: random bytes are printable about 37% of the time, so eight in a
+      row turns up roughly once in every 3500 positions &mdash; constantly,
+      across sixteen offset-and-polarity combinations. Sixteen in a row is
+      about one in five million. Silence on the console then means silence on
+      the air rather than a wrong guess about framing.</p>
+      <p><strong>An earlier version of this flowgraph framed on a sync word</strong>
+      &mdash; <code>0x1ACFFC1D</code>, the CCSDS marker &mdash; with Correlate
+      Access Code Tag, Tagged Stream Align and Keep M in N. That chain is
+      correct while the transmitter never stops, and this link transmits
+      continuously, so it ran clean on the bench. Point it at a beacon that
+      bursts and it breaks on the second burst: Keep M in N counts, the silence
+      between bursts is not a whole number of frames, and the phase is wrong
+      from then on. It never re-aligns. The booth beacon bursts, so the booth
+      receiver cannot count, and this one matches it.</p>
+      <p>The <strong>Sync-to-Sync Framer</strong> block in
+      <code>[ADALM2000]</code> is the other answer, for a signal that does
+      carry a marker: it frames on the gap between one sync and the next, so
+      it never counts and never has to be told how long a payload is.</p>
       <pre><code>***** MESSAGE DEBUG PRINT PDU VERBOSE *****
 pdu length =          8 bytes
 pdu vector contents =

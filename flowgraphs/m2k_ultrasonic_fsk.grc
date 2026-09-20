@@ -68,18 +68,6 @@ options:
     state: enabled
 
 blocks:
-- name: access_code
-  id: variable
-  parameters:
-    comment: 0x1ACFFC1D, the CCSDS sync marker.
-    value: '''00011010110011111111110000011101'''
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [616, 80.0]
-    rotation: 0
-    state: enabled
 - name: amplitude
   id: variable
   parameters:
@@ -116,18 +104,6 @@ blocks:
     coordinate: [888, 8.0]
     rotation: 0
     state: enabled
-- name: code_bytes
-  id: variable
-  parameters:
-    comment: ''
-    value: '[0x1a, 0xcf, 0xfc, 0x1d]'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [792, 80.0]
-    rotation: 0
-    state: enabled
 - name: f0
   id: variable
   parameters:
@@ -155,25 +131,13 @@ blocks:
 - name: frame
   id: variable
   parameters:
-    comment: Sync word, then the payload. This is what goes on the air.
-    value: code_bytes + [ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]
+    comment: The payload, repeated. No sync word -- see flowgraphs/README.md.
+    value: '[ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [1056, 8.0]
-    rotation: 0
-    state: enabled
-- name: frame_len
-  id: variable
-  parameters:
-    comment: ''
-    value: len(code_bytes) + msg_capacity
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [200, 80.0]
     rotation: 0
     state: enabled
 - name: fspace
@@ -238,6 +202,18 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [384, 8.0]
+    rotation: 0
+    state: enabled
+- name: skip_bits
+  id: variable
+  parameters:
+    comment: Set this to the offset ASCII at Every Offset reports.
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 80.0]
     rotation: 0
     state: enabled
 - name: spacing
@@ -346,25 +322,6 @@ blocks:
     coordinate: [936, 360]
     rotation: 0
     state: enabled
-- name: blocks_keep_m_in_n_0
-  id: blocks_keep_m_in_n
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Keep the payload, drop the next frame's sync word.
-    m: msg_capacity
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    n: frame_len
-    offset: '0'
-    type: byte
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [504, 840.0]
-    rotation: 0
-    state: enabled
 - name: blocks_message_debug_0
   id: blocks_message_debug
   parameters:
@@ -432,6 +389,23 @@ blocks:
     coordinate: [392, 352]
     rotation: 0
     state: enabled
+- name: blocks_skiphead_0
+  id: blocks_skiphead
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Shift the byte boundary to whatever the ASCII block found.
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: skip_bits
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [336, 776.0]
+    rotation: 0
+    state: enabled
 - name: blocks_stream_to_tagged_stream_0
   id: blocks_stream_to_tagged_stream
   parameters:
@@ -469,24 +443,6 @@ blocks:
     bus_structure: null
     coordinate: [280, 608.0]
     rotation: 0
-    state: enabled
-- name: blocks_tagged_stream_align_0
-  id: blocks_tagged_stream_align
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Drop everything before the first tag. From here on, bit 0 is byte 0.
-    lengthtagname: sync
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    type: byte
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [152.0, 776]
-    rotation: 270
     state: enabled
 - name: blocks_uchar_to_float_0
   id: blocks_uchar_to_float
@@ -571,26 +527,6 @@ blocks:
     bus_structure: null
     coordinate: [1240, 512.0]
     rotation: 0
-    state: enabled
-- name: digital_correlate_access_code_tag_xx_0
-  id: digital_correlate_access_code_tag_xx
-  parameters:
-    access_code: access_code
-    affinity: ''
-    alias: ''
-    comment: Tags the bit AFTER the code. Threshold 0 - no bit errors allowed in the
-      sync word.
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    tagname: sync
-    threshold: '0'
-    type: byte
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1360.0, 560]
-    rotation: 270
     state: enabled
 - name: digital_symbol_sync_xx_0
   id: digital_symbol_sync_xx
@@ -684,6 +620,23 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [24, 508]
+    rotation: 0
+    state: enabled
+- name: m2k_ascii_offsets_0
+  id: m2k_ascii_offsets
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Prints the text and the offset it read at. Nothing to configure.
+    max_lines: '4'
+    min_chars: '16'
+    try_inverted: 'True'
+    window_bits: '2048'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [336, 960.0]
     rotation: 0
     state: enabled
 - name: pdu_tagged_stream_to_pdu_0
@@ -886,19 +839,18 @@ connections:
 - [analog_quadrature_demod_cf_0, '0', digital_symbol_sync_xx_0, '0']
 - [analog_quadrature_demod_cf_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_add_const_vxx_0, '0', blocks_vco_f_0, '0']
-- [blocks_keep_m_in_n_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [blocks_multiply_const_vxx_0, '0', blocks_add_const_vxx_0, '0']
-- [blocks_pack_k_bits_bb_0, '0', blocks_keep_m_in_n_0, '0']
+- [blocks_pack_k_bits_bb_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [blocks_repeat_0, '0', blocks_uchar_to_float_0, '0']
+- [blocks_skiphead_0, '0', blocks_pack_k_bits_bb_0, '0']
 - [blocks_stream_to_tagged_stream_0, '0', pdu_tagged_stream_to_pdu_0, '0']
 - [blocks_tag_gate_0, '0', freq_xlating_fir_filter_xxx_0, '0']
-- [blocks_tagged_stream_align_0, '0', blocks_pack_k_bits_bb_0, '0']
 - [blocks_uchar_to_float_0, '0', blocks_multiply_const_vxx_0, '0']
 - [blocks_unpack_k_bits_bb_0, '0', blocks_repeat_0, '0']
 - [blocks_vco_f_0, '0', m2k_analog_sink_0, '0']
 - [blocks_vector_source_x_0, '0', blocks_unpack_k_bits_bb_0, '0']
-- [digital_binary_slicer_fb_0, '0', digital_correlate_access_code_tag_xx_0, '0']
-- [digital_correlate_access_code_tag_xx_0, '0', blocks_tagged_stream_align_0, '0']
+- [digital_binary_slicer_fb_0, '0', blocks_skiphead_0, '0']
+- [digital_binary_slicer_fb_0, '0', m2k_ascii_offsets_0, '0']
 - [digital_symbol_sync_xx_0, '0', digital_binary_slicer_fb_0, '0']
 - [freq_xlating_fir_filter_xxx_0, '0', analog_quadrature_demod_cf_0, '0']
 - [m2k_analog_source_0, '0', blocks_tag_gate_0, '0']

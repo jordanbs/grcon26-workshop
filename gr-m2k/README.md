@@ -341,6 +341,87 @@ Like the decoder, the arithmetic lives in a module that imports nothing
 through both halves has been checked against an independent reading of
 the same three rules, on a machine with no gnuradio and no board.
 
+## ASCII at Every Offset
+
+Neither this block nor the next one touches the board. Both are about
+finding where a byte begins in a stream of bits, which is the thing that
+goes wrong after the demodulator is already working.
+
+| parameter | values | what it means |
+| --- | --- | --- |
+| Shortest run to print | 16 | how many printable characters in a row to believe |
+| Also try inverted | Yes / No | covers a demodulator that handed the tones back upside down |
+| Window (bits) | 2048 | how much is searched at once |
+| Lines per window | 4 | longest first, so the payload leads |
+
+Use it when the transmitter sends no sync word. `Pack K Bits` still has
+to pick a boundary and picks the arbitrary one, right about an eighth of
+the time; the other seven eighths are mojibake, and mojibake reads as a
+broken link rather than as bad framing. People go and move the antenna.
+
+So this does not pick. It packs the same bits eight ways -- sixteen with
+inversion -- and prints what reads as text, with the offset it read at:
+
+```
+offset 4   96 chars  A=00000 B=XXXXXX C=example      A=00000 B=...
+```
+
+The offset is the useful part. It stays put for as long as the flowgraph
+runs, so it is the number to put into a `Skip Head` ahead of `Pack K
+Bits` when you want a File Sink or a Message Debug to agree with the
+console.
+
+**Sixteen characters, and eight is the tempting wrong answer.** Random
+bytes are printable about 37% of the time, so eight in a row turns up
+roughly once in every 3500 positions -- constantly, across sixteen
+offset-and-polarity combinations scanning every position. Sixteen in a
+row is about one in five million, which works out to silence between
+bursts. That is the property worth having: silence on the console then
+means silence on the air, not a wrong guess about framing.
+
+## Sync-to-Sync Framer
+
+The other answer, for a signal that *does* carry a marker. Put it
+downstream of `Correlate Access Code - Tag` with the same tag key.
+
+| parameter | values | what it means |
+| --- | --- | --- |
+| Tag key | `sync` | must match the correlator's Tag Name |
+| Sync word (bits) | 32 | how much of the span the closing marker takes |
+| Shortest / Longest payload | 64 / 1024 | bounds, not a length |
+| Preamble byte | `0xAA` | a span ending in this crossed a burst boundary; -1 turns the check off |
+
+**Use it instead of `Tagged Stream Align` plus `Keep M in N` whenever the
+transmitter stops and starts.** Keep M in N is handed an alignment once
+and from then on it counts: every N items it keeps the first M, forever.
+That is exact while the transmitter never stops. A transmitter that
+bursts breaks it on the second burst -- the counter runs through the
+silence, the silence is not a whole number of frames, and nothing
+re-aligns. The error is permanent, and it arrives as bit-perfect garbage.
+
+This block throws the counter away. The correlator tags the first bit
+after each marker, so a payload is whatever lies between one tag and the
+next, less the marker that closes it. Nothing counts across the gap
+because nothing counts at all.
+
+That buys the property the counter never had: **it never needs to know
+how long a payload is.** One instance decodes an eight-byte frame and a
+thirty-two-byte frame in the same run, untouched.
+
+A transmitter using it has to send a trailing sync word after its last
+frame, or that frame has no closing delimiter and is dropped.
+
+**The bounds are bounds.** A span longer than the maximum is the gap
+between two bursts; a span shorter than the minimum is the join where one
+burst's trailing marker meets the next one's preamble. Both are thrown
+away, and both are tallied rather than logged -- at 200 baud the
+rejections are the normal shape of a bursty link, and a line each would
+bury the frames.
+
+Like the SPI blocks, the logic in both of these lives in a module that
+imports nothing -- `ascii_scan.py` and `sync_frames.py` -- so it is
+tested in an ordinary interpreter with no GNU Radio present.
+
 ## What has been checked
 
 

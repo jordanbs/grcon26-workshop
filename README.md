@@ -30,7 +30,7 @@ That is the only thing anyone installs. Nothing gets installed in the room.
 
 ## The blocks
 
-Seven, in `gr-m2k/`. Every parameter says what it does and what its values
+Nine, in `gr-m2k/`. Every parameter says what it does and what its values
 are, and none of them says "IIO" anywhere.
 
 | block | what it is |
@@ -40,6 +40,8 @@ are, and none of them says "IIO" anywhere.
 | **M2K Digital Source / Sink** | the sixteen DIO pins, however many you claim |
 | **M2K Power Supply** | a rail, in volts. GNU Radio cannot otherwise set one |
 | **M2K SPI Encode / Decode** | bytes to three wires and back. Touches no hardware |
+| **ASCII at Every Offset** | finds text when nothing marks where a byte starts |
+| **Sync-to-Sync Framer** | frames on a sync word without counting, so bursts survive |
 
 The argument for them is one table. This is GNU Radio's stock **IIO Device
 Source**, which is correct, general, and unusable without a datasheet open:
@@ -75,7 +77,7 @@ gnuradio-companion flowgraphs/m2k_scope.grc
 | `m2k_blinky.grc`, `m2k_led_pwm.grc` | an LED on DIO0, then the same LED dimmed |
 | `m2k_scope.grc`, `m2k_loopback*.grc` | the generator into the input, four ways |
 | `m2k_spi_loopback*.grc` | an SPI bus on the digital pins, decoded |
-| `m2k_ultrasonic_fsk.grc` | 40 kHz FSK across the room |
+| `m2k_ultrasonic_fsk.grc` | 40 kHz FSK across the room, decoded without a sync word |
 | `m2k_colorimeter.grc` | three chopped LEDs, separated in one FFT |
 
 `flowgraphs/README.md` says what each one needs wired up.
@@ -121,7 +123,6 @@ install/      one setup script per platform, and what they do
 slides/       the deck -- one HTML file, read or present
 docs/         handout, bench checklist, and the multi-pin sink note
 iio-tools/    the IIO discovery suite the blocks were built from
-booth/        the GRCon booth beacon -- a Pico transmitting FSK
 bench/        scripts that produced the measurements, and their CSVs
 project/      working notes, decisions and traps
 tests/        pytest, no hardware required
@@ -146,3 +147,8 @@ golden output.
   for a real bit error rate. 395 bits bounds it below 1/395 rather than
   measuring it.
 - Every `[overlay: UNVERIFIED]` entry in `iio-tools/iio_overlays.py`.
+- **Re-bench the ultrasonic link.** Its receive chain changed on 2026-09-20
+  to match the booth beacon's, and 0 errors in 395 bits was measured through
+  the old one.
+- **Re-render two deck figures.** `slides/render_grc.py` says which blocks
+  and why they are not committed.

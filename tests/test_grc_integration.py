@@ -672,14 +672,19 @@ def test_the_colorimeter_flowgraph_builds(repo_root):
 
 
 @needs_gnuradio
-def test_the_sync_word_finds_the_byte_boundary(repo_root):
+def test_the_byte_boundary_is_found_without_a_sync_word(repo_root):
     """The receive chain, on synthetic FSK, started mid-bit.
 
     Over the air the capture begins wherever it begins, so a chain that
     only works from sample zero is a chain that works on a file. The
     skew here is deliberately not a multiple of anything.
+
+    Nothing on the air says where a byte starts -- the transmitter sends
+    the payload and nothing else. GNU Radio gets the bits out; finding
+    the boundary in them is `ascii_scan`, which imports nothing and so
+    runs here in the parent rather than in the borrowed interpreter.
     """
-    payload = json.loads(run_in_gr('''
+    bits = json.loads(run_in_gr('''
         import json, math, sys
         import numpy as np
         from gnuradio import gr, blocks, analog, digital
@@ -687,8 +692,7 @@ def test_the_sync_word_finds_the_byte_boundary(repo_root):
         from gnuradio.filter import firdes
 
         RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
-        CODE = "00011010110011111111110000011101"
-        FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+        FRAME = b"GRCON26 "
         SKEW = 1373
 
         bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
@@ -711,18 +715,22 @@ def test_the_sync_word_finds_the_byte_boundary(repo_root):
                        1.0, 1.5, 1, digital.constellation_bpsk().base(),
                        digital.IR_MMSE_8TAP, 128, []),
                    digital.binary_slicer_fb(),
-                   digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
-                   blocks.tagged_stream_align(gr.sizeof_char, "sync"),
-                   blocks.pack_k_bits_bb(8),
-                   blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
                    out)
         tb.run()
         print(json.dumps(list(out.data())))
     '''))
-    got = bytes(payload)
-    assert len(got) >= 8 * 8, len(got)
-    frames = [got[i:i + 8] for i in range(0, len(got) - 7, 8)]
-    assert all(f == b"GRCON26 " for f in frames), frames[:4]
+    assert len(bits) > 8 * 8, "the front end produced almost no bits"
+
+    sys.path.insert(0, os.path.join(repo_root, "gr-m2k"))
+    from m2k_blocks.ascii_scan import scan
+
+    hits = scan(bits, min_chars=16)
+    assert hits, "nothing in the demodulated bits reads as text"
+    top = hits[0]
+    assert b"GRCON26" in top.text, top.line()
+    # The offset is what a participant types into `skip_bits`, so it has
+    # to be a real byte offset rather than always zero.
+    assert 0 <= top.offset < 8
 
 
 BUFFER_TAGS = '''
@@ -734,8 +742,7 @@ from gnuradio import filter as gr_filter
 from gnuradio.filter import firdes
 
 RX, F0, DEV, BITLEN, DECIM = 1e6, 40755.0, 300.0, 5e-3, 200
-CODE = "00011010110011111111110000011101"
-FRAME = bytes([0x1a, 0xcf, 0xfc, 0x1d]) + b"GRCON26 "
+FRAME = b"GRCON26 "
 BUF, SKEW = 16384, 1373
 
 bits = np.unpackbits(np.frombuffer(FRAME * 12, dtype=np.uint8))
@@ -776,10 +783,7 @@ chain += [
         1.0, 1.5, 1, digital.constellation_bpsk().base(),
         digital.IR_MMSE_8TAP, 128, []),
     digital.binary_slicer_fb(),
-    digital.correlate_access_code_tag_bb(CODE, 0, "sync"),
-    blocks.tagged_stream_align(gr.sizeof_char, "sync"),
     blocks.pack_k_bits_bb(8),
-    blocks.keep_m_in_n(gr.sizeof_char, 8, len(FRAME), 0),
     blocks.stream_to_tagged_stream(gr.sizeof_char, 1, 8, "packet_len"),
     to_pdu,
 ]
@@ -807,12 +811,16 @@ def test_the_sources_buffer_tags_do_not_reach_the_pdu():
     """
     gated = json.loads(run_in_gr(BUFFER_TAGS, "gate"))
     assert gated, "no PDUs at all -- something other than the tags is wrong"
-    assert all(bytes(p) == b"GRCON26 " for p in gated), gated[:4]
+    # Length, not content. With no sync word the byte boundary is
+    # arbitrary, so which eight bytes come out depends on where the
+    # capture started -- and the claim here is about the 8 against the
+    # 16384, which is exactly the length.
+    assert all(len(p) == 8 for p in gated), [len(p) for p in gated[:4]]
 
     # The other half of the claim: without the gate this does not work.
     # If GNU Radio ever stops confusing the two, this fails and the gate
     # in the flowgraph can go.
     ungated = json.loads(run_in_gr(BUFFER_TAGS, "nogate"))
-    assert not any(bytes(p) == b"GRCON26 " for p in ungated), (
+    assert not any(len(p) == 8 for p in ungated), (
         "the collision no longer happens -- recheck whether the tag gate "
         "in m2k_ultrasonic_fsk.grc is still needed")

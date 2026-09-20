@@ -486,22 +486,54 @@ recovered that a file-to-file flowgraph gets for free:
 **Which sample in the bit.** `Symbol Sync` with a zero-crossing detector,
 25 samples per symbol in and 1 out. Nothing about the message goes into it.
 
-**Which bit starts the byte.** Every frame begins with a 32-bit sync word,
-`0x1ACFFC1D` — the CCSDS attached sync marker, chosen because its
-autocorrelation is good and it is somebody else's constant, not one we
-picked to make our own test pass. `Correlate Access Code` tags the bit
-*after* the code and `Tagged Stream Align` drops everything before that
-tag. From there, `Pack K Bits` produces bytes that are the bytes that were
-sent.
+**Which bit starts the byte.** Nothing on the air says. The transmitter
+sends the padded payload and nothing else — no sync word, no framing.
+`Pack K Bits` still has to pick a boundary, and it picks the arbitrary
+one, which is right about an eighth of the time.
 
-Threshold is **0**: no bit errors allowed inside the sync word. On a link
-this clean a relaxed threshold buys false locks, not range.
+So the receiver does not pick either. **ASCII at Every Offset** packs the
+same bits all eight ways — sixteen with inversion, in case the demodulator
+handed the two tones back upside down — and prints any run of printable
+ASCII at least sixteen characters long, with the offset it found it at:
 
-`Keep M in N` then drops the next frame's four sync bytes so Message Debug
-prints the payload alone. The frame length is fixed at `4 + msg_capacity`,
-which is why the message is padded rather than sent at its natural length —
-a frame that changed size when somebody typed would move the phase that
-`Keep M in N` counts on.
+```
+offset 3             320 chars  GRCON26 GRCON26 GRCON26 GRCON26 ...
+```
+
+Put that number into `skip_bits` and the `Pack K Bits` branch lands on the
+same boundary, so Message Debug agrees with the console.
+
+Sixteen characters is the floor, and eight is the tempting wrong answer:
+random bytes are printable about 37% of the time, so eight in a row turns
+up roughly once in every 3500 positions — constantly, across sixteen
+offset-and-polarity combinations. Sixteen in a row is about one in five
+million. Silence on the console therefore means silence on the air, rather
+than a wrong guess about framing.
+
+### Why there is no sync word any more
+
+There was one until 2026-09-20: `0x1ACFFC1D`, the CCSDS attached sync
+marker, with `Correlate Access Code`, `Tagged Stream Align` and
+`Keep M in N`. That chain is correct while the transmitter never stops,
+and this link transmits continuously, so it ran clean on the bench.
+
+It does not survive a transmitter that bursts. `Keep M in N` counts: every
+N items it keeps the first M, forever. The silence between two bursts is
+not a whole number of frames, so the phase is wrong from the second burst
+on and never re-aligns — bit-perfect garbage, which reads as bad range and
+sends people off to move the transducer.
+
+The GRCon booth beacon bursts. A participant who learned the framed chain
+here and carried it to the booth would get **nothing at all**, because the
+beacon sends no sync word for the correlator to fire on. Matching the two
+receivers is the point of this change; one mechanism, taught once, working
+in both places.
+
+**If your signal does carry a sync word,** use the `Sync-to-Sync Framer`
+block instead of `Keep M in N`. It frames on the gap between one marker and
+the next rather than counting, so it survives bursts, and it never has to
+be told how long a payload is — one instance decodes an eight-byte frame
+and a thirty-two-byte frame in the same run.
 
 ## What has been checked, and what has not
 
@@ -519,12 +551,18 @@ In the test suite, without hardware (`tests/test_grc_integration.py`):
 - the sink is non-cyclic, the source is free-running
 - typing a message reaches the vector source and does not resize the frame
 - the receive chain recovers `GRCON26` from synthetic FSK started 1373
-  samples mid-bit
+  samples mid-bit, at whatever byte offset that lands on
 
 Not checked: **this exact flowgraph on the board.** The bench script proves
 the chain and the parameters; the `.grc` wires the same blocks with the same
 numbers plus `Symbol Sync`, which the bench script did offline by searching
 the eye instead. Run it at a station before it goes in front of anybody.
+
+**And the 2026-09-09 bench run was of the framed chain, not this one.** The
+front end is untouched — same tones, same rates, same decimation, same
+`Symbol Sync` — and only the last three blocks changed, but 0 errors in 395
+bits was measured through `Keep M in N` and has not been re-measured
+through `ASCII at Every Offset`. Re-bench before the session.
 
 Also not checked: range, off-axis falloff, and how many stations can run at
 once in one room. Twenty pairs of transducers on the same three tones is a
