@@ -1916,7 +1916,7 @@ sigrok-cli -i bus.csv \
       <span class="lnk">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk">Demod</span><span class="arw">&#8594;</span>
       <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
@@ -1965,10 +1965,20 @@ sigrok-cli -i bus.csv \
         <img src="img/grc-ultrasonic-frame.png" alt="A QT GUI Entry variable block named message with default GRCON26, beside a Variable block named frame whose value is a list comprehension padding the message to msg_capacity characters.">
         <figcaption>Type a new message, press Enter, and the transmitted frame changes.</figcaption>
       </figure>
-      <p>The transmitter pads every payload to <code>msg_capacity</code>, so the
-      same bytes repeat on the air at a fixed spacing. Nothing marks where one
-      copy ends and the next begins &mdash; there is no sync word here &mdash;
-      which is a problem the receiver solves rather than the transmitter.</p>
+      <p>What goes on the air is a 32-bit preamble of <code>0xAA</code>, then
+      the message padded to 32 bytes, repeating. That is the booth beacon's
+      frame exactly, and deliberately so: the only difference left is that the
+      beacon bursts and this transmits continuously.</p>
+      <p><strong>The preamble is for the timing loop, not for framing.</strong>
+      Symbol Sync needs roughly twenty symbols to converge, and alternating
+      ones and zeros give the zero-crossing detector a transition on every
+      bit. Nothing correlates on it. Nothing marks where one copy of the
+      payload ends and the next begins, which is a problem the receiver solves
+      rather than the transmitter.</p>
+      <p><strong>Why 32 bytes.</strong> <code>0xAA</code> is not printable, so
+      the preamble cuts every readable run down to the payload length. At 8
+      the run is 8 characters, under the sixteen-character floor, and nothing
+      prints at any offset.</p>
     </div>
   </div>
 </section>
@@ -1983,7 +1993,7 @@ sigrok-cli -i bus.csv \
       <span class="lnk on">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk on">Demod</span><span class="arw">&#8594;</span>
       <span class="lnk">Byte boundary</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
@@ -2048,7 +2058,7 @@ sigrok-cli -i bus.csv \
       <span class="lnk done">Xlating FIR</span><span class="arw">&#8594;</span>
       <span class="lnk done">Demod</span><span class="arw">&#8594;</span>
       <span class="lnk on">Byte boundary</span><span class="arw">&#8594;</span>
-      <span class="lnk">Msg Debug</span>
+      <span class="lnk">Console</span>
     </div>
     <div class="stage split">
       <div class="present">
@@ -2072,9 +2082,10 @@ sigrok-cli -i bus.csv \
       <p><strong>So do not pick a boundary.</strong> The block packs the same
       bits all eight ways &mdash; sixteen, if the demodulator may have handed
       the two tones back upside down &mdash; and prints any run of printable
-      ASCII long enough to believe, with the offset it turned up at. Put that
-      offset into <code>skip_bits</code> and the Message Debug branch agrees
-      with what you are reading.</p>
+      ASCII long enough to believe, with the offset it turned up at. That is
+      the whole receiver output &mdash; the block has already searched every
+      offset, so carrying the answer back into a Pack K Bits would be a
+      fiddlier route to text that is already on the screen.</p>
       <p>Sixteen characters is the floor, and eight is the tempting wrong
       answer: random bytes are printable about 37% of the time, so eight in a
       row turns up roughly once in every 3500 positions &mdash; constantly,

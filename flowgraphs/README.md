@@ -435,7 +435,7 @@ gnuradio-companion flowgraphs/m2k_ultrasonic_fsk.grc
 ```
 
 Type in the **Message** box and press Enter; the new text goes out on the
-next frame and comes back in Message Debug.
+next frame and comes back on the console, from `ASCII at Every Offset`.
 
 ## The two rates are different on purpose
 
@@ -486,22 +486,46 @@ recovered that a file-to-file flowgraph gets for free:
 **Which sample in the bit.** `Symbol Sync` with a zero-crossing detector,
 25 samples per symbol in and 1 out. Nothing about the message goes into it.
 
-**Which bit starts the byte.** Nothing on the air says. The transmitter
-sends the padded payload and nothing else — no sync word, no framing.
-`Pack K Bits` still has to pick a boundary, and it picks the arbitrary
-one, which is right about an eighth of the time.
-
-So the receiver does not pick either. **ASCII at Every Offset** packs the
-same bits all eight ways — sixteen with inversion, in case the demodulator
-handed the two tones back upside down — and prints any run of printable
-ASCII at least sixteen characters long, with the offset it found it at:
+**What goes on the air.** A 32-bit preamble of `0xAA`, then the message
+padded to `msg_capacity`, repeating:
 
 ```
-offset 3             320 chars  GRCON26 GRCON26 GRCON26 GRCON26 ...
+AA AA AA AA   G R C O N 2 6 <padded to 32>   AA AA AA AA   G R C ...
 ```
 
-Put that number into `skip_bits` and the `Pack K Bits` branch lands on the
-same boundary, so Message Debug agrees with the console.
+That is the booth beacon's frame exactly, and deliberately so — the only
+difference left between this and the beacon is that the beacon bursts and
+this transmits continuously. Turning one into the other is the exercise.
+
+**What the preamble is for.** `Symbol Sync` needs roughly twenty symbols
+to converge, and `0xAA` is alternating ones and zeros, so it gives the
+zero-crossing detector a transition on every single bit. Nothing
+correlates on it. It is there for the timing loop, and for the fact that
+packed at any of the eight offsets it reads as a run of `aa` or `55`,
+which marks a frame start in a capture.
+
+**Which bit starts the byte.** Nothing on the air says. No sync word, no
+framing, no length. `Pack K Bits` would have to pick a boundary, and it
+picks the arbitrary one, which is right about an eighth of the time.
+
+So do not pick. **ASCII at Every Offset** packs the same bits all eight
+ways — sixteen with inversion, in case the demodulator handed the two
+tones back upside down — and prints any run of printable ASCII at least
+sixteen characters long, with the offset it found it at:
+
+```
+offset 3             32 chars  GRCON26
+```
+
+That is the whole receiver output. There is no second branch: the block
+searches every offset and prints the one that reads, so a `Skip Head`
+carrying the answer back into a `Pack K Bits` would only be a fiddlier
+route to text already on the screen.
+
+**Why the payload is 32 bytes.** `0xAA` is not printable, so the preamble
+cuts every run down to the payload length. At 8 the run is 8 characters,
+under the floor, and nothing prints at any offset. 32 also happens to be
+the beacon's payload, which is the better reason.
 
 Sixteen characters is the floor, and eight is the tempting wrong answer:
 random bytes are printable about 37% of the time, so eight in a row turns
@@ -535,6 +559,18 @@ the next rather than counting, so it survives bursts, and it never has to
 be told how long a payload is — one instance decodes an eight-byte frame
 and a thirty-two-byte frame in the same run.
 
+### Turning this into the booth receiver
+
+Delete the transmitter — the Message entry, `frame`, the vector source,
+`Unpack K Bits`, `Repeat`, the scaling blocks, the VCO and the M2K Analog
+Sink. What is left is the receive chain, and it is the one the beacon
+wants. Nothing needs adding and nothing needs re-tuning; the tones, the
+baud and the decimation are already the beacon's.
+
+Leave the transmitter in at the booth and the M2K will drive its own
+transducer at the beacon's two tones, which jams the beacon, your own
+receiver, and everyone else at the table.
+
 ## What has been checked, and what has not
 
 On the bench, 2026-09-09, with `bench/ultrasonic_fsk.py` — the same
@@ -552,6 +588,8 @@ In the test suite, without hardware (`tests/test_grc_integration.py`):
 - typing a message reaches the vector source and does not resize the frame
 - the receive chain recovers `GRCON26` from synthetic FSK started 1373
   samples mid-bit, at whatever byte offset that lands on
+- the frame is the preamble plus a 32-byte payload, and the text is
+  recovered at all eight bit offsets and inverted
 
 Not checked: **this exact flowgraph on the board.** The bench script proves
 the chain and the parameters; the `.grc` wires the same blocks with the same

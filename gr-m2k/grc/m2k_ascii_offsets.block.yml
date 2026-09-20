@@ -64,9 +64,13 @@ documentation: |-
 
     The offset is the useful part. It stays put for as long as the
     flowgraph runs, because the bit stream is continuous and every burst
-    lands on the same boundary. That makes it the number to put into a
-    Skip Head ahead of Pack K Bits if you want a File Sink to agree with
-    what you are reading here.
+    lands on the same boundary.
+
+    If all you want is to read the text, that is the whole job and this
+    block is the only receiver output you need. The offset matters when
+    something downstream consumes BYTES -- a File Sink you mean to
+    analyse offline, say. Then put it in a Skip Head ahead of Pack K
+    Bits and the capture lands on the same boundary the console did.
 
     Shortest run to print
       Sixteen characters, and eight is the tempting wrong answer.

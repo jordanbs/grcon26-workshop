@@ -121,6 +121,24 @@ display), and the session material itself.
   `access_code` / `code_bytes` / `frame_len` variables; in comes ASCII at Every Offset
   and a `skip_bits` offset. Net deletion of machinery. Costs a re-bench.
 
+- **2026-09-20** — The workshop loopback carries the beacon's frame: a 32-bit
+  `0xAA` preamble then a 32-byte payload, repeating. Reason: modelling the workshop
+  on the CTF only pays if the shapes match, and then the participant's job at the
+  booth is purely subtractive — delete the transmitter, add nothing, re-tune nothing.
+  The preamble is for `symbol_sync` to converge on, not for framing; nothing
+  correlates on it, there or here. `msg_capacity` went 8 → 32 because `0xAA` is not
+  printable and cuts every readable run to the payload length: at 8 the run is under
+  the sixteen-character floor and nothing prints at any offset.
+
+- **2026-09-20** — The receive chain ends at ASCII at Every Offset. `skip_bits`,
+  `Skip Head`, `Pack K Bits`, `Stream to Tagged Stream`, `Tagged Stream to PDU` and
+  `Message Debug` are all deleted. Reason: the block already searches all eight
+  offsets and prints the one that reads, so the offset only earns its keep when
+  something downstream consumes bytes. The CTF has a File Sink for offline analysis
+  and `rx/slide8.py` as the do-it-yourself path, which is a challenge-design choice;
+  the workshop's payoff is the console line, and a second branch was a fiddlier route
+  to text already on screen.
+
 - **2026-09-20** — Both byte-boundary mechanisms ship as `gr-m2k` blocks:
   **ASCII at Every Offset** and **Sync-to-Sync Framer**. Reason: the CTF rejected the
   framer on 2026-09-18 because "a player cannot obtain a custom block", and the
@@ -188,12 +206,21 @@ tier that costs participants a compiler.
   all. A Mac has to use `usb:`, which libiio resolves itself with one board attached.
   `m2k-blocks scan` prints the right string per machine. Written up in
   `install/README.md`, `gr-m2k/README.md` and on the deck.
-- **The ultrasonic receiver changed 2026-09-20 and is NOT re-benched.** The front end
-  is untouched — same tones, rates, decimation and `Symbol Sync` — but the last three
-  blocks are new, and 0 errors in 395 bits was measured through `keep_m_in_n`. The
-  search half is covered by `tests/test_ascii_scan.py` and was differential-tested
-  against the CTF's own implementation across 400 randomized streams; the over-the-air
-  half has not run. **Re-bench before the session.**
+- **The ultrasonic flowgraph changed 2026-09-20 and is NOT re-benched.** The front
+  end is untouched — same tones, rates, decimation and `Symbol Sync` — but the frame
+  now carries a preamble, the payload is 32 bytes, and the receive chain ends at
+  ASCII at Every Offset with six blocks deleted. 0 errors in 395 bits was measured
+  through `keep_m_in_n` on an 8-byte unprefixed frame, so it does not carry over.
+  The search half is covered by `tests/test_ascii_scan.py`, differential-tested
+  against the CTF's own implementation across 400 randomized streams, and the whole
+  link was simulated from the flowgraph's own resolved variables: the text is
+  recovered at all eight bit offsets and inverted. The over-the-air half has not run.
+  **Re-bench before the session.**
+- **The participant turns the loopback into the booth receiver themselves.** That is
+  the exercise, and the solution lives in the CTF repo, not here. Deleting the
+  transmitter is the whole change. Leaving it in at the booth makes the M2K drive its
+  own transducer on the beacon's two tones, jamming the beacon, its own receiver and
+  the rest of the table — worth saying out loud in the room.
 - **`booth/` is gone 2026-09-20.** It was firmware with no receiver in this repo, in
   the framing geometry the CTF proved fails on the second burst. The live firmware is
   `grcon26-ctf/ADI/did_you_hear_that/pico/`; that repo's `verify.py` hashes its own

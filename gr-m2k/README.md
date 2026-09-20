@@ -366,10 +366,11 @@ inversion -- and prints what reads as text, with the offset it read at:
 offset 4   96 chars  A=00000 B=XXXXXX C=example      A=00000 B=...
 ```
 
-The offset is the useful part. It stays put for as long as the flowgraph
-runs, so it is the number to put into a `Skip Head` ahead of `Pack K
-Bits` when you want a File Sink or a Message Debug to agree with the
-console.
+The offset is the useful part. If you only want to read the text, the
+console line is the whole job. The offset matters when something
+downstream consumes bytes -- a File Sink for offline analysis -- and
+then it goes into a `Skip Head` ahead of `Pack K Bits` so the capture
+lands where the console did.
 
 **Sixteen characters, and eight is the tempting wrong answer.** Random
 bytes are printable about 37% of the time, so eight in a row turns up

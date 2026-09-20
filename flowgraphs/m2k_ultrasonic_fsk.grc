@@ -131,8 +131,8 @@ blocks:
 - name: frame
   id: variable
   parameters:
-    comment: The payload, repeated. No sync word -- see flowgraphs/README.md.
-    value: '[ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]'
+    comment: Preamble then payload -- the beacon's frame, minus the bursting.
+    value: preamble + [ord(c) for c in str(message)[:msg_capacity].ljust(msg_capacity)]
   states:
     bus_sink: false
     bus_source: false
@@ -171,13 +171,25 @@ blocks:
 - name: msg_capacity
   id: variable
   parameters:
-    comment: Fixed, so the frame length never moves.
-    value: '8'
+    comment: 32, matching the beacon. Under 16 the preamble hides the text.
+    value: '32'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [936, 80.0]
+    rotation: 0
+    state: enabled
+- name: preamble
+  id: variable
+  parameters:
+    comment: 0xAA gives the timing loop a transition on every bit.
+    value: '[0xAA] * 4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 80.0]
     rotation: 0
     state: enabled
 - name: rx_decim
@@ -202,18 +214,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [384, 8.0]
-    rotation: 0
-    state: enabled
-- name: skip_bits
-  id: variable
-  parameters:
-    comment: Set this to the offset ASCII at Every Offset reports.
-    value: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [200, 80.0]
     rotation: 0
     state: enabled
 - name: spacing
@@ -322,21 +322,6 @@ blocks:
     coordinate: [936, 360]
     rotation: 0
     state: enabled
-- name: blocks_message_debug_0
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: One line per message. The hex is the payload that came back.
-    en_uvec: 'True'
-    log_level: info
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1208, 832.0]
-    rotation: 0
-    state: enabled
 - name: blocks_multiply_const_vxx_0
   id: blocks_multiply_const_vxx
   parameters:
@@ -355,22 +340,6 @@ blocks:
     coordinate: [736, 360]
     rotation: 0
     state: enabled
-- name: blocks_pack_k_bits_bb_0
-  id: blocks_pack_k_bits_bb
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    k: '8'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [336, 856.0]
-    rotation: 0
-    state: enabled
 - name: blocks_repeat_0
   id: blocks_repeat
   parameters:
@@ -387,42 +356,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [392, 352]
-    rotation: 0
-    state: enabled
-- name: blocks_skiphead_0
-  id: blocks_skiphead
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: Shift the byte boundary to whatever the ASCII block found.
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    num_items: skip_bits
-    type: byte
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [336, 776.0]
-    rotation: 0
-    state: enabled
-- name: blocks_stream_to_tagged_stream_0
-  id: blocks_stream_to_tagged_stream
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    len_tag_key: '"packet_len"'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    packet_len: msg_capacity
-    type: byte
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [680, 848.0]
     rotation: 0
     state: enabled
 - name: blocks_tag_gate_0
@@ -639,23 +572,6 @@ blocks:
     coordinate: [336, 960.0]
     rotation: 0
     state: enabled
-- name: pdu_tagged_stream_to_pdu_0
-  id: pdu_tagged_stream_to_pdu
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    tag: packet_len
-    type: byte
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [912, 856.0]
-    rotation: 0
-    state: enabled
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
   parameters:
@@ -840,22 +756,17 @@ connections:
 - [analog_quadrature_demod_cf_0, '0', qtgui_time_sink_x_0, '0']
 - [blocks_add_const_vxx_0, '0', blocks_vco_f_0, '0']
 - [blocks_multiply_const_vxx_0, '0', blocks_add_const_vxx_0, '0']
-- [blocks_pack_k_bits_bb_0, '0', blocks_stream_to_tagged_stream_0, '0']
 - [blocks_repeat_0, '0', blocks_uchar_to_float_0, '0']
-- [blocks_skiphead_0, '0', blocks_pack_k_bits_bb_0, '0']
-- [blocks_stream_to_tagged_stream_0, '0', pdu_tagged_stream_to_pdu_0, '0']
 - [blocks_tag_gate_0, '0', freq_xlating_fir_filter_xxx_0, '0']
 - [blocks_uchar_to_float_0, '0', blocks_multiply_const_vxx_0, '0']
 - [blocks_unpack_k_bits_bb_0, '0', blocks_repeat_0, '0']
 - [blocks_vco_f_0, '0', m2k_analog_sink_0, '0']
 - [blocks_vector_source_x_0, '0', blocks_unpack_k_bits_bb_0, '0']
-- [digital_binary_slicer_fb_0, '0', blocks_skiphead_0, '0']
 - [digital_binary_slicer_fb_0, '0', m2k_ascii_offsets_0, '0']
 - [digital_symbol_sync_xx_0, '0', digital_binary_slicer_fb_0, '0']
 - [freq_xlating_fir_filter_xxx_0, '0', analog_quadrature_demod_cf_0, '0']
 - [m2k_analog_source_0, '0', blocks_tag_gate_0, '0']
 - [m2k_analog_source_0, '0', qtgui_freq_sink_x_0, '0']
-- [pdu_tagged_stream_to_pdu_0, pdus, blocks_message_debug_0, print]
 
 metadata:
   file_format: 1
