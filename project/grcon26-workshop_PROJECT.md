@@ -64,9 +64,10 @@ display), and the session material itself.
   range. Use the Sync-to-Sync Framer, or send no sync word at all and find the
   boundary at the receiver.
 - **A vendored copy is a copy, and it drifts in the reader's head before it drifts in
-  git.** `booth/pico/` sat here byte-identical to a copy maintained elsewhere, which
-  had since diverged. Both were correct; reading the wrong one cost an hour and
-  produced confidently wrong arithmetic. Deleted 2026-09-20.
+  git.** A firmware directory sat here byte-identical to a copy maintained in another
+  repo, which had since overridden one of its constants. Both were correct; reading
+  the wrong one cost an hour and produced confidently wrong arithmetic. Deleted
+  2026-09-20 — if the authoritative copy is elsewhere, do not keep a second one.
 - **gr-iio's `device_source` ends itself on any refill error.** `work()` returns
   WORK_DONE on a timeout, so a triggered source waiting on a human never comes back,
   and `set_timeout_ms` never reaches libiio. Free-run the source; trigger the display.
@@ -98,15 +99,12 @@ display), and the session material itself.
 - **2026-09-04** — Build a DC power supply block, reversing the 2026-09-02 "no supply
   block" decision. Reason: GNU Radio cannot control a rail at all, and the setpoint
   spans four places including the context `cal,*` attributes.
-- **2026-09-11** — The booth demo is the ultrasonic link on a table: a Pico beacon
-  transmitting, an attendee's M2K receiving. Reason: both halves already run, and it is
-  the part of the workshop somebody can watch without attending the session.
 
-- **2026-09-20** — The CTF lives in its own repo. An earlier note here claimed it
-  had been dropped; that was wrong. **Nothing about it belongs in this repo** — not
-  its contents, not its structure, not how to build a receiver for it. That applies
-  to a doc, a docstring, a code comment and a test fixture exactly as much as to
-  firmware, which is the lesson from having got it wrong on 2026-09-20.
+- **2026-09-20** — **Work that lives in another repo stays there.** Not its
+  contents, not its structure, not how to build against it. This repo is public, so
+  that rule covers a doc, a docstring, a code comment and a test fixture exactly as
+  much as it covers code — which is the lesson from having got it wrong repeatedly on
+  2026-09-20 and having to scrub afterwards.
 
 - **2026-09-20** — The workshop's ultrasonic receiver drops sync framing. Reason:
   `keep_m_in_n` counts, so it is exact only while the transmitter never stops, and a
@@ -130,11 +128,11 @@ display), and the session material itself.
   to text already on screen.
 
 - **2026-09-20** — Both byte-boundary mechanisms ship as `gr-m2k` blocks:
-  **ASCII at Every Offset** and **Sync-to-Sync Framer**. Reason: the CTF rejected the
-  framer on 2026-09-18 because "a player cannot obtain a custom block", and the
-  installer plus the QR on slide 1 made that premise false. The framer is the right
-  answer for any bursty signal that carries a marker, and `keep_m_in_n` is the wrong
-  one.
+  **ASCII at Every Offset** and **Sync-to-Sync Framer**. Reason: a custom block used
+  to be unreachable for anyone who had not cloned the repo, and the installer plus
+  the QR on slide 1 made that false. The framer is the right answer for any bursty
+  signal that carries a marker, and `keep_m_in_n` is the wrong one; ASCII at Every
+  Offset is the answer when there is no marker at all.
 - **2026-09-16** — The colorimeter board is ADI's **M2k Colorimeter Accessory Board**
   from `education_tools`, not the CN0363. Reason: it borrows the CN0363's cuvette
   holder and nothing else — no ADC, no mux, no driver.
@@ -162,8 +160,9 @@ deck — one script per platform in `install/`.
 participant-facing `.grc` files merged. Time-of-flight ranging and the seven-color
 exercise are the stretch goals.
 
-**Booth:** the ultrasonic link on a table. Pico beacons transmitting, M2K as the
-receiver, `flowgraphs/m2k_ultrasonic_fsk.grc` as the participant artifact.
+**OTA demo:** the ultrasonic link, off the bench and across a table.
+`flowgraphs/m2k_ultrasonic_fsk.grc` is the participant artifact. Anything about the
+transmitting side is tracked in its own repo, not here.
 
 **`gr-m2k` packaging:** crawl (`env.sh`) and walk (pip from GitHub) done. The run tier
 — its own repo with a gr-modtool `CMakeLists.txt` — is post-workshop, and the only
@@ -175,8 +174,8 @@ tier that costs participants a compiler.
   `13cbbc7`), blinky LED and PWM (PR #7, `9d863dd`). 482 tests.
 - **Reorganized 2026-09-20.** The root led with the IIO discovery suite, which is not
   what the workshop teaches. The seven `iio_*.py`, their caches, `browse/` and
-  `fixtures/` moved to `iio-tools/` behind their own README; `ctf/` became `booth/`;
-  the root README now leads with the blocks and the setup script.
+  `fixtures/` moved to `iio-tools/` behind their own README; a stale firmware
+  directory went; the root README now leads with the blocks and the setup script.
 - **Phase 1 is done and verified.** Six blocks in `gr-m2k/`, all 15 bench-checklist
   sections passing, absolute error closed against the meter. Detail in the archive.
 - **`gr-m2k` is installable two ways** as of 2026-09-16: `source gr-m2k/env.sh` for one
@@ -202,13 +201,13 @@ tier that costs participants a compiler.
   ASCII at Every Offset with six blocks deleted. 0 errors in 395 bits was measured
   through `keep_m_in_n` on an 8-byte unprefixed frame, so it does not carry over.
   The search half is covered by `tests/test_ascii_scan.py`, differential-tested
-  against the CTF's own implementation across 400 randomized streams, and the whole
+  against the implementation it was ported from across 400 randomized streams, and the whole
   link was simulated from the flowgraph's own resolved variables: the text is
   recovered at all eight bit offsets and inverted. The over-the-air half has not run.
   **Re-bench before the session.**
-- **`booth/` is gone 2026-09-20.** It was firmware with no receiver in this repo, in
-  a framing geometry since shown to fail on a bursty link. It is maintained elsewhere
-  and nothing there depends on this copy.
+- **The vendored firmware directory is gone 2026-09-20.** It had no receiver in this
+  repo and used a framing geometry since shown to fail on a bursty link. It is
+  maintained elsewhere and nothing there depends on this copy.
 - **Two deck figures are not committed.** `grc-ultrasonic-sync` and
   `grc-ultrasonic-out` showed blocks that no longer exist. Rather than ship pictures of
   a chain that is gone, both were removed; `slides/render_grc.py` carries the exact
@@ -262,8 +261,6 @@ tier that costs participants a compiler.
 **OTA demo**
 - [x] Transmitter side, over the air, on hardware. Tracked outside this repo.
 - [ ] Re-bench `m2k_ultrasonic_fsk.grc` end to end on the new frame and chain.
-- [ ] Rename the demo in the deck and the docs: "booth" is not accurate for the
-      workshop's own OTA exercise. "OTA demo" is the candidate.
 - [ ] Range at the table.
 
 **Loose ends**
