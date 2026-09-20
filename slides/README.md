@@ -96,7 +96,7 @@ block itself, so at 2 the deck upscales it and the text goes soft.
 **What it needs, and why it is not in `uv sync`.** PyGObject and GNU Radio are
 native, so they live in system site-packages where the project venv cannot see
 them — the script uses `#!/usr/bin/python3` for the same reason
-`iio_discover.py` does. On Ubuntu 24.04:
+`iio-tools/iio_discover.py` does. On Ubuntu 24.04:
 
 ```
 sudo apt install gnuradio gir1.2-gtk-3.0
@@ -157,6 +157,34 @@ chosen to make the point -- the left panel is not bare either, and the caption
 says so.
 
 Standard library only, on any interpreter.
+
+## The setup QR is generated too, and checked by a decoder
+
+```
+uv run ./slides/render_qr.py           # into slides/img/
+uv run ./slides/render_qr.py --check   # 0 if the committed file is current
+uv run ./slides/render_qr.py --url     # what it encodes
+```
+
+The code on the title frame is the one figure in the deck nobody can
+proofread. A wrong URL looks exactly like a right one, and it fails in the
+room, on every phone at once. So it is generated from a single constant in
+`render_qr.py`, the output is committed, and three checks sit behind it:
+`--check` fails if the committed SVG has drifted, `tests/test_install.py`
+asserts that the same URL appears in the deck and in every document that
+carries it, and one test reads the code back with **zxing-cpp** — a decoder
+with no relation to `segno`, which is what wrote it. An encoder agreeing with
+itself proves nothing.
+
+`segno` is a dev dependency, so `uv sync` is needed to regenerate but not to
+open the deck.
+
+**The SVG carries no quiet zone.** Baking the four-module border into the file
+would shrink the code inside a box of fixed width, which is backwards for
+somebody scanning from the back of a room. The `.qr img` card in `frames.css`
+supplies the border instead, with more padding than the minimum, on white,
+whatever the deck's palette is doing around it.
+
 
 **There is no rasterizer on this machine** -- no `rsvg-convert`, no Inkscape --
 so nothing here can be previewed as a picture before it ships. The script
@@ -244,6 +272,7 @@ render_grc.py       the GRC figures, from GRC's own canvas code
 render_spi.py       the SPI waveforms, from the encoder that drives the pins
 render_colorimeter.py
                     the colorimeter optics, and the coherence argument
+render_qr.py        the setup QR on the title frame, from one URL
 img/                what they produce -- generated, but committed, so the
                     deck opens on a machine with no GNU Radio
 ```

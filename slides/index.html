@@ -54,6 +54,7 @@
        width. shell.js measures and places them. -->
   <div class="pop" id="sitepop" role="group" aria-label="Workshop links" hidden>
     <a href="https://github.com/livethisdream/grcon26-workshop">repository<kbd>git</kbd></a>
+    <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/install/README.md">setup</a>
     <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/docs/reading-iio-attributes.md">IIO handout</a>
     <a href="https://github.com/livethisdream/grcon26-workshop/blob/main/gr-m2k/README.md">block reference</a>
   </div>
@@ -86,6 +87,110 @@
     <div class="title-rule"></div>
     <p class="lede">The board is the instrument. IIO is how you talk to it.</p>
     <p class="meta">90 minutes &middot; crawl, walk, run &middot; nothing to install in the room</p>
+    <div class="qr">
+      <img src="img/setup-qr.svg" width="176" height="176"
+           alt="QR code linking to github.com/livethisdream/grcon26-workshop">
+      <div class="qr-what">
+        <b>Set up before we start</b>
+        One script installs the blocks. The next two frames walk through it.
+        <br><code>github.com/livethisdream/grcon26-workshop</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="setup" data-section="Setup">
+  <div class="wrap">
+    <h2>Setup Before the Session</h2>
+    <div class="stage">
+      <div class="present">
+        <p class="pull">Bring a laptop with GNU Radio on it. One script does the rest.</p>
+<pre><code>bash m2k-setup.sh      # Linux, macOS
+m2k-setup.ps1          # Windows</code></pre>
+      </div>
+      <div class="present">
+        <ul>
+          <li>Both are in <code>install/</code> — scan the code on the title frame</li>
+          <li>Installs gr-iio, pylibiio, the blocks, the GRC block path, USB access</li>
+          <li>Windows: run it from the Radioconda Prompt</li>
+          <li><code>--yes</code> answers every prompt</li>
+        </ul>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Do this before you travel. It reaches the internet, and a conference
+      network is not the place to find that out.</p>
+      <p>The download, in full:</p>
+<pre><code>curl -fsSLO https://raw.githubusercontent.com/livethisdream/\
+grcon26-workshop/main/install/m2k-setup.sh
+bash m2k-setup.sh</code></pre>
+      <p>The script asks before it changes anything outside your own account —
+      the udev rule on Linux, the driver package on Windows. Download it and
+      read it first if you would rather; that is why the instructions do not
+      pipe it straight into a shell.</p>
+      <p><strong>There are two libraries called <code>iio</code> and you want
+      both.</strong> <code>from gnuradio import iio</code> is gr-iio, which
+      moves samples and arrives inside GNU Radio. <code>import iio</code> is
+      pylibiio, the binding around the C library, which reads and writes the
+      attributes gr-iio has no block for — pin direction, the trigger
+      registers, the supply calibration. Having one tells you nothing about
+      the other, and they break at different moments: gr-iio missing stops the
+      block from constructing, pylibiio missing stops it at the first
+      attribute write.</p>
+      <p>Neither comes from <code>pip install gr-m2k</code>, and that is
+      deliberate. gr-iio is on no package index at all. pylibiio wraps a
+      native library, so installing the wheel alone gives you an import that
+      fails at run time rather than at install time.</p>
+      <p><code>install/README.md</code> in the repository has the same ground
+      in more detail, including the four commands to run by hand instead.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="setup-check" data-section="Setup">
+  <div class="wrap">
+    <h2>Two Checks After Setup</h2>
+    <div class="stage">
+      <div class="present">
+<pre><code>python -m m2k_blocks check
+python -m m2k_blocks scan</code></pre>
+        <ul>
+          <li><strong>check</strong> — will GRC find the blocks</li>
+          <li><strong>scan</strong> — is the board there, and at what address</li>
+        </ul>
+      </div>
+      <div class="present callout">
+        <p>On a Mac the address is <code>usb:</code>, not the
+        <code>ip:192.168.2.1</code> every block defaults to.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p><strong>One thing goes wrong more than everything else together.</strong>
+      <code>pip install</code> has to land in the same interpreter
+      gnuradio-companion imports from. On a distro GNU Radio that is the
+      system Python; under radioconda it is the environment's. A fresh venv on
+      some third Python installs cleanly, puts the scripts on your PATH, and
+      leaves the block tree empty — because GRC never looks there. The script
+      works the interpreter out from the shebang of gnuradio-companion and
+      prints what it picked, and <code>--python</code> overrides it.</p>
+      <p><code>check</code> answers that question directly: the block
+      directory, the interpreter, whether <code>m2k_blocks</code> imports, and
+      every directory GRC will search with ours marked. Exit status 0 means
+      the blocks will appear. Two unrelated faults look identical from the
+      block tree — a path GRC never saw, and a package it cannot import — and
+      only one of them waits until you press Run.</p>
+      <p><strong>The address.</strong> <code>ip:192.168.2.1</code> is the
+      board's USB ethernet gadget. Linux provides that natively and Windows
+      provides it once ADI's driver package is in. macOS does not provide it
+      any more: it needed HoRNDIS, a kernel extension that is unmaintained,
+      built for x86_64, and unable to load on Apple silicon at all. So a Mac
+      uses the USB backend instead, and the address is the bare
+      <code>usb:</code>, which libiio resolves by itself when one board is
+      plugged in. <code>scan</code> prints the right string for whatever
+      machine it runs on.</p>
+      <p>Restart gnuradio-companion after installing. A running one will not
+      pick up a block directory it did not have at launch.</p>
+    </div>
   </div>
 </section>
 
@@ -106,9 +211,9 @@
       the board's own generator into the board's own input, so a station with
       no other hardware still has something to measure. The walk is what a
       block parameter writes. The run is a protocol on the digital pins.</p>
-      <p>Setup is short and happens before the session: install the M2K
-      drivers and download the flowgraphs. Nothing else gets installed in the
-      room.</p>
+      <p>Setup is short and happens before the session: one script, which
+      installs the blocks and sorts out USB access. Nothing else gets
+      installed in the room.</p>
       <p><strong>Press <kbd>P</kbd></strong> to switch between the projected deck and
       these notes. The notes are always in the page, in both modes — the deck
       view hides them, it never drops them. Printing gives you the notes, one
@@ -191,7 +296,7 @@
       also context attributes, which on the M2K carry the factory calibration
       constants — <code>cal,ad9963_adc_ch0_gain</code> and friends.</p>
       <p><code>iio_info</code> prints all of it and is already on your machine if libiio
-      is. <code>./iio_discover.py --json</code> in the repo captures the same tree to a file so you can read it later, on a laptop with no board attached — which is
+      is. <code>./iio-tools/iio_discover.py --json</code> in the repo captures the same tree to a file so you can read it later, on a laptop with no board attached — which is
       how twenty people share one M2K.</p>
       <p>An attribute whose name ends <code>_available</code> is not a knob. It is the list of legal values for the knob whose name it shares, published by the hardware itself. The generated GRC dropdowns come from that list.</p>
     </div>
@@ -224,7 +329,7 @@
       millivolts and millidegrees keep useful resolution without floating point
       in the kernel. Twenty-four channel types have a fixed unit this way; the
       full table is in <code>docs/reading-iio-attributes.md</code>, generated from the
-      kernel's own ABI documentation by <code>iio_explain.py --glossary</code>.</p>
+      kernel's own ABI documentation by <code>iio-tools/iio_explain.py --glossary</code>.</p>
       <p><strong>The M2K is where this rule runs out.</strong> Its scope does not
       publish a usable <code>scale</code> — libm2k computes the conversion itself, and
       volts-per-count turns out to depend on the sample rate through the
@@ -257,7 +362,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       <p>The grammar is worth teaching because it makes an unfamiliar attribute
       readable without documentation. <code>in_temp0_calibbias</code> parses on sight:
       a calibration offset, in counts, on the device's first temperature channel.</p>
-      <p><code>iio_explain.py</code> does exactly this parse and then quotes the kernel's
+      <p><code>iio-tools/iio_explain.py</code> does exactly this parse and then quotes the kernel's
       own words for the <code>info</code> part — 826 documented attribute names, fetched
       from <code>Documentation/ABI/testing/sysfs-bus-iio</code> and cached in the repo so
       it works offline.</p>
@@ -300,7 +405,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       field wants a value that lives somewhere else — in <code>iio_info</code> output,
       in a driver, in a datasheet.</p>
       <p>There are two ways to close that gap. One is a discovery tool that shows
-      you the tree and hands you the field values: <code>iio_browse.py</code> in the
+      you the tree and hands you the field values: <code>iio-tools/iio_browse.py</code> in the
       repo does that, and it can generate a GRC block definition from a capture,
       dropdowns and all, because the legal values are in the capture already.</p>
       <p>The other is to stop asking the participant to think in IIO at all, and
@@ -313,7 +418,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 <section class="frame read-only" id="iio-meaning" data-section="IIO">
   <div class="wrap">
     <h2>Provenance Tags</h2>
-    <p>Reference. Every line <code>iio_explain.py</code> prints is tagged with its source,
+    <p>Reference. Every line <code>iio-tools/iio_explain.py</code> prints is tagged with its source,
     so fact, convention and guesswork stay distinguishable.</p>
     <div class="tablewrap"><table>
       <tr><th>tag</th><th>source</th><th>trust</th></tr>
@@ -324,7 +429,7 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
       <tr><td><code>[overlay: sourced]</code></td><td>traced to vendor source</td><td>good, not bench-checked</td></tr>
       <tr><td><code>[overlay: UNVERIFIED]</code></td><td>written from documentation</td><td><strong>do not teach as fact</strong></td></tr>
     </table></div>
-    <p><code>./iio_explain.py FILE --unknown</code> reports how much of a capture is
+    <p><code>./iio-tools/iio_explain.py FILE --unknown</code> reports how much of a capture is
     explained and by what. On the real M2K capture that is 57%: real hardware
     exposes a great deal the ABI never described, mostly logic-analyzer trigger
     attributes.</p>
@@ -2270,7 +2375,8 @@ pdu vector contents =
     <h2>Resources</h2>
     <div class="grid2">
       <div class="card"><h3>The repository</h3><p><a href="https://github.com/livethisdream/grcon26-workshop">github.com/livethisdream/grcon26-workshop</a></p></div>
-      <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio_explain.py --glossary</code></p></div>
+      <div class="card"><h3>Installing the blocks later</h3><p><code>install/README.md</code> — one script per platform, what each piece is for, and the address a Mac has to use</p></div>
+      <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio-tools/iio_explain.py --glossary</code></p></div>
       <div class="card"><h3>The block reference</h3><p><code>gr-m2k/README.md</code> — every parameter, and what it quietly becomes</p></div>
       <div class="card"><h3>The bench checklist</h3><p><code>docs/bench-checklist.md</code> — 16 sections, what passed and what it cost</p></div>
       <div class="card"><h3>The multi-pin sink note</h3><p><code>docs/gr-iio-multipin-sink.md</code> — why the digital sink had to be written</p></div>
