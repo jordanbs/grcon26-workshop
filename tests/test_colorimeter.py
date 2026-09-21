@@ -8,9 +8,8 @@ numbers stay plausible and quietly stop meaning anything.
 
 `bench/colorimeter.py` imports gnuradio, which the test interpreter does
 not have, so the constants and the generator are lifted out of it with
-`ast` the way `test_beacon.py` lifts constants out of the `.grc`. That
-is the point: these tests check the code that actually runs on the
-bench, not a copy of it.
+`ast`, rather than imported. That is the point: these tests check the
+code that actually runs on the bench, not a copy of it.
 """
 
 import ast

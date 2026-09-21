@@ -99,7 +99,7 @@ def test_sample_rates_are_the_ones_hardware_publishes():
     """
     import json
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(here, "fixtures", "m2k-real.json")) as handle:
+    with open(os.path.join(here, "iio-tools", "fixtures", "m2k-real.json")) as handle:
         capture = json.load(handle)
     adc = [d for d in capture["devices"] if d["name"] == "m2k-adc"][0]
     published = [a for a in adc["device_attrs"]
@@ -137,7 +137,7 @@ def test_dac_rates_are_the_ones_hardware_publishes():
     """And they are NOT the ADC's -- a 75 MS/s clock, not 100."""
     import json
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(here, "fixtures", "m2k-real.json")) as handle:
+    with open(os.path.join(here, "iio-tools", "fixtures", "m2k-real.json")) as handle:
         capture = json.load(handle)
     dac = [d for d in capture["devices"] if d["name"] == "m2k-dac-a"][0]
     published = [a for a in dac["device_attrs"]

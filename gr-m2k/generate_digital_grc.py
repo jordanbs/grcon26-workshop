@@ -355,8 +355,7 @@ documentation: |-
       cyclic buffer with the flowgraph stopped.
 
       This is also how you set a pin and leave it: a level here with the
-      flowgraph never started is a static output, which is what Scopy
-      calls Digital IO.
+      flowgraph never started is a static output and nothing else.
 
       "Leave as found" writes nothing, and the resting level is then
       whatever the last program to touch the board happened to set.

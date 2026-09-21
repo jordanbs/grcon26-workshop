@@ -1,0 +1,116 @@
+id: m2k_sync_framer
+label: Sync-to-Sync Framer
+category: '[ADALM2000]'
+flags: [python]
+
+parameters:
+-   id: tag_key
+    label: Tag key
+    dtype: string
+    default: sync
+
+-   id: sync_bits
+    label: Sync word (bits)
+    dtype: int
+    default: '32'
+
+-   id: min_bits
+    label: Shortest payload (bits)
+    dtype: int
+    default: '64'
+
+-   id: max_bits
+    label: Longest payload (bits)
+    dtype: int
+    default: '1024'
+
+-   id: preamble_byte
+    label: Preamble byte
+    dtype: int
+    default: '0xAA'
+
+inputs:
+-   label: bits
+    domain: stream
+    dtype: byte
+
+outputs:
+-   id: pdus
+    label: pdus
+    domain: message
+    optional: false
+
+asserts:
+- ${ sync_bits > 0 and sync_bits % 8 == 0 }
+- ${ min_bits > 0 and min_bits % 8 == 0 }
+- ${ max_bits > min_bits }
+- ${ -1 <= preamble_byte <= 255 }
+
+templates:
+    imports: from m2k_blocks.sync_framer import sync_framer
+    make: |-
+        sync_framer(
+            tag_key=${tag_key},
+            sync_bits=${sync_bits},
+            min_bits=${min_bits},
+            max_bits=${max_bits},
+            preamble_byte=${preamble_byte})
+
+documentation: |-
+    One PDU per sync-delimited payload. Put it downstream of Correlate
+    Access Code - Tag, on the same bit stream, with the tag key that
+    block writes.
+
+    Use this instead of Tagged Stream Align plus Keep M in N whenever
+    the transmitter stops and starts.
+
+    Keep M in N is handed an alignment once and from then on it counts:
+    every N items it keeps the first M, forever. That is exact while the
+    transmitter never stops, which is why a continuous loopback is
+    perfectly happy with it. A transmitter that bursts breaks it on the
+    second burst -- the counter keeps counting through the silence, the
+    silence is not a whole number of frames, and nothing downstream ever
+    re-aligns. The error is permanent, not transient, and it arrives as
+    bit-perfect garbage, which looks exactly like bad range.
+
+    This block throws the counter away. The correlator tags the first
+    bit after each sync marker, so the payload is whatever lies between
+    one tag and the next, less the sync word that closes it. Nothing
+    counts across the gap because nothing counts at all.
+
+    That buys a property the counter never had: **it never needs to know
+    how long the payload is.** One instance of this block decodes an
+    eight-byte frame and a thirty-two-byte frame in the same run,
+    without being reconfigured.
+
+    A transmitter using this must send a trailing sync word after its
+    last frame, or that frame has no closing delimiter and is dropped.
+
+    Shortest / Longest payload
+      Bounds, not a length. A span longer than the maximum is the gap
+      between two bursts; a span shorter than the minimum is the join
+      where one burst's trailing sync meets the next one's preamble.
+      Both are thrown away. Leave them wide -- their job is to reject
+      what is obviously not a frame, not to describe what is.
+
+    Preamble byte
+      A span ending in this byte crosses a burst boundary rather than
+      closing a frame. Set it to whatever the transmitter idles with.
+      **-1 turns the check off**, and 0 does not: a payload is allowed
+      to end in a zero byte, so treating 0 as "disabled" would be
+      indistinguishable from "reject anything ending in 0x00".
+
+    Tag key
+      Must match the Tag Name on the Correlate Access Code block.
+      `sync` on both by default.
+
+    Spans that are thrown away are tallied rather than logged -- at 200
+    baud the rejections are the normal shape of a bursty link, and a
+    line each would bury the frames. Read `.stats` from a Python
+    snippet if you want the counts.
+
+    This block does not touch the board. The framing itself is in
+    `m2k_blocks/sync_frames.py`, which imports nothing, so it is tested
+    in an ordinary interpreter with no GNU Radio present.
+
+file_format: 1

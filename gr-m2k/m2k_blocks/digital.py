@@ -28,8 +28,8 @@ wiring error you can see and one you have to go and look up.
 An output pin has two sources of truth. The stream drives it while the
 flowgraph runs; `raw` drives it the rest of the time, and the pin snaps
 back to `raw` the moment the flowgraph stops. The sink's idle level sets
-`raw`, which is both Scopy's Digital IO and the only way to say what the
-pins should do when nothing is playing.
+`raw`, which is the only way to say what the pins should do when nothing
+is playing.
 
 One port per pin, carrying one bit per sample in a short. That is
 gr-iio's model, not a choice made here: each DIO pin is its own IIO
@@ -250,7 +250,7 @@ class _packed_sink(gr.sync_block):
     The buffer is allocated in `start`, not here. A sink that is
     constructed and never started must not hold the DMA, because
     building a sink and leaving the flowgraph stopped is how you set a
-    static output level -- Scopy's Digital IO.
+    static output level.
 
     A cyclic buffer takes exactly one push; later pushes return -EBUSY.
     So we push once and then quietly consume the rest of the stream,

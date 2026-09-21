@@ -1,21 +1,29 @@
 [project]
-name = "grcon26-iio-tools"
+name = "grcon26-workshop"
 version = "0.1.0"
-description = "IIO discovery and semantics tooling for the GRCon26 GNU Radio + ADALM2000 workshop"
+description = "GNU Radio + ADALM2000 workshop material for GRCon26"
 readme = "README.md"
 requires-python = ">=3.9"
 
-# Deliberately empty. Both tools are standard library only, so a participant
-# can copy a single file onto a machine and run it. The one exception is the
-# libiio binding that iio_discover.py needs, and that cannot come from pip in
-# any reliable way -- see the note below.
+# Deliberately empty. This is the repository's test and tooling harness, not
+# a package anyone installs -- the thing participants install is gr-m2k/,
+# which has its own pyproject.toml. Everything in iio-tools/ is standard
+# library only, so a participant can copy a single file onto a machine and
+# run it. The one exception is the libiio binding that iio_discover.py
+# needs, and that cannot come from pip in any reliable way -- see the note
+# below.
 dependencies = []
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pillow>=11.3.0",
+    "pytest>=8",
+    "segno>=1.6.6",
+    "zxing-cpp>=3.1.1",
+]
 
 [tool.uv]
-# Scripts in the repo root, not an installable package.
+# Scripts in iio-tools/ and slides/, not an installable package.
 package = false
 
 [tool.pytest.ini_options]
@@ -25,7 +33,7 @@ addopts = "-q"
 # ---------------------------------------------------------------------------
 # About libiio
 #
-# `iio_discover.py` imports `iio`, the libiio Python binding. It is not listed
+# `iio-tools/iio_discover.py` imports `iio`, the libiio Python binding. It is not listed
 # as a dependency on purpose:
 #
 #   * The binding is a wrapper around a native library. Installing the Python
@@ -41,10 +49,10 @@ addopts = "-q"
 #
 #     uv venv --system-site-packages
 #     uv sync
-#     uv run ./iio_discover.py --scan
+#     uv run ./iio-tools/iio_discover.py --scan
 #
 # Or skip the venv for that one script and run it with system python, which is
 # what its shebang does:
 #
-#     ./iio_discover.py --scan
+#     ./iio-tools/iio_discover.py --scan
 # ---------------------------------------------------------------------------

@@ -29,10 +29,10 @@ and a frame does not care where that lands. Everything a byte in
 progress needs -- the last clock level, whether CS is asserted, the
 bits so far -- lives on the instance rather than in the loop.
 
-`as_text` is the one thing in here that is not decoding. Scopy shows a
-character column beside the hex and it earns its place: what proves a
-loopback worked is seeing the word you typed come back out, not doing
-the ASCII lookup in your head.
+`as_text` is the one thing in here that is not decoding. A character
+column beside the hex is there for one reason: what proves a loopback
+worked is seeing the word you typed come back out, not doing the ASCII
+lookup in your head.
 """
 
 

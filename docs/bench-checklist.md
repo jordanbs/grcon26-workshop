@@ -87,8 +87,8 @@ needs a live context to construct, so none of these writes had ever
 executed.
 
 ```
-./iio_discover.py --uri ip:192.168.2.1 --device m2k-fabric
-./iio_discover.py --uri ip:192.168.2.1 --device m2k-adc-trigger
+./iio-tools/iio_discover.py --uri ip:192.168.2.1 --device m2k-fabric
+./iio-tools/iio_discover.py --uri ip:192.168.2.1 --device m2k-adc-trigger
 ```
 
 - [x] `m2k-fabric` `gain` matches the input range the block was set to
@@ -942,16 +942,16 @@ crosstalk cannot fake. Run that one first.
 
 ## 16. Promote what passes
 
-Each entry in `iio_overlays.py` carries a `check` field describing how to
+Each entry in `iio-tools/iio_overlays.py` carries a `check` field describing how to
 confirm it. 58 of 74 are still `UNVERIFIED`. As they check out, change
-`confidence` to `MEASURED`, and `./iio_explain.py fixtures/m2k-real.json
+`confidence` to `MEASURED`, and `./iio-tools/iio_explain.py iio-tools/fixtures/m2k-real.json
 --unknown` will show the count moving.
 
 Worth re-capturing at the end, so the fixture reflects a board whose
 settings you understand:
 
 ```
-./iio_discover.py --uri ip:192.168.2.1 --json > fixtures/m2k-real.json
+./iio-tools/iio_discover.py --uri ip:192.168.2.1 --json > iio-tools/fixtures/m2k-real.json
 ```
 
 ---
