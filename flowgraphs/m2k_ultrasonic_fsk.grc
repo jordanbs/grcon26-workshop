@@ -15,7 +15,7 @@ options:
 
       10 dB and shows up as a bad demodulator rather than a bad frequency.
 
-      bench/ultrasonic_sweep.py is what f0 came from.
+      We swept the pair on the bench, and that is what f0 came from.
 
 
       Transmit is 750 kS/s and receive is 1 MS/s, and they are not the same

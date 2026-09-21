@@ -453,9 +453,9 @@ The same bit is 3750 samples going out and 25 coming back.
 `f0 = 40755.0`. The part says 40 kHz; this pair resonates 755 Hz above it
 with a −6 dB width of only 1023 Hz, so driving 40.0 kHz throws away about
 10 dB. It does not look like a frequency problem when it happens — it looks
-like a demodulator that will not lock. `bench/ultrasonic_sweep.py` is where
-that number came from, and it is the first thing to re-run on a different
-pair or a different spacing.
+like a demodulator that will not lock. We swept the pair on the bench to get
+that number, and it is the first thing to re-measure on a different pair or a
+different spacing.
 
 Mark and space sit at f0 ± 300. At 200 baud with 600 Hz spacing, Carson's
 rule puts the occupied bandwidth near 1000 Hz, which fits inside 1023 Hz
