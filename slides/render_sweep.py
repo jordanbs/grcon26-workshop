@@ -4,7 +4,7 @@
 The ultrasonic section rests on one claim -- that a "40 kHz" pair does not
 resonate at 40 kHz -- and a claim like that wants the measurement on the
 slide, not a number in a sentence. These figures are plotted straight out of
-the CSVs `bench/ultrasonic_sweep.py` wrote on 2026-09-09. Re-sweep and
+the CSVs the bench sweep wrote on 2026-09-09. Re-sweep and
 re-run, and the picture moves with the bench.
 
     ./slides/render_sweep.py        # into slides/img/
@@ -116,7 +116,7 @@ def peak(freqs, amps):
 def edge(freqs, amps, step):
     """Where the response crosses -6 dB, walking out from the peak.
 
-    The same interpolation `bench/ultrasonic_sweep.py` prints, repeated here
+    The same interpolation the bench sweep printed, repeated here
     so the figure and the bench agree by construction rather than by my
     having copied a number across.
     """

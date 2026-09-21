@@ -71,7 +71,7 @@ URI = "ip:192.168.2.1"
 TX_RATE, RX_RATE = 750000, 1000000
 RANGE = "high"
 
-# Measured 2026-09-09, not the 40 kHz on the part. bench/ultrasonic_sweep.py.
+# Measured on the bench 2026-09-09, not the 40 kHz on the part.
 F0 = 40755.0
 SPACING = 600.0                      # mark minus space, the ECE448 convention
 FSPACE, FMARK = F0 - SPACING / 2.0, F0 + SPACING / 2.0

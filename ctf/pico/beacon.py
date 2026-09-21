@@ -35,7 +35,7 @@ PREAMBLE = (0xAA,) * 4
 BAUD = 200
 
 # The measured resonance and the deviation either side of it. Both come
-# off bench/ultrasonic_sweep.py on 2026-09-09, not off the datasheet.
+# off the bench sweep of 2026-09-09, not off the datasheet.
 F0 = 40755.0
 SPACING = 600.0
 FSPACE = F0 - SPACING / 2.0
