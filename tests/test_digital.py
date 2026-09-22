@@ -460,6 +460,106 @@ print(json.dumps(feed(s, [[1, 0, 0, 1, 1, 1]])))
     assert pushes == [[1, 0], [0, 1], [1, 1]]
 
 
+# ------------------------------------------------------------ unpacking
+
+# The source is gr-iio's device_source everywhere except USB, where one
+# interface is one context and the sink is already holding it. These
+# cover the hand-rolled path that USB therefore takes.
+
+UNPACK_PRELUDE = '''
+import json, sys
+import numpy
+sys.path.insert(0, sys.argv[1])
+from m2k_blocks.digital import pack_word, pin_shift, _packed_source
+
+class FakeBuffer(object):
+    """Hands back a fixed buffer, so no board is involved."""
+
+    def __init__(self, words):
+        self.words = numpy.array(words, dtype=numpy.uint16)
+
+    def refill(self):
+        pass
+
+    def read(self):
+        return self.words.tobytes()
+
+    def cancel(self):
+        pass
+
+def source(pins, words):
+    s = _packed_source("ip:none", pins, len(words))
+    s._buffer = FakeBuffer(words)
+    s._staged = numpy.empty(0, dtype=numpy.uint16)
+    return s
+
+def drain(s, n, nports):
+    """One work() call asking for `n` samples per port."""
+    out = [numpy.zeros(n, dtype=numpy.int16) for _ in range(nports)]
+    got = s.work([], out)
+    return [[int(v) for v in o[:got]] for o in out]
+'''
+
+
+def unpacked(repo_root, body):
+    """Evaluate an unpacking snippet in the gnuradio interpreter."""
+    out = run_in_gr(UNPACK_PRELUDE + body,
+                    os.path.join(repo_root, "gr-m2k"))
+    return json.loads(out)
+
+
+@needs_gnuradio
+def test_the_bit_read_is_the_pin_not_the_port(repo_root):
+    """A source starting at DIO4 takes its first port from bit 4."""
+    ports = unpacked(repo_root, '''
+s = source(["voltage4", "voltage5"], [1 << 4, 1 << 5, (1 << 4) | (1 << 5), 0])
+print(json.dumps(drain(s, 4, 2)))
+''')
+    assert ports == [[1, 0, 1, 0], [0, 1, 1, 0]]
+
+
+@needs_gnuradio
+def test_unpacking_is_the_packing_backwards(repo_root):
+    """Source and sink must agree, or the loopback flowgraphs lie."""
+    same = unpacked(repo_root, '''
+pins = ["voltage2", "voltage3", "voltage7"]
+shifts = [pin_shift(p) for p in pins]
+rows = [[1, 0, 1], [0, 0, 0], [1, 1, 1], [0, 1, 0]]
+words = [pack_word(r, shifts) for r in rows]
+ports = drain(source(pins, words), len(rows), len(pins))
+print(json.dumps([list(row) for row in zip(*ports)] == rows))
+''')
+    assert same is True
+
+
+@needs_gnuradio
+def test_a_buffer_is_drained_across_several_calls(repo_root):
+    """The DMA hands over whole buffers; the scheduler asks for what fits.
+
+    The remainder has to wait in order. Losing it here would drop
+    samples silently, which on a decoded bus looks like corruption
+    rather than like a bug in this block.
+    """
+    parts = unpacked(repo_root, '''
+s = source(["voltage0"], [1, 0, 1, 1, 0, 1])
+print(json.dumps([drain(s, 2, 1)[0] for _ in range(3)]))
+''')
+    assert parts == [[1, 0], [1, 1], [0, 1]]
+
+
+@needs_gnuradio
+def test_the_pins_we_do_not_read_stay_out_of_the_answer(repo_root):
+    """One word carries all sixteen pins, and unwired ones float high.
+
+    Masking is the only thing keeping that noise out of a port.
+    """
+    ports = unpacked(repo_root, '''
+s = source(["voltage0"], [0xAE38, 0xAE39])
+print(json.dumps(drain(s, 2, 1)))
+''')
+    assert ports == [[0, 1]]
+
+
 # ------------------------------------------------------------ generated
 
 # Sixteen pins and sixteen names, twice over, is six hundred lines of

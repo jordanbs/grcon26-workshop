@@ -45,7 +45,11 @@ survives. The sink here packs the word itself and writes raw bytes.
 
 The source has no such problem -- reading a shared word and handing out
 one bit per port is exactly what libiio's demux does correctly -- so
-`digital_source` is plain gr-iio.
+`digital_source` is plain gr-iio, except over USB. There one interface
+is one context, the sink is already holding it for its own Buffer, and
+gr-iio opening a second one is the claim that fails. `usb:` therefore
+gets `_packed_source`, which unpacks the same word by hand. See
+`m2k_config.release`.
 """
 
 import numpy
@@ -53,8 +57,8 @@ import numpy
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import (context, release, write_channel_attr,
-                         write_device_attr, write_now)
+from .m2k_config import (context, release, usb_backend,
+                         write_channel_attr, write_device_attr, write_now)
 
 DEV_CONFIG = "m2k-logic-analyzer"
 DEV_RX = "m2k-logic-analyzer-rx"
@@ -329,6 +333,105 @@ class _packed_sink(gr.sync_block):
         return count
 
 
+class _packed_source(gr.sync_block):
+    """The DIO input stream, read by hand rather than by gr-iio.
+
+    Unlike `_packed_sink`, this block is not here to work around a bug.
+    gr-iio's device_source reads these pins correctly. It is here
+    because of what device_source costs over USB.
+
+    A libusb interface can be claimed by exactly one context, and
+    `usb:0.5.5` is one interface. The digital sink streams through
+    pylibiio's Buffer -- it has no choice, device_sink cannot drive more
+    than one pin -- so on USB the pylibiio context is the one carrying
+    samples. A device_source alongside it is gr-iio opening a SECOND
+    context on that same interface, and the second claim loses with
+    `Permission denied (13)`. A flowgraph holding both blocks cannot
+    start, in either construction order: build the source first and the
+    sink's `direction=out` writes fail, build the sink first and
+    device_source fails outright.
+
+    So over USB the source reads the buffer itself, through the context
+    the sink already holds. The network backend multiplexes contexts
+    happily and keeps using device_source, which has far more bench time
+    on it. See `m2k_config.release`.
+
+    The unpacking is the sink's packing backwards: one 16-bit word per
+    sample, one bit per pin, at a shift equal to the pin number.
+    """
+
+    def __init__(self, uri, pins, buffer_size):
+        gr.sync_block.__init__(
+            self, name="m2k_digital_packed_source",
+            in_sig=[], out_sig=[numpy.int16] * len(pins))
+        self.uri = uri
+        self.pins = list(pins)
+        self.shifts = [pin_shift(pin) for pin in self.pins]
+        self.buffer_size = int(buffer_size)
+        self._buffer = None
+        self._staged = None
+
+    def start(self):
+        """Claim the pins we read and allocate the DMA buffer.
+
+        Every other channel is disabled for the same reason the sink
+        disables them: there is one shared word, and a channel left
+        enabled by whatever ran last is one more bit inside it.
+        """
+        import iio as pyiio
+
+        device = context(self.uri).find_device(DEV_RX)
+        if device is None:
+            raise RuntimeError("no %s at %s" % (DEV_RX, self.uri))
+        wanted = set(self.pins)
+        for channel in device.channels:
+            channel.enabled = channel.id in wanted
+
+        self._buffer = pyiio.Buffer(device, self.buffer_size, False)
+        self._staged = numpy.empty(0, dtype=numpy.uint16)
+        return True
+
+    def stop(self):
+        """Cancel the refill, then drop the buffer.
+
+        `refill` blocks until the buffer fills, and an armed trigger that
+        never fires means never. Dropping the reference does not get a
+        thread out of that wait -- `cancel` does, and without this call
+        stopping the flowgraph hangs instead of stopping. The sink gets
+        away with a bare drop because `push` does not block.
+        """
+        if self._buffer is not None:
+            self._buffer.cancel()
+        self._buffer = None
+        self._staged = None
+        return True
+
+    def work(self, input_items, output_items):
+        if self._buffer is None:
+            return -1
+
+        if self._staged is None or len(self._staged) == 0:
+            try:
+                self._buffer.refill()
+            except OSError:
+                # A cancelled refill is how stop() gets us out of the
+                # wait above, not a failure worth raising at the
+                # scheduler. Either way there are no more samples.
+                return -1
+            self._staged = numpy.frombuffer(
+                self._buffer.read(), dtype=numpy.uint16).copy()
+
+        # The DMA hands over whole buffers and the scheduler asks for
+        # whatever it has room for. The remainder waits here.
+        take = min(len(output_items[0]), len(self._staged))
+        words = self._staged[:take]
+        for port, shift in enumerate(self.shifts):
+            output_items[port][:take] = ((words >> shift) & 1).astype(
+                numpy.int16)
+        self._staged = self._staged[take:]
+        return take
+
+
 class digital_source(_digital):
     """Read the DIO pins. One output port per pin, in the order listed."""
 
@@ -339,14 +442,25 @@ class digital_source(_digital):
         _digital.__init__(self, "m2k_digital_source", uri, pins,
                           sample_rate, buffer_size, "in", names)
         self._apply_trigger(uri, trigger_pin, trigger_condition, trigger_delay)
-        # Configuration first, then the streaming block -- on USB these
-        # two cannot both hold the interface, and the samples win. See
-        # m2k_config.release. The digital SINK is the exception: its data
-        # path is pylibiio's Buffer, so it keeps the context it has.
-        release(uri)
-        self.source = iio.device_source(
-            uri, DEV_RX, self.pins, DEV_RX, self.params, self.buffer_size, 0)
-        self.source.set_len_tag_key("packet_len")
+        if usb_backend(uri):
+            # One interface, one context, and the sink already holds it.
+            # See _packed_source for why gr-iio cannot be the one reading
+            # here. The rate rode into device_source as `params`; with
+            # that block gone it has to be written like any other
+            # attribute, or the capture runs at whatever rate was left
+            # over and says nothing.
+            self._write_device(uri, DEV_RX, "sampling_frequency",
+                               int(sample_rate))
+            self.source = _packed_source(uri, self.pins, self.buffer_size)
+        else:
+            # Configuration first, then the streaming block -- these two
+            # cannot both hold the interface, and the samples win. See
+            # m2k_config.release.
+            release(uri)
+            self.source = iio.device_source(
+                uri, DEV_RX, self.pins, DEV_RX, self.params,
+                self.buffer_size, 0)
+            self.source.set_len_tag_key("packet_len")
         for index in range(len(self.pins)):
             self.connect((self.source, index), (self, index))
 
