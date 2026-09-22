@@ -53,8 +53,8 @@ import numpy
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import (context, write_channel_attr, write_device_attr,
-                         write_now)
+from .m2k_config import (context, release, write_channel_attr,
+                         write_device_attr, write_now)
 
 DEV_CONFIG = "m2k-logic-analyzer"
 DEV_RX = "m2k-logic-analyzer-rx"
@@ -339,6 +339,11 @@ class digital_source(_digital):
         _digital.__init__(self, "m2k_digital_source", uri, pins,
                           sample_rate, buffer_size, "in", names)
         self._apply_trigger(uri, trigger_pin, trigger_condition, trigger_delay)
+        # Configuration first, then the streaming block -- on USB these
+        # two cannot both hold the interface, and the samples win. See
+        # m2k_config.release. The digital SINK is the exception: its data
+        # path is pylibiio's Buffer, so it keeps the context it has.
+        release(uri)
         self.source = iio.device_source(
             uri, DEV_RX, self.pins, DEV_RX, self.params, self.buffer_size, 0)
         self.source.set_len_tag_key("packet_len")

@@ -21,7 +21,7 @@ from gnuradio import blocks
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import write_channel_attr
+from .m2k_config import release, write_channel_attr
 from .m2k_scale import (DAC_FULL_SCALE_V, DAC_SAMPLE_RATES,
                         check_dac_sample_rate, dac_filter_compensation,
                         volts_to_dac_raw)
@@ -53,16 +53,21 @@ class analog_sink(gr.hier_block2):
             gr.io_signature(0, 0, 0))
 
         device = OUTPUT_DEVICE[output]
-        self.sink = iio.device_sink(
-            uri, device, ["voltage0"], device,
-            ["sampling_frequency=%d" % check_dac_sample_rate(sample_rate)],
-            buffer_size, 0, bool(cyclic))
 
         self._config = []
         # The output stage is powered down until something says otherwise,
         # and 0 means on -- the sense is inverted, per the IIO ABI.
         write_channel_attr(self, self._config, uri, DEV_FABRIC,
                            FABRIC_OUTPUT[output], "powerdown", 0, output=True)
+
+        # Configuration first, then the streaming block -- on USB these
+        # two cannot both hold the interface, and the samples win. See
+        # m2k_config.release.
+        release(uri)
+        self.sink = iio.device_sink(
+            uri, device, ["voltage0"], device,
+            ["sampling_frequency=%d" % check_dac_sample_rate(sample_rate)],
+            buffer_size, 0, bool(cyclic))
 
         if as_volts:
             # Volts in, counts out, with libm2k's conversion including its

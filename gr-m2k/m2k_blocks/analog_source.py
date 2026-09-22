@@ -23,7 +23,7 @@ from gnuradio import blocks
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import write_channel_attr
+from .m2k_config import release, write_channel_attr
 from .m2k_scale import (RANGE_VOLTS, SAMPLE_RATES, check_sample_rate,
                         volts_per_count, volts_to_raw)
 
@@ -85,16 +85,20 @@ class analog_source(gr.hier_block2):
         # device itself, so it can ride along in params. Written as
         # sampling_frequency, which is what the ADC publishes a list of
         # legal values for.
+        self._config = []
+        self._apply_ranges(uri, ch1_enabled, ch2_enabled, ch1_range, ch2_range)
+        self._apply_trigger(uri, trigger_source, trigger_edge, trigger_level,
+                            ch1_range, ch2_range, sample_rate)
+
+        # Configuration first, then the streaming block -- on USB these
+        # two cannot both hold the interface, and the samples win. See
+        # m2k_config.release.
+        release(uri)
         self.source = iio.device_source(
             uri, DEV_ADC, ADC_CHANNELS, DEV_ADC,
             ["sampling_frequency=%d" % check_sample_rate(sample_rate)],
             buffer_size, 0)
         self.source.set_len_tag_key("packet_len")
-
-        self._config = []
-        self._apply_ranges(uri, ch1_enabled, ch2_enabled, ch1_range, ch2_range)
-        self._apply_trigger(uri, trigger_source, trigger_edge, trigger_level,
-                            ch1_range, ch2_range, sample_rate)
 
         for index, (port, range_name) in enumerate(zip(ports, ranges)):
             if as_volts:

@@ -56,6 +56,38 @@ CONFIG_INTERVAL_MS = 1000
 _CONTEXTS = {}
 
 
+def usb_backend(uri):
+    """Whether this URI reaches the board over raw USB rather than the net.
+
+    It decides who is allowed to hold a context, which on USB is a
+    question with one answer -- see `release` below.
+    """
+    return str(uri).startswith("usb:")
+
+
+def release(uri):
+    """Drop our libiio context so something else can claim the interface.
+
+    Only the USB backend cares, and it cares absolutely. A libusb
+    interface can be claimed by exactly one context at a time, and
+    `usb:0.5.5` is one interface: the pylibiio context this module keeps
+    and the context gr-iio opens behind its own blocks are two claims on
+    it, and the second one loses with `Unable to claim interface ...
+    Permission denied (13)`. The network backend multiplexes contexts
+    happily, which is why this was invisible until the first board was
+    driven over USB.
+
+    So on USB the rule is that whichever library carries the SAMPLES
+    owns the context, and everything else gets out of its way. A block
+    whose data path is gr-iio's device_source or device_sink calls this
+    after its direct writes and before building that block. The digital
+    sink does not call it, because its data path is pylibiio's Buffer
+    and the context it needs is this one.
+    """
+    if usb_backend(uri):
+        _CONTEXTS.pop(uri, None)
+
+
 def context(uri):
     """A libiio context for this URI, opened once and reused.
 
@@ -125,6 +157,15 @@ def write_channel_attr(block, keep, uri, device, channel, attr, value,
     go loses them to garbage collection and the write silently stops
     happening.
     """
+    if usb_backend(uri):
+        # No keep-alive on USB: the pair would open a second context on
+        # an interface that only has room for one. The direct write is
+        # the whole configuration here, which is stricter than the
+        # network path rather than looser -- it lands before start(),
+        # with no first-second window at all.
+        write_now(uri, device, channel, attr, value, output, ATTR_CHANNEL,
+                  keepalive=False)
+        return None
     write_now(uri, device, channel, attr, value, output, ATTR_CHANNEL)
     updater = iio.attr_updater(attr, str(value), CONFIG_INTERVAL_MS)
     sink = iio.attr_sink(uri, device, channel, ATTR_CHANNEL, output)
@@ -135,6 +176,10 @@ def write_channel_attr(block, keep, uri, device, channel, attr, value,
 
 def write_device_attr(block, keep, uri, device, attr, value):
     """Set one device-level attribute on any device."""
+    if usb_backend(uri):                      # see write_channel_attr
+        write_now(uri, device, "", attr, value, False, ATTR_DEVICE,
+                  keepalive=False)
+        return None
     write_now(uri, device, "", attr, value, False, ATTR_DEVICE)
     updater = iio.attr_updater(attr, str(value), CONFIG_INTERVAL_MS)
     sink = iio.attr_sink(uri, device, "", ATTR_DEVICE, False)
