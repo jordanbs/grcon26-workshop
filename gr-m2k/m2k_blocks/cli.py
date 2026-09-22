@@ -6,7 +6,7 @@ exactly two write anything:
     m2k-blocks path        print the installed grc directory
     m2k-blocks check       say whether GRC will find the blocks, and why not
     m2k-blocks scan        find the board and print the URI to paste
-    m2k-blocks install     add that directory to ~/.gnuradio/config.conf
+    m2k-blocks install     add that directory to GNU Radio's config.conf
     m2k-blocks uninstall   take it back out
 
 Also spelled `python -m m2k_blocks <command>`, which is what the setup
@@ -63,7 +63,18 @@ def definitions():
 
 
 def config_path():
-    return os.path.expanduser(CONFIG)
+    """The config.conf GNU Radio's prefs actually read.
+
+    Not always ~/.gnuradio: radioconda on Windows reads
+    %APPDATA%\\.config\\gnuradio, and a key written anywhere else is
+    silently ignored. Ask GNU Radio, and fall back only when it will not
+    import -- `install` still has to work on that machine.
+    """
+    try:
+        from gnuradio import gr
+        return os.path.join(gr.userconf_path(), "config.conf")
+    except Exception:
+        return os.path.expanduser(CONFIG)
 
 
 def _entries(parser):
@@ -91,7 +102,7 @@ def cmd_path(argv):
 
 
 def cmd_install(argv):
-    """Put the grc directory in ~/.gnuradio/config.conf, for every terminal."""
+    """Put the grc directory in GNU Radio's config.conf, for every terminal."""
     target, path = grc_dir(), config_path()
     parser = configparser.ConfigParser()
     existed = os.path.exists(path)
@@ -153,12 +164,24 @@ def cmd_check(argv):
     try:
         from gnuradio import gr
         from gnuradio.grc.core.Config import Config
-        paths = Config(version="3.10", prefs=gr.prefs()).block_paths
     except Exception as problem:
         print("GNU Radio     not importable from this interpreter: %s" % problem)
         print("              If gnuradio-companion runs, it is using a "
               "different Python than this one, and that is the bug: install "
               "into that one.")
+        return 1
+
+    # 3.10.12 made install_prefix a required argument; earlier 3.10s do not
+    # take it at all. GRC's own main.py passes gr.prefix().
+    import inspect
+    kwargs = {"version": "3.10", "prefs": gr.prefs()}
+    if "install_prefix" in inspect.signature(Config.__init__).parameters:
+        kwargs["install_prefix"] = gr.prefix()
+    try:
+        paths = Config(**kwargs).block_paths
+    except Exception as problem:
+        print("GNU Radio     imports, but GRC's block path could not be read: "
+              "%s" % problem)
         return 1
 
     mine = os.path.realpath(grc_dir())

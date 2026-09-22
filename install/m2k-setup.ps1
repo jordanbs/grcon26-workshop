@@ -66,13 +66,19 @@ function Ask($question) {
     return $reply -match '^(y|yes)$'
 }
 
+# Both of these expect the import to fail sometimes. Windows PowerShell 5.1
+# turns redirected native stderr into error records, and under the
+# script-wide 'Stop' the first traceback would end the script instead of
+# returning false -- so each relaxes it for its own scope.
 function ImportsGnuRadio($exe) {
     if (-not $exe) { return $false }
+    $ErrorActionPreference = 'Continue'
     & $exe -c 'import gnuradio' 2>$null | Out-Null
     return ($LASTEXITCODE -eq 0)
 }
 
 function CanImport($module) {
+    $ErrorActionPreference = 'Continue'
     & $PyExe -c "import $module" 2>$null | Out-Null
     return ($LASTEXITCODE -eq 0)
 }
@@ -126,7 +132,9 @@ if ($Python) {
     Say "using $PyExe"
 }
 
-$pyv = & $PyExe -c 'import sys; print("%d.%d" % sys.version_info[:2])'
+# No quotes inside the Python: 5.1 strips embedded double quotes from
+# arguments to native programs.
+$pyv = & $PyExe -c 'import platform; print(platform.python_version())'
 Say "Python $pyv"
 
 function PipInstall($what) {

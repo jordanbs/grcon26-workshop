@@ -141,6 +141,10 @@ def test_install_and_uninstall_leave_the_config_as_they_found_it(tmp_path):
     conf.write_text("[grc]\nlocal_blocks_path = /someone/elses\n")
     before = os.environ.get("HOME")
     os.environ["HOME"] = str(home)
+    # With GNU Radio importable, config_path() asks it, and it will not
+    # consult HOME on every platform.
+    real_config_path = module.config_path
+    module.config_path = lambda: str(conf)
     try:
         assert module.cmd_install([]) == 0
         text = conf.read_text()
@@ -153,6 +157,7 @@ def test_install_and_uninstall_leave_the_config_as_they_found_it(tmp_path):
         assert module.grc_dir() not in text
         assert "/someone/elses" in text, "took someone else's path with it"
     finally:
+        module.config_path = real_config_path
         if before is None:
             del os.environ["HOME"]
         else:

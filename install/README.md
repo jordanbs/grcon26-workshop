@@ -37,7 +37,7 @@ USB permissions alone.
 | **gr-iio** | the GNU Radio IIO blocks, `from gnuradio import iio` | ships with GNU Radio — not pip |
 | **pylibiio** | the binding round the C library, `import iio` | `python3-libiio`, brew, or pip |
 | **gr-m2k** | this workshop's blocks | pip, from this repository |
-| **block path** | the line in `~/.gnuradio/config.conf` that makes GRC look | `m2k-blocks install` |
+| **block path** | the line in GNU Radio's `config.conf` that makes GRC look (`%APPDATA%\.config\gnuradio\` on Windows) | `m2k-blocks install` |
 | **USB access** | permission, or a driver | per platform, below |
 
 **The two `iio`s are different things and you need both.** `from gnuradio

@@ -64,9 +64,12 @@ pip install "git+https://github.com/livethisdream/grcon26-workshop#subdirectory=
 m2k-blocks install
 ```
 
-`m2k-blocks install` adds the installed block directory to
-`~/.gnuradio/config.conf` under `[grc] local_blocks_path`, which is GNU
-Radio's own supported place for out-of-tree blocks. It appends rather than
+`m2k-blocks install` adds the installed block directory to GNU Radio's
+`config.conf` under `[grc] local_blocks_path`, which is GNU Radio's own
+supported place for out-of-tree blocks. Which `config.conf` is GNU Radio's
+answer, not ours: `~/.gnuradio/` on most Linux installs, but
+`%APPDATA%\.config\gnuradio\` under radioconda on Windows. The command asks
+GNU Radio and prints the file it wrote. It appends rather than
 replaces, keeps a `.bak` if the file already existed, and `m2k-blocks
 uninstall` takes it back out. Restart gnuradio-companion afterwards -- a
 running one will not pick up a directory it did not have at launch.
@@ -108,7 +111,7 @@ order, dropping the ones that do not exist:
 | --- | --- |
 | `~/.grc_gnuradio` | always first |
 | `GRC_BLOCKS_PATH` | the environment, what `env.sh` sets |
-| `[grc] local_blocks_path` | `~/.gnuradio/config.conf`, what `m2k-blocks install` writes |
+| `[grc] local_blocks_path` | `config.conf` in `gr.userconf_path()`, what `m2k-blocks install` writes |
 | `[grc] global_blocks_path` | `/etc/gnuradio/conf.d/grc.conf`, the system blocks |
 
 It **prepends**; it does not replace. Do not put block paths in
