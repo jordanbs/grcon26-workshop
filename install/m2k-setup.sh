@@ -12,10 +12,14 @@
 #   1. works out which Python gnuradio-companion actually runs on
 #   2. checks gr-iio (`from gnuradio import iio`) in that interpreter
 #   3. installs pylibiio (`import iio`) there if it is missing
-#   4. installs gr-m2k there from GitHub
+#   4. installs gr-m2k there -- the wheel beside this script, else GitHub
 #   5. registers the block directory with GRC, and verifies it
 #   6. checks the USB permissions / driver situation for this platform
 #   7. looks for the board and prints the address to paste into a block
+#
+# Run from the install folder of the downloaded repository, steps 4 and 6
+# use the files that ship beside it and need no internet. Run on its own,
+# it downloads what it needs.
 #
 # Nothing here installs a kernel driver or a udev rule without asking
 # first. Pass --yes to answer yes to all of it, which is what an
@@ -24,8 +28,17 @@
 set -euo pipefail
 
 REPO="https://github.com/livethisdream/grcon26-workshop"
-PKG="git+${REPO}#subdirectory=gr-m2k"
+# GitHub's zip of main rather than git+https: pip unpacks an archive itself,
+# so this works without git -- which on a Mac without the Xcode tools is a
+# stub that opens an installer dialog.
+PKG="gr-m2k @ ${REPO}/archive/refs/heads/main.zip#subdirectory=gr-m2k"
 UDEV_URL="https://raw.githubusercontent.com/analogdevicesinc/m2k-fw/master/scripts/53-adi-m2k-usb.rules"
+
+# What ships beside this script in install/. Either may be missing, when
+# the script was downloaded on its own; each step falls back to the network.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+WHEEL="$(ls "$HERE"/gr_m2k-*.whl 2>/dev/null | sort | tail -n 1 || true)"
+UDEV_LOCAL="$HERE/53-adi-m2k-usb.rules"
 UDEV_DEST="/etc/udev/rules.d/53-adi-m2k-usb.rules"
 DRIVERS_MAC="https://github.com/analogdevicesinc/libiio/releases"
 
@@ -183,7 +196,9 @@ esac
 # the reason it stopped, having said out loud that we are doing it.
 # ---------------------------------------------------------------------------
 pip_install() {
+    # pip_install WHAT [EXTRA PIP FLAGS...]
     local what="$1" log
+    shift
     log="$(mktemp)"
     # Into an environment we own, install straight into it. `--user` there
     # is not merely unnecessary, pip rejects it.
@@ -192,7 +207,7 @@ pip_install() {
         conda|venv|writable) user_flag="" ;;
     esac
     # shellcheck disable=SC2086 # user_flag is one optional flag, not a list
-    if "$PYTHON" -m pip install $user_flag --upgrade "$what" >"$log" 2>&1; then
+    if "$PYTHON" -m pip install $user_flag --upgrade "$@" "$what" >"$log" 2>&1; then
         rm -f "$log"; return 0
     fi
     if grep -q 'externally-managed-environment' "$log"; then
@@ -203,7 +218,7 @@ pip_install() {
         say "manager owns."
         if ask "go ahead?"; then
             if "$PYTHON" -m pip install --user --break-system-packages \
-                    --upgrade "$what" >"$log" 2>&1; then
+                    --upgrade "$@" "$what" >"$log" 2>&1; then
                 rm -f "$log"; return 0
             fi
         else
@@ -292,8 +307,17 @@ fi
 # 4. The blocks
 # ---------------------------------------------------------------------------
 step "Installing gr-m2k"
-say "from $REPO"
-pip_install "$PKG" || die "could not install gr-m2k"
+# --force-reinstall because the version number does not move between
+# workshop fixes: without it, pip sees 0.1.0 already there and keeps the
+# old code. --no-deps because there are none, and so nothing is fetched.
+if [ -n "$WHEEL" ]; then
+    say "from $(basename "$WHEEL"), beside this script"
+    SOURCE="$WHEEL"
+else
+    say "from $REPO"
+    SOURCE="$PKG"
+fi
+pip_install "$SOURCE" --force-reinstall --no-deps || die "could not install gr-m2k"
 say "installed"
 
 # ---------------------------------------------------------------------------
@@ -330,8 +354,15 @@ elif [ "$OS" = linux ]; then
         say "permission, so that libiio can open the board without root."
         if ask "install ADI's udev rule to $UDEV_DEST ?"; then
             tmp="$(mktemp)"
-            if curl -fsSL "$UDEV_URL" -o "$tmp"; then
-                sudo install -m 0644 "$tmp" "$UDEV_DEST"
+            rule=""
+            if [ -f "$UDEV_LOCAL" ]; then
+                say "using the copy beside this script"
+                rule="$UDEV_LOCAL"
+            elif curl -fsSL "$UDEV_URL" -o "$tmp"; then
+                rule="$tmp"
+            fi
+            if [ -n "$rule" ]; then
+                sudo install -m 0644 "$rule" "$UDEV_DEST"
                 sudo udevadm control --reload-rules || true
                 sudo udevadm trigger || true
                 say "installed; unplug and replug the board"

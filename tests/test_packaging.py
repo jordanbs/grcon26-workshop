@@ -162,3 +162,45 @@ def test_install_and_uninstall_leave_the_config_as_they_found_it(tmp_path):
             del os.environ["HOME"]
         else:
             os.environ["HOME"] = before
+
+
+# --- the wheel that ships in install/ -------------------------------------
+
+def test_the_bundled_wheel_matches_the_source():
+    """install/ carries a prebuilt wheel so setup needs no git and no network.
+
+    It is built by hand, so it goes stale by hand: change a block, forget to
+    rebuild, and every participant installs yesterday's code. Compare it
+    file by file. Line endings are normalised because a Windows checkout
+    has CRLF in the working tree and the wheel is built from the index.
+    """
+    import glob
+    import zipfile
+
+    wheels = glob.glob(os.path.join(ROOT, "install", "gr_m2k-*.whl"))
+    assert len(wheels) == 1, "expected exactly one gr-m2k wheel in install/"
+
+    def norm(data):
+        return data.replace(b"\r\n", b"\n")
+
+    shipped = {}
+    with zipfile.ZipFile(wheels[0]) as wheel:
+        for name in wheel.namelist():
+            if name.startswith("m2k_blocks/") and not name.endswith("/"):
+                shipped[name] = norm(wheel.read(name))
+
+    source = {}
+    pkg = os.path.join(GR_M2K, "m2k_blocks")
+    for name in os.listdir(pkg):
+        if name.endswith(".py"):
+            with open(os.path.join(pkg, name), "rb") as handle:
+                source["m2k_blocks/" + name] = norm(handle.read())
+    for name in os.listdir(GRC):
+        if name.endswith(".yml") or name == "__init__.py":
+            with open(os.path.join(GRC, name), "rb") as handle:
+                source["m2k_blocks/grc/" + name] = norm(handle.read())
+
+    assert sorted(shipped) == sorted(source), \
+        "the wheel and gr-m2k/ ship different files -- rebuild the wheel"
+    stale = [name for name in source if shipped[name] != source[name]]
+    assert not stale, "rebuild install/'s wheel, it predates: %s" % stale
