@@ -39,6 +39,42 @@ curl.exe -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop
 curl -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop/main/install/m2k-setup.sh
 ```
 
+### If PowerShell refuses to run it
+
+```
+m2k-setup.ps1 cannot be loaded because running scripts is disabled on this system
+```
+
+That is Windows' execution policy, not the script. `-ExecutionPolicy
+Bypass` sets the policy for one process and is the whole reason the
+command above is written that way, so this error means the script was
+started some other way — double-clicked, or `.\m2k-setup.ps1` from a
+prompt. Run it exactly as written.
+
+Refused even from the documented command means the policy comes from
+Group Policy, which `-ExecutionPolicy` cannot override:
+
+```
+Get-ExecutionPolicy -List
+```
+
+`MachinePolicy` or `UserPolicy` at anything other than `Undefined` is a
+managed machine, and there is no user-level way round it. Two ways past:
+
+```
+Get-Content .\m2k-setup.ps1 | powershell -NoProfile -Command -
+```
+
+A piped command is not a script file and is not governed by the script
+policy. Or do it by hand — **Without the script**, below — which
+involves PowerShell not at all, and is the better answer on a laptop
+whose policy you do not control.
+
+One smaller case: `RemoteSigned` blocks a file carrying the mark of the
+web, which a downloaded one does. `Unblock-File .\m2k-setup.ps1` clears
+it. Unzipping with Explorer marks every file it extracts, so the zip
+route needs this too.
+
 ## What is in this folder
 
 | file | what it is |
@@ -67,7 +103,7 @@ USB permissions alone.
 | | what it is | where it comes from |
 | --- | --- | --- |
 | **gr-iio** | the GNU Radio IIO blocks, `from gnuradio import iio` | ships with GNU Radio — not pip |
-| **pylibiio** | the binding round the C library, `import iio` | `python3-libiio`, brew, or pip |
+| **pylibiio** | the binding round the C library, `import iio` | `python3-libiio`, brew, or pip. On Windows pip brings the wrapper only, and `libiio` itself has to come from somewhere else — see below |
 | **gr-m2k** | this workshop's blocks | pip, from the wheel in this folder |
 | **block path** | the line in GNU Radio's `config.conf` that makes GRC look (`%APPDATA%\.config\gnuradio\` on Windows) | `m2k-blocks install` |
 | **USB access** | permission, or a driver | per platform, below |
@@ -98,6 +134,78 @@ python -m m2k_blocks check
 It prints the block directory, the interpreter, whether `m2k_blocks`
 imports, and every directory GRC will search with ours marked. Exit status
 0 means GRC will find the blocks.
+
+### Which interpreter was it, and undoing it
+
+When `check` says
+
+```
+GNU Radio     not importable from this interpreter: ...
+```
+
+the install landed somewhere GRC will never look. The `interpreter` line
+printed just above is where — that is `sys.executable`, the Python that
+ran the command. If the scrollback is gone, `python -m pip show gr-m2k`
+prints the same answer as its `Location:`, and `Get-Command python -All`
+lists every `python.exe` on PATH in the order Windows resolves them. On a
+fresh Windows machine the usual culprits are the Store stub in
+`%LOCALAPPDATA%\Microsoft\WindowsApps` and a python.org install in
+`%LOCALAPPDATA%\Programs\Python`, either of which shadows radioconda's
+when the prompt is a plain PowerShell rather than the Radioconda Prompt.
+
+Undo it before installing again:
+
+```
+<wrong-python.exe> -m m2k_blocks uninstall
+<wrong-python.exe> -m pip uninstall gr-m2k pylibiio
+```
+
+`uninstall` is the one that matters. `install` writes a block path into
+GNU Radio's `config.conf`, and on an interpreter without GNU Radio it
+cannot ask where that is, so it falls back to `~/.gnuradio/config.conf`
+— which is not the file radioconda reads. The entry is both wrong and
+invisible, and the next `check` will not mention it.
+
+Then run the script again with `-Python` / `--python` naming the right
+interpreter, which skips the detection entirely.
+
+## pylibiio installs, and `import iio` still fails
+
+Step 3 of the script warns rather than stops. It is the step that most
+often warns on Windows, and the reason is that pylibiio is a `ctypes`
+wrapper: the wheel carries no library of its own, and `import iio` loads
+`libiio` from the system. Distribution packages and Homebrew install the
+two together. Pip on Windows installs only the wrapper.
+
+Get the real error first, because pip failing and the library missing
+look the same from the script's warning:
+
+```
+python -c "import iio"
+```
+
+An `OSError` naming `libiio` is the missing library. Anything raised by
+pip itself — a proxy, TLS interception, `externally-managed-environment`
+— is a different problem with a different fix.
+
+ADI ship a Windows installer for the library:
+<https://github.com/analogdevicesinc/libiio/releases>. **Check the major
+version before taking the top of that page.** pylibiio tracks the 0.x C
+API; 1.x is not the same API, and a 1.x DLL leaves `import iio` failing
+in a way indistinguishable from having no DLL at all.
+
+On radioconda, installing the library through conda is worth trying
+first. It lands inside the environment, where a system-wide DLL left by
+some other Python cannot shadow it, and conda matches the wrapper to the
+library rather than leaving you to do it by version number.
+
+Either way the test is the same: `import iio` returns silently, and then
+`python -m m2k_blocks scan` sees the board.
+
+**Not yet confirmed on a machine.** Neither the version rule nor the
+conda route has been watched working on the venue laptop; both are
+written from the failure mode. Whoever hits this next should replace this
+paragraph with what actually worked.
 
 ## USB access, per platform
 
