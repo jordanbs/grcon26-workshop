@@ -68,27 +68,23 @@ that is the sentence to say out loud, not to project.
 | `frame read-only` | notes material, skipped by present mode *and* by the counter |
 | `stage split` / `split-r` | the wider track goes left / right, for a table beside a callout |
 | `present callout` | the one present block that keeps a box in both modes |
-| `figure.shot .slot` | a picture that does not exist yet — see below |
 
-## Three pictures are not in the repository
+## Three pictures are not generated
 
 `render_grc.py`, `render_spi.py` and `render_colorimeter.py` between them draw
-everything in the deck that can be computed. Three figures cannot be: a
-**photograph of the board**, a **pinout diagram of its header**, and a
-**screenshot of Scopy**. Nothing here can produce a photograph, and a pinout
-drawn from memory is the one kind of figure that fails silently in front of a
-room — it looks right and sends somebody's jumper to the wrong pin.
+everything in the deck that can be computed. Three figures cannot be, so they
+are committed as files rather than produced by a script:
 
-So `m2k-board`, `m2k-pinout` and `m2k-scopy` each carry a `<div class="slot">`
-naming the file it wants. Drop the file in `img/` and replace the div with an
-`<img>` and its alt text; nothing else changes. The slot is deliberately plain,
-because a placeholder that looks finished is a placeholder that ships.
+| frame | file | what it is |
+| --- | --- | --- |
+| `m2k-board` | `img/adalm2000.jpg` | the board and its flying-lead cable |
+| `m2k-pinout` | `img/adalm2000-pin-wires.png` | ADI's own header pinout drawing |
+| `m2k-scopy` | `img/osc-main1.png` | Scopy, with the oscilloscope open |
 
-| frame | file it asks for |
-| --- | --- |
-| `m2k-board` | `img/m2k-board.jpg` |
-| `m2k-pinout` | `img/m2k-pinout.png` |
-| `m2k-scopy` | `img/scopy.png` |
+Nothing here can produce a photograph, and a pinout drawn from memory is the
+one kind of figure that fails silently in front of a room — it looks right and
+sends somebody's jumper to the wrong pin. Replacing any of the three is a file
+swap plus its alt text; `check_deck.py` fails if an `<img>` loses either.
 
 ## The GRC figures are rendered, not screenshotted
 
