@@ -8,23 +8,55 @@ This installs the workshop's blocks into it; it does not install GNU Radio.
 
 ## One script
 
-**Linux and macOS**
+Download the repository as a zip — **Code → Download ZIP** on GitHub, or
+<https://github.com/livethisdream/grcon26-workshop/archive/refs/heads/main.zip>
+— unzip it, and run the script from its `install` folder. Everything the
+script would otherwise download is already in there, so after the zip it
+needs no internet and no git.
+
+**Windows** — from the Radioconda Prompt, in the unzipped `install` folder:
 
 ```
-curl -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop/main/install/m2k-setup.sh
-bash m2k-setup.sh
-```
-
-**Windows** — from the Radioconda Prompt:
-
-```
-curl.exe -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop/main/install/m2k-setup.ps1
 powershell -ExecutionPolicy Bypass -File m2k-setup.ps1
 ```
 
-Downloaded first, then run, rather than piped straight into a shell — it
-wants your password for one step on Linux, and a script that asks for that
-is a script worth reading first.
+**Linux and macOS** — in the unzipped `install` folder:
+
+```
+bash m2k-setup.sh
+```
+
+The script reads well before it runs — it wants your password for one step
+on Linux, and a script that asks for that is a script worth reading first.
+
+### Just the script
+
+The script also works on its own, and downloads what it would have found
+beside it:
+
+```
+curl.exe -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop/main/install/m2k-setup.ps1
+curl -fsSLO https://raw.githubusercontent.com/livethisdream/grcon26-workshop/main/install/m2k-setup.sh
+```
+
+## What is in this folder
+
+| file | what it is |
+| --- | --- |
+| `m2k-setup.ps1`, `m2k-setup.sh` | the setup scripts |
+| `gr_m2k-0.1.0-py3-none-any.whl` | the workshop's blocks, built from `gr-m2k/`. Rebuild it when `gr-m2k/` changes — `tests/test_packaging.py` fails until you do |
+| `PlutoSDR-M2k-USB-Drivers.exe` | ADI's Windows driver package, v0.9 (the current release), signed by Analog Devices. SHA-256 `C53DAC79BE6AF8E268B2B5460856D46501F3A61C7B820CBFC3FE24288960550D`. From <https://github.com/analogdevicesinc/plutosdr-m2k-drivers-win/releases> |
+| `53-adi-m2k-usb.rules` | ADI's udev rule for Linux, from `analogdevicesinc/m2k-fw` `scripts/` |
+
+To rebuild the wheel from what is committed — not the working tree, which
+on Windows has CRLF line endings — with the interpreter GRC uses:
+
+```
+git -c core.autocrlf=false archive --format=zip -o gr-m2k-src.zip HEAD gr-m2k
+```
+
+then unzip it and run `python -m pip wheel --no-deps -w install <unzipped>/gr-m2k`
+from the repository root.
 
 Options, both platforms: `--yes` / `-Yes` answers every prompt, `--python`
 / `-Python` names the interpreter, `--skip-drivers` / `-SkipDrivers` leaves
@@ -36,7 +68,7 @@ USB permissions alone.
 | --- | --- | --- |
 | **gr-iio** | the GNU Radio IIO blocks, `from gnuradio import iio` | ships with GNU Radio — not pip |
 | **pylibiio** | the binding round the C library, `import iio` | `python3-libiio`, brew, or pip |
-| **gr-m2k** | this workshop's blocks | pip, from this repository |
+| **gr-m2k** | this workshop's blocks | pip, from the wheel in this folder |
 | **block path** | the line in GNU Radio's `config.conf` that makes GRC look (`%APPDATA%\.config\gnuradio\` on Windows) | `m2k-blocks install` |
 | **USB access** | permission, or a driver | per platform, below |
 
@@ -71,11 +103,10 @@ imports, and every directory GRC will search with ours marked. Exit status
 
 **Linux** — no driver needed; the kernel has both the USB ethernet gadget
 and the raw USB interface. What it needs is permission. The script offers
-to install ADI's udev rule:
+to install ADI's udev rule, which is in this folder:
 
 ```
-sudo curl -fsSL https://raw.githubusercontent.com/analogdevicesinc/m2k-fw/master/scripts/53-adi-m2k-usb.rules \
-  -o /etc/udev/rules.d/53-adi-m2k-usb.rules
+sudo install -m 0644 53-adi-m2k-usb.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
@@ -92,8 +123,10 @@ ship one package covering both interfaces:
 
 <https://github.com/analogdevicesinc/plutosdr-m2k-drivers-win/releases/latest>
 
-Download `PlutoSDR-M2k-USB-Drivers.exe` and run it. The script points you
-there rather than running it for you.
+`PlutoSDR-M2k-USB-Drivers.exe` is in this folder. The script offers to
+start it; it opens its own window and asks for administrator rights, so
+nothing installs without you clicking through it. Windows may warn that
+the file came from the internet — it is signed by Analog Devices.
 
 **macOS** — no kernel driver: libiio reaches the board through libusb. But
 see the next section, because the address in every block is wrong for you.
@@ -140,10 +173,13 @@ interpreter GRC uses for `python`:
 
 ```
 python -m pip install pylibiio
-python -m pip install "git+https://github.com/livethisdream/grcon26-workshop#subdirectory=gr-m2k"
+python -m pip install --force-reinstall --no-deps install/gr_m2k-0.1.0-py3-none-any.whl
 python -m m2k_blocks install
 python -m m2k_blocks check
 ```
+
+Without the repository, the second line becomes
+`python -m pip install "gr-m2k @ https://github.com/livethisdream/grcon26-workshop/archive/refs/heads/main.zip#subdirectory=gr-m2k"`.
 
 On a distro Python, add `--user`; if pip refuses with
 `externally-managed-environment`, add `--break-system-packages` too. Inside

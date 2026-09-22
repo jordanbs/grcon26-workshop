@@ -13,10 +13,14 @@
       1. works out which Python has GNU Radio in it
       2. checks gr-iio (`from gnuradio import iio`)
       3. installs pylibiio (`import iio`) if it is missing
-      4. installs gr-m2k from GitHub
+      4. installs gr-m2k -- the wheel beside this script, else from GitHub
       5. registers the block directory with GRC, and verifies it
-      6. checks for ADI's USB driver package, and offers to fetch it
+      6. checks for ADI's USB driver package, and offers to run the one
+         beside this script, or to fetch it
       7. looks for the board and prints the address to paste into a block
+
+    Run from the install folder of the downloaded repository, steps 4 and 6
+    need no internet. Run on its own, it downloads what it needs.
 
     Nothing installs a driver without asking. -Yes answers yes to all of it.
 
@@ -43,8 +47,17 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $Repo       = 'https://github.com/livethisdream/grcon26-workshop'
-$Pkg        = "git+$Repo#subdirectory=gr-m2k"
+# GitHub's zip of main rather than git+https: pip unpacks an archive itself,
+# so a laptop without git -- most Windows ones -- still gets the blocks.
+$Pkg        = "gr-m2k @ $Repo/archive/refs/heads/main.zip#subdirectory=gr-m2k"
 $DriversUrl = 'https://github.com/analogdevicesinc/plutosdr-m2k-drivers-win/releases/latest'
+
+# What ships beside this script in install/. Either may be missing, when the
+# script was downloaded on its own; each step falls back to the network.
+$Here       = $PSScriptRoot
+$Wheel      = Get-ChildItem -Path $Here -Filter 'gr_m2k-*.whl' -ErrorAction SilentlyContinue |
+              Sort-Object Name | Select-Object -Last 1
+$DriverExe  = Join-Path $Here 'PlutoSDR-M2k-USB-Drivers.exe'
 
 # ---------------------------------------------------------------------------
 # Output. Steps are numbered because what people report back is "it stopped
@@ -137,12 +150,12 @@ if ($Python) {
 $pyv = & $PyExe -c 'import platform; print(platform.python_version())'
 Say "Python $pyv"
 
-function PipInstall($what) {
+function PipInstall($what, [string[]] $extra = @()) {
     # No --user here. On Windows the interpreter is nearly always a conda
     # environment the user owns outright, and pip's --user directory is not
     # on that environment's import path -- installing there is the same
     # silent miss the whole script exists to avoid.
-    & $PyExe -m pip install --upgrade $what
+    & $PyExe -m pip install --upgrade @extra $what
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -187,13 +200,19 @@ if (CanImport 'iio') {
 # 4. The blocks
 # ---------------------------------------------------------------------------
 Step 'Installing gr-m2k'
-Say "from $Repo"
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Die ("git is not on your PATH, and pip needs it to fetch from GitHub. " +
-         "Install git, or download the repository as a zip and run " +
-         "`pip install .\gr-m2k` from inside it.")
+# --force-reinstall because the version number does not move between
+# workshop fixes: without it, pip sees 0.1.0 already there and keeps the
+# old code. --no-deps because there are none, and so nothing is fetched.
+if ($Wheel) {
+    Say ("from " + $Wheel.Name + ", beside this script")
+    $source = $Wheel.FullName
+} else {
+    Say "from $Repo"
+    $source = $Pkg
 }
-if (-not (PipInstall $Pkg)) { Die 'could not install gr-m2k' }
+if (-not (PipInstall $source @('--force-reinstall', '--no-deps'))) {
+    Die 'could not install gr-m2k'
+}
 Say 'installed'
 
 # ---------------------------------------------------------------------------
@@ -229,14 +248,24 @@ if ($SkipDrivers) {
         Say 'both interfaces: the WinUSB one libiio uses directly, and the'
         Say 'network one behind ip:192.168.2.1.'
         Say ''
-        Say "  $DriversUrl"
-        Say ''
-        Say 'Download PlutoSDR-M2k-USB-Drivers.exe from there and run it.'
-        Say 'It is an installer with a UI; this script will not run it for'
-        Say 'you, because installing a driver unattended is not something'
-        Say 'to do to somebody''s laptop.'
-        if (Ask 'open that page in your browser now?') {
-            Start-Process $DriversUrl
+        if (Test-Path $DriverExe) {
+            # Started, not run silently: it is an installer with its own
+            # windows and its own administrator prompt, so nothing goes onto
+            # the laptop without somebody clicking through it.
+            Say 'The installer is beside this script. It opens its own window'
+            Say 'and asks for administrator rights; click through it, then'
+            Say 'come back here.'
+            if (Ask 'start the driver installer now?') {
+                Start-Process -FilePath $DriverExe -Wait
+                Say 'installer closed'
+            }
+        } else {
+            Say "  $DriversUrl"
+            Say ''
+            Say 'Download PlutoSDR-M2k-USB-Drivers.exe from there and run it.'
+            if (Ask 'open that page in your browser now?') {
+                Start-Process $DriversUrl
+            }
         }
     }
 }
