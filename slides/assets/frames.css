@@ -265,19 +265,6 @@ figure.shot.wave img {
   width: 100%; background: none; border: none; box-shadow: none;
   border-radius: 0;
 }
-/* A figure whose picture does not exist yet. Three frames want a photograph
-   or a screenshot of somebody else's program, and neither `render_grc.py`
-   nor `render_spi.py` can make one. The slot holds the space and names the
-   file to drop in, so the frame lays out now and swapping a `<div class=
-   "slot">` for an `<img>` is the whole change later. It is deliberately
-   plain: a placeholder that looks finished gets left in. */
-figure.shot .slot {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 9em; padding: 1.2em;
-  border: 2px dashed var(--rule-strong); border-radius: 5px;
-  color: var(--muted); font: 400 .8rem/1.5 var(--mono); text-align: center;
-}
-
 /* One screen is the budget, and a block image is the tallest thing on these
    frames -- 58vh leaves nothing for the title and the chain strip above it. */
 [data-mode="present"] .frame.cut .present figure.shot img { max-height: 44vh; }

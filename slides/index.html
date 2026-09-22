@@ -208,7 +208,7 @@ bash m2k-setup.sh</code></pre>
     <div class="stage split">
       <div class="present">
         <figure class="shot">
-          <div class="slot">photo of the board and its cable<br>slides/img/m2k-board.jpg</div>
+          <img src="img/adalm2000.jpg" alt="An ADALM2000: a small blue and grey module with a USB cable out of one end and a ribbon of thirty colored jumper wires plugged into the header on the other. The pin legend is printed on the case just above the header.">
           <figcaption>An ADALM2000 with the flying-lead cable on its header.</figcaption>
         </figure>
       </div>
@@ -243,7 +243,7 @@ bash m2k-setup.sh</code></pre>
     <div class="stage split">
       <div class="present">
         <figure class="shot">
-          <div class="slot">the header pinout diagram<br>slides/img/m2k-pinout.png</div>
+          <img src="img/adalm2000-pin-wires.png" alt="Analog Devices' ADALM2000 pinout drawing. The top row of the header reads 1+, 2+, ground, V+, W1, ground, trigger in, then digital I/O 0 through 7. The bottom row reads 1-, 2-, ground, V-, W2, ground, trigger out, then digital I/O 8 through 15. Each pin is drawn in the color of its own flying lead.">
           <figcaption>Every signal in this workshop is a jumper wire onto one of these pins.</figcaption>
         </figure>
       </div>
@@ -360,7 +360,7 @@ ad9963  ad5627  ad5625  pll  xadc</code></pre>
     <div class="stage">
       <div class="present">
         <figure class="shot canvas">
-          <div class="slot">Scopy, with an instrument open<br>slides/img/scopy.png</div>
+          <img src="img/osc-main1.png" alt="Scopy's oscilloscope window. A left rail lists Oscilloscope, Spectrum Analyzer, Network Analyzer, Signal Generator, Logic Analyzer, Pattern Generator, Digital IO, Voltmeter, Power Supply, Debugger and Calibration. The plot shows an orange square wave above a purple sine wave, and a right panel carries time base, position and volts-per-division controls.">
           <figcaption>ADI's own front end for the board.</figcaption>
         </figure>
       </div>
@@ -745,10 +745,13 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
         </figure>
       </div>
       <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>M2K pin</th><th>LED leg</th></tr>
+          <tr><td><code>DIO0</code></td><td>anode, the long one</td></tr>
+          <tr><td><code>GND</code></td><td>cathode</td></tr>
+        </table></div>
         <ul>
-          <li>One LED, two wires, no resistor</li>
-          <li>Anode to <code>DIO0</code>, cathode to ground</li>
-          <li>If it lights, the blocks loaded and the board is reachable</li>
+          <li>No resistor; these have one built in</li>
         </ul>
         <p class="pull">The blink rate is a property of the stream, not a setting on the board.</p>
       </div>
@@ -1018,112 +1021,46 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame" id="fg-map" data-section="Walk">
-  <div class="wrap wide">
-    <h2>The Wiring Diagram</h2>
-    <figure>
-      <svg viewBox="0 0 730 430" role="img" aria-label="Flow graph: a message edit box feeds M2K SPI Encode, which feeds M2K Digital Sink on DIO 0, 1 and 2. Three jumper wires carry those to DIO 4, 5 and 6, where M2K Digital Source reads them into M2K SPI Decode and on to Message Debug, with a branch through Short To Float into a QT GUI Time Sink.">
-        <style>
-          .b  { fill: var(--panel); stroke: var(--rule-strong); stroke-width: 1.4; }
-          .bp { fill: none; stroke: var(--red); stroke-width: 1.4; stroke-dasharray: 5 3; }
-          .t  { fill: var(--ink); font: 600 12px var(--sans); text-anchor: middle; }
-          .s  { fill: var(--muted); font: 400 9.5px var(--mono); text-anchor: middle; }
-          .p  { fill: var(--red); font: 600 10px var(--mono); text-anchor: middle; }
-          .ln { stroke: var(--fig-line); stroke-width: 1.6; fill: none; }
-          .msg{ stroke: var(--blue); stroke-width: 1.6; fill: none; stroke-dasharray: 4 3; }
-          .wr { stroke: var(--red); stroke-width: 1.6; fill: none; }
-          .n  { fill: var(--muted); font: 400 9.5px var(--mono); text-anchor: middle; }
-        </style>
-        <defs>
-          <marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0,0 L8,4 L0,8 z" fill="var(--fig-line)"/>
-          </marker>
-          <marker id="ab" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0,0 L8,4 L0,8 z" fill="var(--blue)"/>
-          </marker>
-          <marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0,0 L8,4 L0,8 z" fill="var(--red)"/>
-          </marker>
-        </defs>
-
-        <!-- transmit row -->
-        <rect class="b" x="14"  y="26" width="142" height="54" rx="5"/>
-        <text class="t" x="85"  y="47">QT GUI</text>
-        <text class="t" x="85"  y="62">Message Edit Box</text>
-
-        <path class="msg" d="M156,53 H186" marker-end="url(#ab)"/>
-        <text class="n" x="171" y="44">msg</text>
-
-        <rect class="b" x="190" y="26" width="150" height="54" rx="5"/>
-        <text class="t" x="265" y="47">M2K</text>
-        <text class="t" x="265" y="62">SPI Encode</text>
-
-        <path class="ln" d="M340,53 H370" marker-end="url(#a)"/>
-        <text class="n" x="355" y="44">&#215;3</text>
-
-        <rect class="b" x="374" y="26" width="150" height="54" rx="5"/>
-        <text class="t" x="449" y="47">M2K</text>
-        <text class="t" x="449" y="62">Digital Sink</text>
-
-        <path class="ln" d="M524,53 H554" marker-end="url(#a)"/>
-
-        <rect class="bp" x="558" y="26" width="112" height="54" rx="5"/>
-        <text class="p" x="614" y="47">DIO 0 &middot; 1 &middot; 2</text>
-        <text class="s" x="614" y="63">SCLK MOSI CS</text>
-
-        <!-- the physical wire -->
-        <path class="wr" d="M670,53 H716 V196 H70 V218" marker-end="url(#ar)"/>
-        <rect x="228" y="178" width="290" height="17" fill="var(--ground)"/>
-        <text class="p" x="373" y="191">3 jumpers &nbsp; DIO0&#8594;4 &nbsp; DIO1&#8594;5 &nbsp; DIO2&#8594;6</text>
-
-        <!-- receive row -->
-        <rect class="bp" x="14"  y="222" width="112" height="54" rx="5"/>
-        <text class="p" x="70"  y="243">DIO 4 &middot; 5 &middot; 6</text>
-        <text class="s" x="70"  y="259">SCLK MOSI CS</text>
-
-        <path class="ln" d="M126,249 H156" marker-end="url(#a)"/>
-
-        <rect class="b" x="160" y="222" width="150" height="54" rx="5"/>
-        <text class="t" x="235" y="243">M2K</text>
-        <text class="t" x="235" y="258">Digital Source</text>
-
-        <path class="ln" d="M310,249 H340" marker-end="url(#a)"/>
-        <text class="n" x="325" y="240">&#215;3</text>
-
-        <rect class="b" x="344" y="222" width="150" height="54" rx="5"/>
-        <text class="t" x="419" y="243">M2K</text>
-        <text class="t" x="419" y="258">SPI Decode</text>
-
-        <path class="msg" d="M494,249 H524" marker-end="url(#ab)"/>
-        <text class="n" x="509" y="240">msg</text>
-
-        <rect class="b" x="528" y="222" width="150" height="54" rx="5"/>
-        <text class="t" x="603" y="252">Message Debug</text>
-
-        <!-- the display branch -->
-        <path class="ln" d="M235,276 V356" marker-end="url(#a)"/>
-        <text class="n" x="256" y="316">&#215;3</text>
-
-        <rect class="b" x="160" y="360" width="150" height="54" rx="5"/>
-        <text class="t" x="235" y="381">Short To Float</text>
-        <text class="s" x="235" y="397">one per line</text>
-
-        <path class="ln" d="M310,387 H340" marker-end="url(#a)"/>
-
-        <rect class="b" x="344" y="360" width="150" height="54" rx="5"/>
-        <text class="t" x="419" y="381">QT GUI</text>
-        <text class="t" x="419" y="396">Time Sink</text>
-      </svg>
-      <figcaption>This is the same graph, with the part GRC has no way to draw. The dashed red boxes are pins, and the red line between them is three jumper wires on a bench. Solid black carries samples and dashed blue carries messages.</figcaption>
-      <div class="depth">
-        <p>A stuck participant is usually here. The flowgraph is complete and correct with nothing wired up at all
-        — GRC will validate it, generate it and run it. The wire closes the loop outside the software, and the only thing that reports a missing jumper is a decoder that never prints.</p>
-        <p>It is also why the two halves have separate rates, separate buffer
-        sizes and separate pin lists that have to agree with each other by
-        hand. Nothing in the graph can check that a jumper joins DIO0 to DIO4.
-        <code>bench/dio_continuity.py</code> is what checks it.</p>
+<section class="frame cut" id="fg-map" data-section="Walk">
+  <div class="wrap">
+    <h2>The Wiring Table</h2>
+    <div class="stage split">
+      <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>signal</th><th>driven on</th><th>read on</th></tr>
+          <tr><td>SCLK</td><td><code>DIO0</code></td><td><code>DIO4</code></td></tr>
+          <tr><td>MOSI</td><td><code>DIO1</code></td><td><code>DIO5</code></td></tr>
+          <tr><td>CS</td><td><code>DIO2</code></td><td><code>DIO6</code></td></tr>
+        </table></div>
       </div>
-    </figure>
+      <div class="present">
+        <p class="pull">Nothing on the canvas joins the sink to the source. Three wires do.</p>
+        <ul>
+          <li>Out: SPI Encode &rarr; Digital Sink &rarr; <code>DIO0&ndash;2</code></li>
+          <li>In: <code>DIO4&ndash;6</code> &rarr; Digital Source &rarr; SPI Decode</li>
+        </ul>
+      </div>
+    </div>
+    <div class="depth">
+      <p>A stuck participant is usually here. The flowgraph is complete and
+      correct with nothing wired up at all — GRC will validate it, generate it
+      and run it. The wire closes the loop outside the software, and the only
+      thing that reports a missing jumper is a decoder that never prints.</p>
+      <p>It is also why the two halves have separate rates, separate buffer
+      sizes and separate pin lists that have to agree with each other by
+      hand. Nothing in the graph can check that a jumper joins DIO0 to DIO4.
+      <code>bench/dio_continuity.py</code> is what checks it: it walks a single
+      1 across the driven pins and prints a 3&times;3 table, which reads as the
+      identity when the three wires are where this table says.</p>
+      <p>Those six pins are a choice rather than a constraint. Each line has
+      its own dropdown, so any six free DIO pins in any order work; contiguous
+      is what the workshop ships because contiguous is what twenty people can
+      wire without a diagram each.</p>
+      <p>The display branch hangs off the receive side and crosses no wire:
+      the three streams out of the Digital Source also go through
+      <em>Short To Float</em> into the time sink, which is the subject of the
+      last frame in this walkthrough.</p>
+    </div>
   </div>
 </section>
 
@@ -1353,10 +1290,13 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
       <span class="lnk">Msg Debug</span>
     </div>
     <div class="stage split">
-      <div class="present callout">
-        <p><code>DIO0</code> &rarr; <code>DIO4</code> &nbsp; SCLK</p>
-        <p><code>DIO1</code> &rarr; <code>DIO5</code> &nbsp; MOSI</p>
-        <p><code>DIO2</code> &rarr; <code>DIO6</code> &nbsp; CS</p>
+      <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>signal</th><th>driven on</th><th>read on</th></tr>
+          <tr><td>SCLK</td><td><code>DIO0</code></td><td><code>DIO4</code></td></tr>
+          <tr><td>MOSI</td><td><code>DIO1</code></td><td><code>DIO5</code></td></tr>
+          <tr><td>CS</td><td><code>DIO2</code></td><td><code>DIO6</code></td></tr>
+        </table></div>
       </div>
       <div class="present">
         <p class="pull">This is the only part of the loopback that is not software.</p>
@@ -1685,11 +1625,15 @@ sigrok-cli -i bus.csv \
   <div class="wrap">
     <h2>Wiring the Transducers</h2>
     <div class="stage split">
-      <div class="present callout">
-        <p><strong>Transmitter</strong> &mdash; <code>W1</code> to TX&nbsp;+,
-        TX&nbsp;&minus; to <code>GND</code>.</p>
-        <p><strong>Receiver</strong> &mdash; RX&nbsp;+ to <code>1+</code>,
-        RX&nbsp;&minus; and <code>1-</code> to <code>GND</code>.</p>
+      <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>M2K pin</th><th>goes to</th><th>which is</th></tr>
+          <tr><td><code>W1</code></td><td>TX&nbsp;+</td><td>the drive</td></tr>
+          <tr><td><code>GND</code></td><td>TX&nbsp;&minus;</td><td>its return</td></tr>
+          <tr><td><code>1+</code></td><td>RX&nbsp;+</td><td>the echo</td></tr>
+          <tr><td><code>GND</code></td><td>RX&nbsp;&minus;</td><td>its return</td></tr>
+          <tr><td><code>1-</code></td><td><code>GND</code></td><td>single-ended</td></tr>
+        </table></div>
       </div>
       <div class="present">
         <ul>
@@ -2047,20 +1991,21 @@ pdu vector contents =
   <div class="wrap">
     <h2>Setting Up the Colorimeter</h2>
     <div class="stage split">
-      <div class="present callout">
-        <ol>
-          <li>Board onto the digital header</li>
-          <li>LED riser in <code>J5</code>, photodiodes in <code>J3</code> and <code>J4</code></li>
-          <li>Cuvettes in both wells, empty</li>
-          <li>Run the flowgraph, press <strong>Blank</strong></li>
-          <li>Slide a filter into <code>Sample</code></li>
-        </ol>
+      <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>part</th><th>goes in</th></tr>
+          <tr><td>the main board</td><td>the digital header</td></tr>
+          <tr><td>the LED riser</td><td><code>J5</code></td></tr>
+          <tr><td>the photodiode risers</td><td><code>J3</code> and <code>J4</code></td></tr>
+          <tr><td>a cuvette</td><td>the well marked <code>Sample</code></td></tr>
+        </table></div>
       </div>
       <div class="present">
-        <ul>
-          <li>All three read 100.0% and the box says <em>nothing in the beam</em></li>
-          <li>Then one color drops and the box names it</li>
-        </ul>
+        <ol>
+          <li>Empty both wells, run the flowgraph</li>
+          <li>Press <strong>Blank</strong></li>
+          <li>Slide a filter into <code>Sample</code></li>
+        </ol>
         <p class="pull">The rails come up with the flowgraph. There is no switch on the board.</p>
       </div>
     </div>
@@ -2082,7 +2027,9 @@ gnuradio-companion flowgraphs/m2k_colorimeter.grc</code></pre>
       the thing to a conference invalidates them silently &mdash; as a tilt in
       every reading rather than as an error. Empty both wells, press
       <strong>Blank</strong>, and whatever the two paths are doing now becomes
-      100%. The check that it worked is already on the screen.</p>
+      100%. The check that it worked is already on the screen: all three read
+      100.0% and the box says <em>nothing in the beam</em>. If it does not,
+      something was in the beam when you pressed it.</p>
       <p>One board, so this runs at the front of the room. The flowgraph, the
       bench script and the numbers are all in the repository, so it reads
       afterwards for people who never touched it.</p>

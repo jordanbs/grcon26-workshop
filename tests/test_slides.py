@@ -100,17 +100,31 @@ def _manifest():
     return produced
 
 
+# Three pictures no script can draw, and the reason each is exempt rather
+# than missing. The rule below exists to catch a hand-placed screenshot of a
+# flowgraph, which goes stale the next time a parameter moves. None of these
+# three can: a photograph and a pinout drawing are of the hardware, and the
+# Scopy shot is of a program this repo does not build. Naming them here keeps
+# the rule sharp for everything else -- a fourth entry has to be argued for.
+NOT_RENDERED = {
+    "adalm2000.jpg",            # the board and its cable
+    "adalm2000-pin-wires.png",  # ADI's own header pinout drawing
+    "osc-main1.png",            # Scopy, with the oscilloscope open
+}
+
+
 def test_every_figure_the_deck_uses_is_one_a_renderer_produces(deck):
     """A picture of a flowgraph drifts; a render of one cannot.
 
     The point of both renderers is that re-running them reproduces every
     figure in the deck. An `<img>` pointing at a file neither script knows
     how to make is a hand-placed screenshot that will quietly go stale, so it
-    fails here rather than at the next parameter change.
+    fails here rather than at the next parameter change -- unless it is one
+    of the three in `NOT_RENDERED`, which nothing could have drawn.
     """
     import re
 
-    produced = _manifest()
+    produced = _manifest() | NOT_RENDERED
     assert produced, "neither renderer has a FIGURES manifest any more"
     used = {os.path.basename(src)
             for src in re.findall(r'<img[^>]+src="img/([^"]+)"', deck)}
@@ -118,6 +132,24 @@ def test_every_figure_the_deck_uses_is_one_a_renderer_produces(deck):
     assert used <= produced, (
         "the deck uses figures no renderer produces: "
         f"{sorted(used - produced)}")
+
+
+def test_the_unrendered_figures_are_all_on_disk_and_all_used(deck):
+    """`NOT_RENDERED` is an exemption list, so it has to stay honest.
+
+    An entry for a file that is gone exempts nothing and hides a broken
+    `<img>`; an entry the deck stopped using is an exemption nobody is
+    watching, and the next hand-placed screenshot could inherit the name.
+    """
+    import re
+
+    used = {os.path.basename(src)
+            for src in re.findall(r'<img[^>]+src="img/([^"]+)"', deck)}
+    for name in sorted(NOT_RENDERED):
+        assert os.path.exists(os.path.join(SLIDES, "img", name)), \
+            f"{name} is exempted from rendering but is not in slides/img/"
+        assert name in used, \
+            f"{name} is exempted from rendering but the deck no longer uses it"
 
 
 def test_the_renderers_do_not_collide_on_a_filename():
