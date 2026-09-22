@@ -80,19 +80,23 @@
      Opening
      =================================================================== -->
 
+<!-- ===================================================================
+     Opening
+     =================================================================== -->
+
 <section class="frame title-frame" id="title">
   <div class="wrap">
     <div class="course-mark">GRCon26 &middot; workshop</div>
     <h1>GNU&nbsp;Radio and the ADALM2000</h1>
     <div class="title-rule"></div>
-    <p class="lede">The board is the instrument. IIO is how you talk to it.</p>
-    <p class="meta">90 minutes &middot; crawl, walk, run &middot; nothing to install in the room</p>
+    <p class="lede">The board is an instrument. IIO is the language, GNU&nbsp;Radio is the abstraction.</p>
+    <p class="meta">90 minutes &middot; crawl, walk, run, sprint</p>
     <div class="qr">
       <img src="img/setup-qr.svg" width="176" height="176"
            alt="QR code linking to github.com/livethisdream/grcon26-workshop">
       <div class="qr-what">
         <b>Set up before we start</b>
-        One script installs the blocks. The next two frames walk through it.
+        Clone or download this repo, and look in the <code>install/</code> directory.
         <br><code>github.com/livethisdream/grcon26-workshop</code>
       </div>
     </div>
@@ -110,10 +114,11 @@ m2k-setup.ps1          # Windows</code></pre>
       </div>
       <div class="present">
         <ul>
-          <li>Both are in <code>install/</code> — scan the code on the title frame</li>
+          <li>Both are in <code>install/</code></li>
           <li>Installs gr-iio, pylibiio, the blocks, the GRC block path, USB access</li>
+          <li>Linux: run it from bash</li>
           <li>Windows: run it from the Radioconda Prompt</li>
-          <li><code>--yes</code> answers every prompt</li>
+          <li>macOS: run at your own risk, untested</li>
         </ul>
       </div>
     </div>
@@ -141,55 +146,16 @@ bash m2k-setup.sh</code></pre>
       deliberate. gr-iio is on no package index at all. pylibiio wraps a
       native library, so installing the wheel alone gives you an import that
       fails at run time rather than at install time.</p>
-      <p><code>install/README.md</code> in the repository has the same ground
-      in more detail, including the four commands to run by hand instead.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="setup-check" data-section="Setup">
-  <div class="wrap">
-    <h2>Two Checks After Setup</h2>
-    <div class="stage">
-      <div class="present">
-<pre><code>python -m m2k_blocks check
-python -m m2k_blocks scan</code></pre>
-        <ul>
-          <li><strong>check</strong> — will GRC find the blocks</li>
-          <li><strong>scan</strong> — is the board there, and at what address</li>
-        </ul>
-      </div>
-      <div class="present callout">
-        <p>On a Mac the address is <code>usb:</code>, not the
-        <code>ip:192.168.2.1</code> every block defaults to.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p><strong>One thing goes wrong more than everything else together.</strong>
-      <code>pip install</code> has to land in the same interpreter
-      gnuradio-companion imports from. On a distro GNU Radio that is the
-      system Python; under radioconda it is the environment's. A fresh venv on
-      some third Python installs cleanly, puts the scripts on your PATH, and
-      leaves the block tree empty — because GRC never looks there. The script
-      works the interpreter out from the shebang of gnuradio-companion and
-      prints what it picked, and <code>--python</code> overrides it.</p>
-      <p><code>check</code> answers that question directly: the block
-      directory, the interpreter, whether <code>m2k_blocks</code> imports, and
-      every directory GRC will search with ours marked. Exit status 0 means
-      the blocks will appear. Two unrelated faults look identical from the
-      block tree — a path GRC never saw, and a package it cannot import — and
-      only one of them waits until you press Run.</p>
-      <p><strong>The address.</strong> <code>ip:192.168.2.1</code> is the
-      board's USB ethernet gadget. Linux provides that natively and Windows
-      provides it once ADI's driver package is in. macOS does not provide it
-      any more: it needed HoRNDIS, a kernel extension that is unmaintained,
-      built for x86_64, and unable to load on Apple silicon at all. So a Mac
-      uses the USB backend instead, and the address is the bare
-      <code>usb:</code>, which libiio resolves by itself when one board is
-      plugged in. <code>scan</code> prints the right string for whatever
-      machine it runs on.</p>
+      <p><strong>One thing the script cannot do for a Mac.</strong> Every block
+      defaults to <code>ip:192.168.2.1</code>, the board's USB ethernet gadget.
+      Linux provides that natively and Windows provides it once ADI's driver
+      package is in; macOS does not provide it at all any more. So a Mac uses
+      the USB backend and the address is the bare <code>usb:</code>, which libiio
+      resolves by itself when one board is plugged in.</p>
       <p>Restart gnuradio-companion after installing. A running one will not
       pick up a block directory it did not have at launch.</p>
+      <p><code>install/README.md</code> in the repository has the same ground
+      in more detail, including the four commands to run by hand instead.</p>
     </div>
   </div>
 </section>
@@ -200,20 +166,22 @@ python -m m2k_blocks scan</code></pre>
     <div class="stage">
       <div class="present">
         <ul>
-          <li><strong>Crawl</strong> — IIO, and a loopback on the board's own generator</li>
-          <li><strong>Walk</strong> — the M2K blocks, and what each parameter writes</li>
-          <li><strong>Run</strong> — an SPI bus on the digital pins</li>
+          <li>A quick board and IIO intro</li>
+          <li><strong>Crawl</strong> — blinky lights</li>
+          <li><strong>Walk</strong> — an SPI loopback</li>
+          <li><strong>Run</strong> — ultrasonic transducers</li>
+          <li><strong>Sprint</strong> — color detection</li>
         </ul>
       </div>
     </div>
     <div class="depth">
-      <p>We will follow a crawl, walk, run approach. The crawl is a loopback:
-      the board's own generator into the board's own input, so a station with
-      no other hardware still has something to measure. The walk is what a
-      block parameter writes. The run is a protocol on the digital pins.</p>
-      <p>Setup is short and happens before the session: one script, which
-      installs the blocks and sorts out USB access. Nothing else gets
-      installed in the room.</p>
+      <p>The intro is the board and the language it speaks, and it is the only
+      part with no hardware moving. After that every part is a flowgraph you
+      can open: an LED on one pin, a three-wire bus on six, a 200-baud link
+      through four inches of air, and three colors measured at once.</p>
+      <p>Each one uses the same blocks as the one before it and adds one idea.
+      The ultrasonic and colorimeter demos run at the front of the room,
+      because there is one set of transducers and one colorimeter board.</p>
       <p><strong>Press <kbd>P</kbd></strong> to switch between the projected deck and
       these notes. The notes are always in the page, in both modes — the deck
       view hides them, it never drops them. Printing gives you the notes, one
@@ -223,12 +191,206 @@ python -m m2k_blocks scan</code></pre>
 </section>
 
 <!-- ===================================================================
-     IIO
+     Part one -- the ADALM2000
+     =================================================================== -->
+
+<section class="frame section-frame" id="sec-m2k" data-section="ADALM2000">
+  <div class="wrap">
+    <div class="sec-n">Part one</div>
+    <h2>The ADALM2000</h2>
+    <p class="lede">A bench in a box, on a header you can reach with a jumper wire.</p>
+  </div>
+</section>
+
+<section class="frame cut" id="m2k-board" data-section="ADALM2000">
+  <div class="wrap">
+    <h2>The Board</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot">
+          <div class="slot">photo of the board and its cable<br>slides/img/m2k-board.jpg</div>
+          <figcaption>An ADALM2000 with the flying-lead cable on its header.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>USB powered, palm sized, about $200</li>
+          <li>Two scope inputs, two generators, sixteen digital pins, two supplies</li>
+          <li>All of it lands on one header</li>
+        </ul>
+        <p class="pull">One cable to the laptop. Everything else comes off the header.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>The unit on the bench for this material is a Rev.D with a Zynq 7010 and
+      firmware v0.33, reached over the network backend at
+      <code>ip:192.168.2.1</code>. USB passthrough is not in use.</p>
+      <p>Choosing the M2K as the board for a workshop solves a scarcity problem
+      as much as a teaching one. Twenty participants can each have something
+      that is a scope, a generator and a logic analyzer at once, and the
+      interesting hardware &mdash; the colorimeter, the ultrasonic transducers
+      &mdash; can be a single instructor unit that everybody watches.</p>
+      <p>It also puts a real constraint in front of the room: the board is
+      12-bit, it is rate-limited, and it is wrong about its own volts until you
+      calibrate it.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="m2k-pinout" data-section="ADALM2000">
+  <div class="wrap">
+    <h2>The Header</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot">
+          <div class="slot">the header pinout diagram<br>slides/img/m2k-pinout.png</div>
+          <figcaption>Every signal in this workshop is a jumper wire onto one of these pins.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <div class="tablewrap"><table>
+          <tr><th>pin</th><th>what we do with it</th></tr>
+          <tr><td><code>DIO0&ndash;2</code></td><td>SCLK, MOSI, CS out</td></tr>
+          <tr><td><code>DIO4&ndash;6</code></td><td>the same three, read back</td></tr>
+          <tr><td><code>DIO13&ndash;15</code></td><td>the colorimeter's R, G, B</td></tr>
+          <tr><td><code>W1</code> &middot; <code>1+</code></td><td>the ultrasonic link</td></tr>
+          <tr><td><code>V+</code> &middot; <code>V-</code></td><td>rails for an add-on board</td></tr>
+        </table></div>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Those pin choices are conventions of this repository, not constraints
+      of the board. Every block takes each pin from its own dropdown, so any
+      six free DIO pins in any order carry the SPI bus as well. Contiguous is
+      what the workshop ships, because contiguous is what twenty people can
+      wire without a diagram each.</p>
+      <p>Three of them are not free choices. <code>DIO13</code>,
+      <code>DIO14</code> and <code>DIO15</code> are wired to the colorimeter
+      board's LED select lines, and <code>V+</code> and <code>V-</code> are
+      what power its op amp &mdash; those come off that board's schematic, and
+      <code>docs/colorimeter-board.md</code> is where they were recovered
+      from.</p>
+      <p><strong>A pin is an input or an output, never both.</strong> Nothing
+      in GNU&nbsp;Radio can see across two blocks, so a pin claimed by a source
+      and a sink at once is the one wiring mistake the software will not catch
+      for you.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="m2k-what" data-section="ADALM2000">
+  <div class="wrap">
+    <h2>Analog, Digital and DC</h2>
+    <div class="stage split">
+      <div class="present">
+        <ul>
+          <li><strong>AIO</strong> — 2 inputs at 100&nbsp;MS/s, 2 outputs at 75&nbsp;MS/s</li>
+          <li><strong>DIO</strong> — 16 pins, each one an input or an output</li>
+          <li><strong>DC</strong> — two programmable rails, V+ and V&minus;</li>
+        </ul>
+      </div>
+      <div class="present">
+        <p>Three resources, and the instruments fall out of them: oscilloscope,
+        spectrum analyzer, signal generator, logic analyzer, pattern generator,
+        voltmeter, power supply.</p>
+        <p class="pull">We reach all of it through 14 IIO devices.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>"Six instruments" is how the board is sold and it is the wrong count
+      in both directions. There are not six separate pieces of hardware in
+      there &mdash; there is one ADC pair, one DAC pair, sixteen pins and a
+      supply. And what you can build out of those three is not a fixed list of
+      six: a spectrum analyzer and an oscilloscope are the same converter with
+      different arithmetic after it, and the arithmetic is the part
+      GNU&nbsp;Radio is for.</p>
+      <p>So the useful split is by resource rather than by instrument. AIO is
+      what the scope and the generator share. DIO is what the logic analyzer
+      and the pattern generator share, sixteen pins on one word and one sample
+      clock. DC is the two supplies, which have no instrument at all in
+      GNU&nbsp;Radio until you give them one.</p>
+      <p>The board is 12-bit, it is rate-limited, and it is wrong about its own
+      volts until you calibrate it. None of that shows up in the marketing
+      count either.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="m2k-devices" data-section="ADALM2000">
+  <div class="wrap">
+    <h2>The 14 IIO Devices</h2>
+    <div class="stage">
+      <div class="present">
+        <ul>
+          <li>One context. <strong>Fourteen IIO devices</strong></li>
+          <li>Nothing in the tree says which one is "the scope"</li>
+          <li>One instrument setting can span three of them</li>
+        </ul>
+        <p class="pull">ADI built Scopy to access these.</p>
+      </div>
+      <div class="present">
+<pre><code>m2k-adc              the scope's samples
+m2k-adc-trigger      when it starts
+m2k-fabric           input range, power-down
+m2k-dac-a  m2k-dac-b the two generators
+m2k-dds              their tone mode
+m2k-logic-analyzer-rx  digital in
+m2k-logic-analyzer-tx  digital out
+ad9963  ad5627  ad5625  pll  xadc</code></pre>
+      </div>
+    </div>
+    <div class="depth">
+      <p>This is the gap the workshop exists to close. "Set the scope's input
+      range to &plusmn;2.5&nbsp;V" is one control on the instrument. In IIO it is an attribute on
+      <code>m2k-fabric</code>, while the samples come from <code>m2k-adc</code> and the trigger
+      lives on <code>m2k-adc-trigger</code> — three devices for one idea.</p>
+      <p>That is also the concrete reason a stock <em>IIO Device Source</em> cannot
+      express an M2K scope channel: its <code>params</code> field writes to exactly one
+      device. Three devices need three blocks, wired by hand, in the right order.</p>
+      <p>One more: <code>m2k-logic-analyzer</code> and <code>m2k-logic-analyzer-rx</code> are
+      different devices, and only the <code>-rx</code> one has scan indices — which means
+      only the <code>-rx</code> one can stream. libiio cannot buffer a channel that has no scan index, and nothing tells you except silence.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="m2k-scopy" data-section="ADALM2000">
+  <div class="wrap">
+    <h2>Scopy</h2>
+    <div class="stage">
+      <div class="present">
+        <figure class="shot canvas">
+          <div class="slot">Scopy, with an instrument open<br>slides/img/scopy.png</div>
+          <figcaption>ADI's own front end for the board.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Scopy is where most people meet this board. Open it once and the
+      fourteen devices look like a bench, because somebody has already done
+      the arranging. Every instrument in it writes
+      the same attributes a flowgraph writes. Nothing it can do is unavailable
+      further down; it is a very good arrangement of the same surface.</p>
+      <p>What it is not is programmable in GNU&nbsp;Radio's sense. Scopy shows
+      you a signal; it does not hand the samples to a filter you wrote, and it
+      has no notion of a flowgraph. That is the gap the rest of this session
+      is about &mdash; not that Scopy is missing something, but that a DSP tool
+      wants the board as a source and a sink rather than as an application.</p>
+      <p>It installs separately from anything here and nothing in this
+      workshop needs it. Bring it if you want a second opinion on what a pin
+      is doing; the bench checklist used its Digital&nbsp;IO panel exactly that
+      way.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Part two -- IIO
      =================================================================== -->
 
 <section class="frame section-frame" id="sec-iio" data-section="IIO">
   <div class="wrap">
-    <div class="sec-n">Part one</div>
+    <div class="sec-n">Part two</div>
     <h2>IIO</h2>
     <p class="lede">Industrial I/O: the kernel's answer to "what is this converter, and what is it set to?"</p>
   </div>
@@ -303,42 +465,6 @@ python -m m2k_blocks scan</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="iio-rule" data-section="IIO">
-  <div class="wrap">
-    <h2>What Are Raw Values</h2>
-    <div class="stage">
-      <div class="present">
-        <p class="pull">real value = (raw + offset) &times; scale</p>
-        <ul>
-          <li>Offset <strong>before</strong> scale, not after</li>
-          <li>Offset in counts; scale converts counts to the unit</li>
-        </ul>
-      </div>
-      <div class="present callout">
-        <p>The ABI fixes the unit. <code>voltage</code> &rarr; millivolts.
-        <code>temp</code> &rarr; millidegrees.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>If a participant remembers one thing from the IIO half of this session,
-      this is a good candidate. Every plausible-looking wrong answer in an IIO
-      flowgraph comes from a number still in counts that something downstream
-      reads as volts, or from applying the offset on the wrong side of the
-      multiply.</p>
-      <p>The sub-unit choice is deliberate: the values are integers, so
-      millivolts and millidegrees keep useful resolution without floating point
-      in the kernel. Twenty-four channel types have a fixed unit this way; the
-      full table is in <code>docs/reading-iio-attributes.md</code>, generated from the
-      kernel's own ABI documentation by <code>iio-tools/iio_explain.py --glossary</code>.</p>
-      <p><strong>The M2K is where this rule runs out.</strong> Its scope does not
-      publish a usable <code>scale</code> — libm2k computes the conversion itself, and
-      volts-per-count turns out to depend on the sample rate through the
-      decimation filter's gain. That is the subject of <code>m2k_scale.py</code>, and
-      it is the reason the analog blocks exist at all.</p>
-    </div>
-  </div>
-</section>
-
 <section class="frame cut" id="iio-names" data-section="IIO">
   <div class="wrap">
     <h2>Attribute Name Grammar</h2>
@@ -387,18 +513,23 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
         <p class="pull">A general-purpose block cannot know what a board is.</p>
       </div>
       <div class="present">
-        <div class="tablewrap"><table>
-          <tr><th>parameter</th><th>the problem</th></tr>
-          <tr><td><code>IIO context URI</code></td><td>no example of a legal value</td></tr>
-          <tr><td><code>Device Name/ID</code></td><td>which devices exist, spelled how?</td></tr>
-          <tr><td><code>PHY Device</code></td><td>"PHY" means nothing here</td></tr>
-          <tr><td><code>Channels</code></td><td>a Python list you must already know</td></tr>
-          <tr><td><code>Decimation</code></td><td>factor, or samples dropped?</td></tr>
-          <tr><td><code>Parameters</code></td><td>free text, unguessable naming rule</td></tr>
-        </table></div>
+        <figure class="shot">
+          <img src="img/grc-iio-device-source.png" alt="The stock IIO Device Source block on the GNU Radio Companion canvas, filled in for an M2K scope channel: IIO context URI ip:...68.2.1, Device Name m2k-adc, an empty PHY Device Name, Channels voltage0, Buffer size 16.384k, Decimation 1, and a Parameters field showing sampl...y=1000000, both ends of the string cut off by the block's own width.">
+          <figcaption>The stock block, filled in for one M2K scope channel. Two of the values do not fit on it.</figcaption>
+        </figure>
       </div>
     </div>
     <div class="depth">
+      <p>Every field, and where its value lives:</p>
+      <div class="tablewrap"><table>
+        <tr><th>parameter</th><th>the problem</th></tr>
+        <tr><td><code>IIO context URI</code></td><td>no example of a legal value</td></tr>
+        <tr><td><code>Device Name/ID</code></td><td>which devices exist, spelled how?</td></tr>
+        <tr><td><code>PHY Device</code></td><td>"PHY" means nothing here</td></tr>
+        <tr><td><code>Channels</code></td><td>a Python list you must already know</td></tr>
+        <tr><td><code>Decimation</code></td><td>factor, or samples dropped?</td></tr>
+        <tr><td><code>Parameters</code></td><td>free text, unguessable naming rule</td></tr>
+      </table></div>
       <p>This is not a complaint about gr-iio. The block is correct and it is
       general, and general is what an in-tree block has to be. But a participant
       opening it for the first time has no way to make progress, because every
@@ -437,216 +568,14 @@ in_voltage0-voltage1_raw    a differential pair</code></pre>
 </section>
 
 <!-- ===================================================================
-     The ADALM2000
-     =================================================================== -->
-
-<section class="frame section-frame" id="sec-m2k" data-section="ADALM2000">
-  <div class="wrap">
-    <div class="sec-n">Part two</div>
-    <h2>The ADALM2000</h2>
-    <p class="lede">A bench in a box — and, underneath, fourteen IIO devices that have never heard of each other.</p>
-  </div>
-</section>
-
-<section class="frame cut" id="m2k-what" data-section="ADALM2000">
-  <div class="wrap">
-    <h2>The 6 M2K Instruments</h2>
-    <div class="stage">
-      <div class="present">
-        <ul>
-          <li>Scope — 2 channels, 100&nbsp;MS/s</li>
-          <li>Generator — 2 channels, 75&nbsp;MS/s</li>
-          <li>16 digital pins, in or out</li>
-          <li>Two power rails</li>
-        </ul>
-        <p class="pull">It costs $200, and it is the input device for everything else in this room.</p>
-      </div>
-      <div class="present callout">
-        <p>Every other board sits on its <strong>input side</strong>. The M2K is the
-        instrument; nothing else is.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>The unit on the bench for this material is a Rev.D with a Zynq 7010 and
-      firmware v0.33, reached over the network backend at
-      <code>ip:192.168.2.1</code>. USB passthrough is not in use.</p>
-      <p>Choosing the M2K as the input device solves a scarcity problem as much
-      as a pedagogical one. Twenty participants can each have a board that is a
-      scope, a generator and a logic analyzer at once, and the interesting
-      hardware — the colorimeter, the ultrasonic transducers — can be a single
-      instructor unit feeding many receive-only stations.</p>
-      <p>It also puts a real constraint in front of the room: the board is 12-bit, it is rate-limited, and it is wrong about its own volts until you calibrate it.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="m2k-devices" data-section="ADALM2000">
-  <div class="wrap">
-    <h2>The 14 IIO Devices</h2>
-    <div class="stage">
-      <div class="present">
-        <ul>
-          <li>One context. <strong>Fourteen IIO devices</strong></li>
-          <li>Nothing in the tree says which one is "the scope"</li>
-          <li>One instrument setting can span three of them</li>
-        </ul>
-      </div>
-      <div class="present">
-<pre><code>m2k-adc              the scope's samples
-m2k-adc-trigger      when it starts
-m2k-fabric           input range, power-down
-m2k-dac-a  m2k-dac-b the two generators
-m2k-dds              their tone mode
-m2k-logic-analyzer-rx  digital in
-m2k-logic-analyzer-tx  digital out
-ad9963  ad5627  ad5625  pll  xadc</code></pre>
-      </div>
-    </div>
-    <div class="depth">
-      <p>This is the gap the workshop exists to close. "Set the scope's input
-      range to &plusmn;2.5&nbsp;V" is one control on the instrument. In IIO it is an attribute on
-      <code>m2k-fabric</code>, while the samples come from <code>m2k-adc</code> and the trigger
-      lives on <code>m2k-adc-trigger</code> — three devices for one idea.</p>
-      <p>That is also the concrete reason a stock <em>IIO Device Source</em> cannot
-      express an M2K scope channel: its <code>params</code> field writes to exactly one
-      device. Three devices need three blocks, wired by hand, in the right order.</p>
-      <p>One more: <code>m2k-logic-analyzer</code> and <code>m2k-logic-analyzer-rx</code> are
-      different devices, and only the <code>-rx</code> one has scan indices — which means
-      only the <code>-rx</code> one can stream. libiio cannot buffer a channel that has no scan index, and nothing tells you except silence.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="m2k-stack" data-section="ADALM2000">
-  <div class="wrap">
-    <h2>The Stack Above IIO</h2>
-    <div class="stage">
-      <div class="present">
-<pre><code>a GUI, or your own code
-     |
-  libm2k     instruments: scope, generator
-     |
-  libiio     devices, channels, attributes
-     |
-  sysfs      what we just read</code></pre>
-      </div>
-      <div class="present">
-        <ul>
-          <li>Every layer above writes the same attributes</li>
-          <li><strong>libm2k</strong> is ADI's own library for this board</li>
-          <li>A second opinion has to be independent &mdash; use a meter</li>
-        </ul>
-      </div>
-    </div>
-    <div class="depth">
-      <p>Nothing above the bottom layer can do anything the bottom layer cannot.
-      A vendor GUI, libm2k, a flowgraph: all of them end up writing the same
-      sysfs attributes. That is worth knowing because it sets a ceiling. If an
-      attribute cannot express what you want, no tool above it can either.</p>
-      <p><strong>libm2k is named here for one reason.</strong> It is the
-      library ADI wrote to drive this board, so the set of attributes it reads
-      and writes is a decent answer to "which of these 800 attributes does
-      operating an M2K actually need?" The kernel ABI cannot answer that; it
-      says what an attribute means, not whether you will ever reach for it.
-      That is where the numbers in <code>m2k_scale.py</code> came from.</p>
-      <p><strong>When a measurement looks wrong, check it against something
-      that cannot share the mistake.</strong> Two programs built on the same
-      library agreeing tells you they agree. The bench work behind these slides
-      closed absolute error against a multimeter, and a meter is the reason we
-      know the volts conversion is right rather than merely self-consistent.</p>
-      <p>The same applies to the SPI decoder, which is checked against
-      libsigrokdecode rather than against itself &mdash; the last of the four
-      takeaways at the end.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="m2k-translation" data-section="ADALM2000">
-  <div class="wrap">
-    <h2>The libm2k Translation Table</h2>
-    <div class="stage">
-      <div class="present">
-<pre><code>gain               -> M2kAnalogIn::setRange
-                      Oscilloscope
-
-trigger_level      -> M2kHardwareTrigger::setAnalogLevelRaw
-                      Trigger
-
-oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
-                      Oscilloscope</code></pre>
-      </div>
-      <div class="present">
-        <ul>
-          <li>libm2k is the translation table — and machine-readable</li>
-          <li>If libm2k touches it, driving the board needs it</li>
-          <li>The method name says which instrument</li>
-        </ul>
-      </div>
-    </div>
-    <div class="depth">
-      <p>The kernel says what an attribute <em>means</em>. It cannot say whether you
-      will ever need it. For this board libm2k can: it is the library ADI wrote to
-      drive the M2K, so anything it reads or writes is something operating the board
-      as an instrument requires.</p>
-      <p><strong>Absence is not a verdict.</strong> <code>scale</code> and <code>offset</code> are
-      not in that table, because libm2k computes the scope's conversion itself
-      instead of reading them back. That means "not part of this board's
-      instrument abstraction", not "unimportant" — they remain central to every
-      other IIO device you will ever meet.</p>
-      <p>It is a text scan of vendor source, not an API contract. A strong hint
-      about relevance, which is exactly what it is sold as.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="m2k-traps" data-section="ADALM2000">
-  <div class="wrap">
-    <h2>Four M2K Traps</h2>
-    <div class="stage">
-      <div class="present">
-        <ul>
-          <li><strong>The ADC always returns both channels, interleaved.</strong></li>
-          <li><strong>The front end comes up powered down</strong> — and gives a flat line, not an error.</li>
-          <li><strong>Volts-per-count depends on the sample rate.</strong></li>
-          <li><strong>Cyclic buffers quantise frequency</strong> to multiples of <code>rate/N</code>.</li>
-        </ul>
-      </div>
-      <div class="present callout trap">
-        <p>Every one of these presents as a plausible wrong answer. None of them
-        raises an error.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p><strong>Interleaving.</strong> gr-iio splits a two-channel buffer as if it
-      were one, so the time base runs 2&times; slow and the result presents as a tone
-      at exactly Nyquist. If you ever see a signal sitting precisely at Nyquist,
-      suspect this first.</p>
-      <p><strong>Power-down.</strong> Clear <code>powerdown</code> on <code>m2k-fabric</code>. An
-      uninitialised board returns a flat line that looks like a quiet input.</p>
-      <p><strong>Volts per count.</strong> The decimation filter has gain, so the
-      conversion moves with the rate — and the same correction applies to the
-      trigger level, which otherwise sits about 9% away from where the scope says
-      it is. That arithmetic is <code>m2k_scale.py</code>; it is a fixed property of the
-      converters, not a per-board calibration.</p>
-      <p><strong>Cyclic quantization.</strong> A repeating N-sample buffer can only
-      produce multiples of <code>rate/N</code>, so asking for 10&nbsp;kHz gets you 9979.2&nbsp;Hz
-      and that is correct behavior, not a defect.</p>
-      <p>There are a dozen more in the project note, and most of them took a
-      bench session to find. The blocks in the next section exist largely so that
-      a participant does not have to re-find them.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ===================================================================
-     The blocks
+     Part three -- the blocks
      =================================================================== -->
 
 <section class="frame section-frame" id="sec-blocks" data-section="The blocks">
   <div class="wrap">
     <div class="sec-n">Part three</div>
     <h2>GNU Radio Blocks for the M2K</h2>
-    <p class="lede">The instrument, in GNU&nbsp;Radio's vocabulary. Two lines of setup, no build step.</p>
+    <p class="lede">The instrument, in GNU&nbsp;Radio's vocabulary.</p>
   </div>
 </section>
 
@@ -664,10 +593,10 @@ oversampling_ratio -> M2kAnalogIn::setOversamplingRatio
 <pre><code>source gr-m2k/env.sh
 gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
     <div class="depth">
-      <p>Two environment variables, no build step, nothing to install.
-      <code>[ADALM2000]</code> appears in the block tree. That constraint — a workshop
-      that installs nothing in the room — shaped more of this than any other
-      single decision.</p>
+      <p>Two environment variables and no build step: <code>[ADALM2000]</code>
+      appears in the block tree. Keeping the room's setup to one script,
+      run before anybody travels, shaped more of this than any other single
+      decision.</p>
       <p>Beside the six blocks there are two plain Python modules that import
       nothing at all: <code>m2k_scale.py</code> holds the counts-to-volts arithmetic and
       <code>m2k_calibrate.py</code> is a standalone script that runs once per session. The
@@ -678,99 +607,37 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="blocks-blinky" data-section="The blocks">
+<section class="frame cut" id="blocks-rules" data-section="The blocks">
   <div class="wrap">
-    <h2>The Blinking LED</h2>
-    <div class="stage split">
+    <h2>Three Block Design Rules</h2>
+    <div class="stage">
       <div class="present">
-        <figure class="shot canvas">
-          <img src="img/grc-blinky.png" alt="Three blocks on the GNU Radio Companion canvas: a Signal Source set to a square wave at blink_hz with amplitude 1, feeding Float To Short, feeding M2K Digital Sink on pin 0 named LED at 100 kS/s.">
-          <figcaption>The whole signal path. There is no blink block. Nothing here requires one.</figcaption>
-        </figure>
+        <ol>
+          <li><strong>No IIO vocabulary on the face of a block.</strong> Asserted by a test.</li>
+          <li><strong>Every dropdown starts at "leave alone."</strong> Open a block, close it, nothing is written.</li>
+          <li><strong>The legal values come from the hardware.</strong></li>
+        </ol>
       </div>
-      <div class="present">
-        <ul>
-          <li>One LED, two wires, no resistor</li>
-          <li>Anode to <code>DIO0</code>, cathode to ground</li>
-          <li>If it lights, the blocks loaded and the board is reachable</li>
-        </ul>
-        <p class="pull">The blink rate is a property of the stream, not a setting on the board.</p>
+      <div class="present callout">
+        <p>The meaning travels with the block — the Documentation tab carries the
+        kernel's own words.</p>
       </div>
     </div>
     <div class="depth">
-      <p>This is the go/no-go. Everything in the last two parts — the block
-      tree, the two search paths, the network context to
-      <code>ip:192.168.2.1</code> — is either working or it is not, and an LED
-      says which from across the room. Do it before any of the six blocks gets
-      explained: a wrong answer here invalidates the next forty minutes,
-      and takes ten seconds to find.</p>
-      <p><strong>The square wave is already the right two values.</strong>
-      GNU&nbsp;Radio's <code>GR_SQR_WAVE</code> runs 0 to amplitude rather than
-      plus and minus it, so amplitude&nbsp;1 gives exactly the ones and zeros the
-      sink wants and <code>Float To Short</code> is the entire conversion. No
-      threshold, no offset. A sine or a triangle would need both — this is the
-      one shape that gets away with it.</p>
-      <p><strong>Nothing in the flowgraph is about blinking.</strong> It is a
-      stream of bits arriving at a pin at 100&nbsp;kS/s, and the LED follows
-      because it has no choice. Drag the slider and the frequency of the
-      <em>signal</em> moves. That sounds like a distinction without a difference
-      until the next slide, where the same pin at the same rate stops blinking
-      altogether.</p>
-      <p><strong>Seeing it on a scope means throwing samples away.</strong> The
-      canvas above leaves out a fourth branch: the same short stream into
-      <code>Keep 1 in N</code> with N&nbsp;=&nbsp;1000, then a time sink. Without
-      the decimation, 512 points at 100&nbsp;kS/s is a 5&nbsp;ms window and a
-      half-second blink is a flat line. The rate the hardware wants and the rate
-      a person can read are not the same number — which comes back in every demo
-      after this one.</p>
-      <p><strong>On the bench, 2026-09-18:</strong> an integrated-resistor LED
-      marked 3–4.5&nbsp;V on the package, straight off the pin, nothing else on
-      the breadboard. Red, yellow and green work; blue and white drop nearly
-      3&nbsp;V unaided and have no headroom left on 3.3&nbsp;V logic.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="blocks-blinky-pwm" data-section="The blocks">
-  <div class="wrap">
-    <h2>PWM on the Same Pin</h2>
-    <div class="stage split">
-      <div class="present">
-        <figure class="shot canvas">
-          <img src="img/grc-led-pwm.png" alt="Five blocks on the canvas: a Signal Source set to a saw wave at pwm_hz with amplitude minus one, into Add Const set to duty, into Threshold with all three limits at zero, into Float To Short, into M2K Digital Sink on pin 0.">
-          <figcaption>Brightness, from a pin that still only knows 0 and 1.</figcaption>
-        </figure>
-      </div>
-      <div class="present">
-        <ul>
-          <li>A ramp, shifted up by the duty cycle, compared against zero</li>
-          <li>On-fraction equals duty to one sample in 100000</li>
-          <li>The eye does the averaging; the pin does not</li>
-        </ul>
-        <p class="pull">PWM is not a block. It is a ramp and a comparator.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>A ramp descending from 0 to &minus;1, shifted up by <code>duty</code>,
-      is above zero for exactly that fraction of every period. Threshold at zero
-      and the fraction lands on the pin. GNU&nbsp;Radio ships no PWM block, and this
-      chain wants none — the same lesson as the previous slide, arrived at from
-      the other side.</p>
-      <p><strong>The minus sign is load-bearing.</strong> An ascending ramp runs
-      0 to +1, so adding a positive duty puts the whole period above the
-      threshold: the pin sticks on and the slider does nothing at any setting.
-      From the front of a room that looks like a broken control or a dead board
-      rather than a sign error. There is a test named after it.</p>
-      <p><strong>1&nbsp;kHz is chosen, not arbitrary.</strong> 100&nbsp;kS/s over
-      1&nbsp;kHz is 100 samples per period, so one sample is one percent and the
-      slider's 0.01 step is exactly one sample wide. Pick a carrier that does not
-      divide the rate and the slider grows dead zones — a brightness control that
-      sticks.</p>
-      <p><strong>The exercise.</strong> Make it fade. Swap <code>Add Const</code>
-      for a plain <code>Add</code> and feed the second input a triangle at
-      0.2&nbsp;Hz with a 0.5 offset. The duty then sweeps 0 to 1 and back, five
-      seconds each way. Two blocks changed, and it shows that duty was never a
-      parameter — it was always another stream.</p>
+      <p>Rule 2 is the one that is easy to get wrong. A shown value must never
+      mean a value written to the hardware — otherwise opening a block to read it
+      changes the board's state, and a participant's debugging becomes
+      non-reproducible.</p>
+      <p>A fourth rule, learned the hard way: <strong>quote every option label.</strong>
+      <code>option_labels: [On, Off]</code> silently becomes <code>True / False</code>, because
+      YAML 1.1 reads those as booleans. There is a test.</p>
+      <p>One capability is still missing. GNU&nbsp;Radio cannot control a power
+      rail at all, so there is no block for the M2K's two supplies yet; the
+      setpoint spans four places, including the context <code>cal,*</code>
+      attributes.</p>
+      <p>And a fifth rule, same category: GRC's <code>dtype: enum</code> values are
+      raw strings. <code>'0' + '3'</code> concatenates, <code>int("'6'")</code> raises, and an assert
+      that raises makes GRC fall back to defaults without saying so.</p>
     </div>
   </div>
 </section>
@@ -855,94 +722,127 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="blocks-multipin" data-section="The blocks">
-  <div class="wrap">
-    <h2>The Multi-Pin Sink Problem</h2>
-    <div class="stage">
-      <div class="present callout trap">
-        <p><strong>gr-iio's <code>device_sink</code> drives one DIO pin, silently.</strong></p>
-        <ul>
-          <li>16 one-bit channels, one 16-bit word</li>
-          <li>Each write is full width and erases the last</li>
-          <li>Only the highest pin survives. No error</li>
-        </ul>
-      </div>
-      <div class="present">
-        <ul>
-          <li>A three-wire bus needs three pins moving <em>together</em></li>
-          <li>A different question from moving one pin</li>
-          <li>The one that failed first on the bench</li>
-        </ul>
-      </div>
-    </div>
-    <div class="depth">
-      <p>The full write-up is <code>docs/gr-iio-multipin-sink.md</code>. The symptom is
-      the worst kind: a flowgraph that runs, a board that acknowledges every
-      write, and exactly one pin that moves.</p>
-      <p>Once fixed, the check was <em>coherence</em>, not correctness: send four
-      patterns of period 2, 4, 8 and 16 out on DIO0–3, read DIO4–7 back, and look
-      for one rotation of the sixteen-sample word that fits all of them. If each
-      pin needs a different rotation, the ports have slipped past each other and
-      any bus decoded off them is fiction.</p>
-      <p>That check also found the rate limit. <strong>Non-cyclic digital output is
-      not reliable at 1&nbsp;MS/s</strong> — it underruns in about half of runs. When it
-      does, all three pins break at the same sample rather than drifting apart,
-      so the failure shows up as a gap in all three at once rather than as skew. Use a big transmit buffer: at 1&nbsp;MS/s a
-      512-sample buffer is 1953 refills a second over the network, and a dropped
-      one looks exactly like skew.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="blocks-rules" data-section="The blocks">
-  <div class="wrap">
-    <h2>Three Block Design Rules</h2>
-    <div class="stage">
-      <div class="present">
-        <ol>
-          <li><strong>No IIO vocabulary on the face of a block.</strong> Asserted by a test.</li>
-          <li><strong>Every dropdown starts at "leave alone."</strong> Open a block, close it, nothing is written.</li>
-          <li><strong>The legal values come from the hardware.</strong></li>
-        </ol>
-      </div>
-      <div class="present callout">
-        <p>The meaning travels with the block — the Documentation tab carries the
-        kernel's own words.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>Rule 2 is the one that is easy to get wrong. A shown value must never
-      mean a value written to the hardware — otherwise opening a block to read it
-      changes the board's state, and a participant's debugging becomes
-      non-reproducible.</p>
-      <p>A fourth rule, learned the hard way: <strong>quote every option label.</strong>
-      <code>option_labels: [On, Off]</code> silently becomes <code>True / False</code>, because
-      YAML 1.1 reads those as booleans. There is a test.</p>
-      <p>One capability is still missing. GNU&nbsp;Radio cannot control a power
-      rail at all, so there is no block for the M2K's two supplies yet; the
-      setpoint spans four places, including the context <code>cal,*</code>
-      attributes.</p>
-      <p>And a fifth rule, same category: GRC's <code>dtype: enum</code> values are
-      raw strings. <code>'0' + '3'</code> concatenates, <code>int("'6'")</code> raises, and an assert
-      that raises makes GRC fall back to defaults without saying so.</p>
-    </div>
-  </div>
-</section>
-
-
 <!-- ===================================================================
-     SPI
+     Part four -- crawl
      =================================================================== -->
 
-<section class="frame section-frame" id="sec-spi" data-section="SPI">
+<section class="frame section-frame" id="sec-crawl" data-section="Crawl">
   <div class="wrap">
     <div class="sec-n">Part four</div>
-    <h2>SPI</h2>
-    <p class="lede">Four wires, no addressing, no acknowledgement. The simplest bus worth decoding.</p>
+    <h2>Crawl: Blinky Lights</h2>
+    <p class="lede">One LED, one pin, three blocks. If this works, everything after it is arithmetic.</p>
   </div>
 </section>
 
-<section class="frame cut" id="spi-what" data-section="SPI">
+<section class="frame cut" id="blocks-blinky" data-section="Crawl">
+  <div class="wrap">
+    <h2>The Blinking LED</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-blinky.png" alt="Three blocks on the GNU Radio Companion canvas: a Signal Source set to a square wave at blink_hz with amplitude 1, feeding Float To Short, feeding M2K Digital Sink on pin 0 named LED at 100 kS/s.">
+          <figcaption>The whole signal path. There is no blink block. Nothing here requires one.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>One LED, two wires, no resistor</li>
+          <li>Anode to <code>DIO0</code>, cathode to ground</li>
+          <li>If it lights, the blocks loaded and the board is reachable</li>
+        </ul>
+        <p class="pull">The blink rate is a property of the stream, not a setting on the board.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>This is the go/no-go. Everything the last three parts set up — the
+      block tree, the two search paths, the network context to
+      <code>ip:192.168.2.1</code> — is either working or it is not, and an LED
+      says which from across the room. A wrong answer here invalidates the next
+      forty minutes, and takes ten seconds to find.</p>
+      <p><strong>The square wave is already the right two values.</strong>
+      GNU&nbsp;Radio's <code>GR_SQR_WAVE</code> runs 0 to amplitude rather than
+      plus and minus it, so amplitude&nbsp;1 gives exactly the ones and zeros the
+      sink wants and <code>Float To Short</code> is the entire conversion. No
+      threshold, no offset. A sine or a triangle would need both — this is the
+      one shape that gets away with it.</p>
+      <p><strong>Nothing in the flowgraph is about blinking.</strong> It is a
+      stream of bits arriving at a pin at 100&nbsp;kS/s, and the LED follows
+      because it has no choice. Drag the slider and the frequency of the
+      <em>signal</em> moves. That sounds like a distinction without a difference
+      until the next slide, where the same pin at the same rate stops blinking
+      altogether.</p>
+      <p><strong>Seeing it on a scope means throwing samples away.</strong> The
+      canvas above leaves out a fourth branch: the same short stream into
+      <code>Keep 1 in N</code> with N&nbsp;=&nbsp;1000, then a time sink. Without
+      the decimation, 512 points at 100&nbsp;kS/s is a 5&nbsp;ms window and a
+      half-second blink is a flat line. The rate the hardware wants and the rate
+      a person can read are not the same number — which comes back in every demo
+      after this one.</p>
+      <p><strong>On the bench, 2026-09-18:</strong> an integrated-resistor LED
+      marked 3–4.5&nbsp;V on the package, straight off the pin, nothing else on
+      the breadboard. Red, yellow and green work; blue and white drop nearly
+      3&nbsp;V unaided and have no headroom left on 3.3&nbsp;V logic.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="blocks-blinky-pwm" data-section="Crawl">
+  <div class="wrap">
+    <h2>PWM on the Same Pin</h2>
+    <div class="stage split">
+      <div class="present">
+        <figure class="shot canvas">
+          <img src="img/grc-led-pwm.png" alt="Five blocks on the canvas: a Signal Source set to a saw wave at pwm_hz with amplitude minus one, into Add Const set to duty, into Threshold with all three limits at zero, into Float To Short, into M2K Digital Sink on pin 0.">
+          <figcaption>Brightness, from a pin that still only knows 0 and 1.</figcaption>
+        </figure>
+      </div>
+      <div class="present">
+        <ul>
+          <li>A ramp, shifted up by the duty cycle, compared against zero</li>
+          <li>On-fraction equals duty to one sample in 100000</li>
+          <li>The eye does the averaging; the pin does not</li>
+        </ul>
+        <p class="pull">PWM is not a block. It is a ramp and a comparator.</p>
+      </div>
+    </div>
+    <div class="depth">
+      <p>A ramp descending from 0 to &minus;1, shifted up by <code>duty</code>,
+      is above zero for exactly that fraction of every period. Threshold at zero
+      and the fraction lands on the pin. GNU&nbsp;Radio ships no PWM block, and this
+      chain wants none — the same lesson as the previous slide, arrived at from
+      the other side.</p>
+      <p><strong>The minus sign is load-bearing.</strong> An ascending ramp runs
+      0 to +1, so adding a positive duty puts the whole period above the
+      threshold: the pin sticks on and the slider does nothing at any setting.
+      From the front of a room that looks like a broken control or a dead board
+      rather than a sign error. There is a test named after it.</p>
+      <p><strong>1&nbsp;kHz is chosen, not arbitrary.</strong> 100&nbsp;kS/s over
+      1&nbsp;kHz is 100 samples per period, so one sample is one percent and the
+      slider's 0.01 step is exactly one sample wide. Pick a carrier that does not
+      divide the rate and the slider grows dead zones — a brightness control that
+      sticks.</p>
+      <p><strong>The exercise.</strong> Make it fade. Swap <code>Add Const</code>
+      for a plain <code>Add</code> and feed the second input a triangle at
+      0.2&nbsp;Hz with a 0.5 offset. The duty then sweeps 0 to 1 and back, five
+      seconds each way. Two blocks changed, and it shows that duty was never a
+      parameter — it was always another stream.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================================
+     Part five -- walk
+     =================================================================== -->
+
+<section class="frame section-frame" id="sec-spi" data-section="Walk">
+  <div class="wrap">
+    <div class="sec-n">Part five</div>
+    <h2>Walk: SPI</h2>
+    <p class="lede">Four wires and no acknowledgement &mdash; the simplest bus worth building out of sixteen pins.</p>
+  </div>
+</section>
+
+<section class="frame cut" id="spi-what" data-section="Walk">
   <div class="wrap">
     <h2>The Four SPI Wires</h2>
     <div class="stage split">
@@ -979,7 +879,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="spi-mode0" data-section="SPI">
+<section class="frame cut" id="spi-mode0" data-section="Walk">
   <div class="wrap">
     <h2>SPI Mode 0</h2>
     <div class="stage split">
@@ -1006,8 +906,8 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
       <p>The transmitter's job is the mirror: MOSI settles while SCLK is low, so
       it is stable by the time the rising edge arrives. Setup and hold, in other
       words, are the reason the phase bit exists at all.</p>
-      <p>There is a real hazard hiding in how short that sentence is, and it
-      shows up two sections from now: our encoder and our decoder were both
+      <p>There is a real hazard hiding in how short that sentence is, and the
+      end of this part comes back to it: our encoder and our decoder were both
       written from it. A shared misreading — LSB first, the falling edge, CS
       moving half a clock early — round-trips perfectly and is still wrong on a
       real bus.</p>
@@ -1015,7 +915,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="spi-cs" data-section="SPI">
+<section class="frame cut" id="spi-cs" data-section="Walk">
   <div class="wrap">
     <h2>Chip Select and Framing</h2>
     <div class="stage split">
@@ -1040,13 +940,12 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
       wrong in a way nothing downstream can detect.</p>
       <p><strong>One frame is one whole transaction.</strong> CS falls once, the encoder clocks every byte of the message out back to back, and CS rises once. Not once per
       byte. That is what real SPI does anyway, and section 11 of the bench
-      checklist is where we found out it also has to be true here — the story is
-      four frames from now.</p>
+      checklist is where we found out it also has to be true here.</p>
     </div>
   </div>
 </section>
 
-<section class="frame cut" id="spi-bitbang" data-section="SPI">
+<section class="frame cut" id="spi-bitbang" data-section="Walk">
   <div class="wrap">
     <h2>Sample Flow</h2>
     <div class="stage split-r">
@@ -1088,19 +987,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<!-- ===================================================================
-     The flow graph
-     =================================================================== -->
-
-<section class="frame section-frame" id="sec-fg" data-section="Flow graph">
-  <div class="wrap">
-    <div class="sec-n">Part five</div>
-    <h2>The SPI Flow Graph</h2>
-    <p class="lede">The map first. Then one block at a time, and what every parameter is for.</p>
-  </div>
-</section>
-
-<section class="frame" id="fg-canvas" data-section="Flow graph">
+<section class="frame" id="fg-canvas" data-section="Walk">
   <div class="wrap wide">
     <h2>The GRC Canvas</h2>
     <figure class="shot canvas">
@@ -1131,7 +1018,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame" id="fg-map" data-section="Flow graph">
+<section class="frame" id="fg-map" data-section="Walk">
   <div class="wrap wide">
     <h2>The Wiring Diagram</h2>
     <figure>
@@ -1240,7 +1127,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-vars" data-section="Flow graph">
+<section class="frame cut" id="fg-vars" data-section="Walk">
   <div class="wrap">
     <h2>The Four Variables</h2>
     <div class="chain">
@@ -1289,7 +1176,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-entry" data-section="Flow graph">
+<section class="frame cut" id="fg-entry" data-section="Walk">
   <div class="wrap">
     <h2>QT GUI Message Edit Box</h2>
     <div class="chain">
@@ -1339,7 +1226,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-encode" data-section="Flow graph">
+<section class="frame cut" id="fg-encode" data-section="Walk">
   <div class="wrap">
     <h2>M2K SPI Encode</h2>
     <div class="chain">
@@ -1376,7 +1263,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
       <p>Four more parameters set the quiet either side of the clocked bits, in
       samples: <code>64 / 8 / 8 / 48</code> for idle-before, CS-to-first-clock,
       last-clock-to-CS and idle-after. Those are the five rows of the frame
-      budget two frames back.</p>
+      budget in <em>Sample Flow</em>.</p>
       <p><strong>It is a source with no stream input</strong>, and that is the design
       decision worth explaining. Between messages it produces idle — clock low,
       data low, CS released — for as long as anyone asks, so the Digital Sink
@@ -1398,7 +1285,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-sink" data-section="Flow graph">
+<section class="frame cut" id="fg-sink" data-section="Walk">
   <div class="wrap">
     <h2>M2K Digital Sink</h2>
     <div class="chain">
@@ -1452,7 +1339,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-wire" data-section="Flow graph">
+<section class="frame cut" id="fg-wire" data-section="Walk">
   <div class="wrap">
     <h2>Three Jumper Wires</h2>
     <div class="chain">
@@ -1466,12 +1353,18 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
       <span class="lnk">Msg Debug</span>
     </div>
     <div class="stage split">
-      <div class="present">
-<pre>This is the only part of the loopback that is not software.</p>
+      <div class="present callout">
+        <p><code>DIO0</code> &rarr; <code>DIO4</code> &nbsp; SCLK</p>
+        <p><code>DIO1</code> &rarr; <code>DIO5</code> &nbsp; MOSI</p>
+        <p><code>DIO2</code> &rarr; <code>DIO6</code> &nbsp; CS</p>
       </div>
-      <div class="present callout trap">
-        <p>A pin is an input <em>or</em> an output. Wire two driven pins together and
-        both blocks come up happily.</p>
+      <div class="present">
+        <p class="pull">This is the only part of the loopback that is not software.</p>
+        <ul>
+          <li>Any six free pins in any order work</li>
+          <li>A pin is an input <em>or</em> an output</li>
+          <li>Wire two driven pins together and both blocks come up happy</li>
+        </ul>
       </div>
     </div>
     <div class="depth">
@@ -1486,7 +1379,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-source" data-section="Flow graph">
+<section class="frame cut" id="fg-source" data-section="Walk">
   <div class="wrap">
     <h2>M2K Digital Source</h2>
     <div class="chain">
@@ -1541,7 +1434,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-decode" data-section="Flow graph">
+<section class="frame cut" id="fg-decode" data-section="Walk">
   <div class="wrap">
     <h2>M2K SPI Decode</h2>
     <div class="chain">
@@ -1596,7 +1489,7 @@ gnuradio-companion flowgraphs/m2k_blinky.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="fg-out" data-section="Flow graph">
+<section class="frame cut" id="fg-out" data-section="Walk">
   <div class="wrap">
     <h2>Message Debug and the Time Sink</h2>
     <div class="chain">
@@ -1650,19 +1543,7 @@ pdu vector contents =
   </div>
 </section>
 
-<!-- ===================================================================
-     Demos
-     =================================================================== -->
-
-<section class="frame section-frame" id="sec-demo" data-section="Demos">
-  <div class="wrap">
-    <div class="sec-n">Part six</div>
-    <h2>Demos</h2>
-    <p class="lede">A loopback, the way it failed the first time, and an opinion from a decoder nobody here wrote.</p>
-  </div>
-</section>
-
-<section class="frame cut" id="demo-loopback" data-section="Demos">
+<section class="frame cut" id="demo-loopback" data-section="Walk">
   <div class="wrap">
     <h2>The Loopback Demo</h2>
     <div class="stage">
@@ -1703,44 +1584,7 @@ gnuradio-companion flowgraphs/m2k_spi_loopback.grc</code></pre>
   </div>
 </section>
 
-<section class="frame cut" id="demo-rotations" data-section="Demos">
-  <div class="wrap">
-    <h2>Why the First Run Printed Rotations</h2>
-    <div class="stage">
-      <div class="present">
-        <ul>
-          <li>Every byte correct. <code>M2K</code>, <code>2KM</code>, <code>KM2</code></li>
-          <li>1978 chunks, 5958 bytes, <strong>zero</strong> not in the message</li>
-        </ul>
-        <p class="pull">This is not corruption. A fair coin is deciding where each capture begins.</p>
-      </div>
-      <div class="present callout trap">
-        <p>A triggered capture <strong>re-arms per buffer</strong>. CS per byte put an
-        arming edge in front of every one.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>Chunk sizes <code>{3: 1975, 6: 2, 21: 1}</code>; chunk starts <code>M 689 / 2 649 /
-      K 640</code>. Uniform. The diagnostic that made it obvious was counting what was
-      <em>not</em> in the message and finding nothing — a corruption story cannot
-      survive that number being zero.</p>
-      <p>The cause is two halves of the design meeting. The M2K's non-cyclic digital capture leaves a gap between buffers: it fills one, hands it over, and
-      re-arms. A triggered source re-arms on the trigger, so every buffer starts
-      at a CS falling edge — and the frame, at that point, put a CS falling edge
-      in front of every byte. The decoder reported exactly what the hardware handed it.</p>
-      <p><strong>The fix is the waveform, not the code.</strong> Hold CS low across the
-      whole message, so one frame is one transaction and the only falling edge in
-      the frame is the message start. That is also what real SPI does, so the fix teaches the same thing. <code>SpiDecoder</code> needed no change — it already
-      abandons a part-built word at CS release and clocks straight through a
-      multi-byte window.</p>
-      <p><code>test_the_frame_asserts_chip_select_exactly_once</code> now pins it. It is
-      the only test that would have caught this without a board, and it did not
-      exist until the board found it.</p>
-    </div>
-  </div>
-</section>
-
-<section class="frame cut" id="demo-sigrok" data-section="Demos">
+<section class="frame cut" id="demo-sigrok" data-section="Walk">
   <div class="wrap">
     <h2>Checking Against sigrok</h2>
     <div class="stage">
@@ -1782,55 +1626,21 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="demo-negative" data-section="Demos">
-  <div class="wrap">
-    <h2>The Negative Control</h2>
-    <div class="stage split-r">
-      <div class="present">
-        <p class="pull">A harness that cannot fail has not checked anything.</p>
-        <ul>
-          <li>Four runs tell sigrok the wrong thing</li>
-          <li>Each must come back with something other than <code>4D 32 4B</code></li>
-        </ul>
-      </div>
-      <div class="present">
-        <div class="tablewrap"><table>
-          <tr><th>told</th><th>reads</th></tr>
-          <tr><td><code>bitorder=lsb-first</code></td><td><code>B2 4C D2</code></td></tr>
-          <tr><td><code>cpha=1</code></td><td><code>9A 64 96</code></td></tr>
-          <tr><td><code>cpol=1</code></td><td><code>9A 64 96</code></td></tr>
-          <tr><td><code>cs_polarity=active-high</code></td><td>nothing</td></tr>
-        </table></div>
-      </div>
-    </div>
-    <div class="depth">
-      <p>Those are exactly the three misreadings that would have round-tripped
-      cleanly through our own tests: bit order, clock phase, clock polarity. Each
-      one now produces a specific wrong answer that the harness asserts on.</p>
-      <p>One more detail that is easy to get wrong in a test like this: an unknown
-      option name makes <code>sigrok-cli</code> exit 1 and decode nothing, which looks
-      exactly like a quiet bus. So the harness asserts on the exit code rather
-      than on empty output — otherwise a typo in the negative control would pass
-      it.</p>
-    </div>
-  </div>
-</section>
-
 <!-- ===================================================================
-     Applications
+     Part six -- run
      =================================================================== -->
 
-<section class="frame section-frame" id="sec-apps" data-section="Applications">
+<section class="frame section-frame" id="sec-run" data-section="Run">
   <div class="wrap">
-    <div class="sec-n">Part seven</div>
-    <h2>Applications</h2>
-    <p class="lede">Where the same three ideas — a rate, a range, and a conversion — go next.</p>
+    <div class="sec-n">Part six</div>
+    <h2>Run: Ultrasonic FSK</h2>
+    <p class="lede">A 200-baud link that leaves the board, crosses four inches of air, and comes back.</p>
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic" data-section="Applications">
+<section class="frame cut" id="ultrasonic" data-section="Run">
   <div class="wrap">
-    <h2>Ultrasonic FSK</h2>
+    <h2>The FSK Link</h2>
     <div class="stage split-r">
       <div class="present">
         <ul>
@@ -1871,7 +1681,47 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-resonance" data-section="Applications">
+<section class="frame cut" id="ultrasonic-wiring" data-section="Run">
+  <div class="wrap">
+    <h2>Wiring the Transducers</h2>
+    <div class="stage split">
+      <div class="present callout">
+        <p><strong>Transmitter</strong> &mdash; <code>W1</code> to TX&nbsp;+,
+        TX&nbsp;&minus; to <code>GND</code>.</p>
+        <p><strong>Receiver</strong> &mdash; RX&nbsp;+ to <code>1+</code>,
+        RX&nbsp;&minus; and <code>1-</code> to <code>GND</code>.</p>
+      </div>
+      <div class="present">
+        <ul>
+          <li>Input range <strong>high</strong>, which is &plusmn;2.5&nbsp;V</li>
+          <li>Point the two at each other, four inches apart</li>
+          <li>Either transducer works as either end</li>
+        </ul>
+      </div>
+    </div>
+    <div class="depth">
+      <p>Four wires and no components. The transducers are not polarized and
+      neither is driven through anything, so the pair is symmetric &mdash;
+      whichever one ends up on <code>W1</code> is the transmitter.</p>
+      <p>Grounding both sides matters more than it looks. <code>1-</code> to
+      ground is what makes input 1 single-ended; leave it floating and the
+      capture is whatever the two probe wires pick up between them, which reads
+      as a link that almost works.</p>
+      <p>Four inches is where the bench sweeps were taken, at four and at eight
+      &mdash; the level follows 1/r to within two percent between them, so the
+      spacing is a knob rather than a setting. Start close, get the console
+      printing, and then move them apart.</p>
+      <p>Then open the flowgraph:</p>
+<pre><code>source gr-m2k/env.sh
+gnuradio-companion flowgraphs/m2k_ultrasonic_fsk.grc</code></pre>
+      <p>Type in the <strong>Message</strong> box and press Enter. The new text
+      goes out on the next frame and comes back on the console, from
+      <em>ASCII at Every Offset</em>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="ultrasonic-resonance" data-section="Run">
   <div class="wrap">
     <h2>Transducer Resonance</h2>
     <div class="stage split">
@@ -1922,7 +1772,7 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-tx" data-section="Applications">
+<section class="frame cut" id="ultrasonic-tx" data-section="Run">
   <div class="wrap">
     <h2>The FSK Transmitter</h2>
     <div class="chain">
@@ -1998,7 +1848,7 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-rx" data-section="Applications">
+<section class="frame cut" id="ultrasonic-rx" data-section="Run">
   <div class="wrap">
     <h2>The FSK Receiver</h2>
     <div class="chain">
@@ -2063,7 +1913,7 @@ sigrok-cli -i bus.csv \
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-bytes" data-section="Applications">
+<section class="frame cut" id="ultrasonic-bytes" data-section="Run">
   <div class="wrap">
     <h2>Finding the Byte Boundary</h2>
     <div class="chain">
@@ -2132,50 +1982,19 @@ pdu vector contents =
   </div>
 </section>
 
-<section class="frame cut" id="ultrasonic-result" data-section="Applications">
+<!-- ===================================================================
+     Part seven -- sprint
+     =================================================================== -->
+
+<section class="frame section-frame" id="sec-sprint" data-section="Sprint">
   <div class="wrap">
-    <h2>Link Results</h2>
-    <div class="stage split">
-      <div class="present">
-        <div class="tablewrap"><table class="params">
-          <tr><th>on the bench</th><th></th></tr>
-          <tr><td>bits sent</td><td>395</td></tr>
-          <tr><td>bit errors</td><td>0</td></tr>
-          <tr><td>underruns</td><td>0</td></tr>
-          <tr><td>spacing</td><td>4 in</td></tr>
-          <tr><td>level at 1 m</td><td>~143 mV</td></tr>
-        </table></div>
-      </div>
-      <div class="present callout trap">
-        <p><strong>Not yet checked:</strong> this flowgraph on a board, range
-        past four inches, off-axis falloff, and twenty stations in one room.</p>
-      </div>
-    </div>
-    <div class="depth">
-      <p>The 2026-09-09 run was <code>bench/ultrasonic_fsk.py</code>, which is
-      the same chain as the flowgraph written as a script: W1 out, 1+ back,
-      message decoded in the same process. 395 bits, no errors, no underruns at
-      750&nbsp;kS/s non-cyclic.</p>
-      <p>The 143&nbsp;mV at one meter is a projection, not a measurement. It is
-      1/r extrapolated from the two spacings we measured. Against an
-      8.4&nbsp;mV crosstalk floor that is 24&nbsp;dB of margin, which is why a
-      room-scale link looks plausible.</p>
-      <p><strong>What the tests cover.</strong>
-      <code>tests/test_grc_integration.py</code> builds the flowgraph, checks the rates and
-      the frame arithmetic survive code generation, and runs the whole receive
-      chain in-process against synthetic FSK with a deliberate sample offset —
-      twelve frames, every one decoded. None of that puts it in front of a
-      transducer.</p>
-      <p><strong>Twenty stations in one room.</strong> Twenty transmitters each
-      radiating 41&nbsp;kHz into the same air is not something a bench with one
-      pair can answer. The fallback is one transmitter at the front and twenty
-      receivers, which also halves the wiring each participant has to get right.
-      Time-of-flight ranging is the stretch goal if the link lands early.</p>
-    </div>
+    <div class="sec-n">Part seven</div>
+    <h2>Sprint: Color Detection</h2>
+    <p class="lede">Drive an LED, read two photodiodes, and name the color in the cuvette.</p>
   </div>
 </section>
 
-<section class="frame cut" id="colorimeter" data-section="Applications">
+<section class="frame cut" id="colorimeter" data-section="Sprint">
   <div class="wrap">
     <h2>The Colorimeter Optics</h2>
     <div class="stage split">
@@ -2191,7 +2010,7 @@ pdu vector contents =
           <li>One FFT separates them again</li>
           <li>Two photodiodes: one sees the cuvette, one does not</li>
         </ul>
-        <p class="pull">Nothing is switched on and off in turn.</p>
+        <p class="pull">One LED and two photodiodes, driven and read by the same gr-m2k blocks.</p>
       </div>
     </div>
     <div class="depth">
@@ -2224,7 +2043,54 @@ pdu vector contents =
   </div>
 </section>
 
-<section class="frame cut" id="colorimeter-bins" data-section="Applications">
+<section class="frame cut" id="colorimeter-setup" data-section="Sprint">
+  <div class="wrap">
+    <h2>Setting Up the Colorimeter</h2>
+    <div class="stage split">
+      <div class="present callout">
+        <ol>
+          <li>Board onto the digital header</li>
+          <li>LED riser in <code>J5</code>, photodiodes in <code>J3</code> and <code>J4</code></li>
+          <li>Cuvettes in both wells, empty</li>
+          <li>Run the flowgraph, press <strong>Blank</strong></li>
+          <li>Slide a filter into <code>Sample</code></li>
+        </ol>
+      </div>
+      <div class="present">
+        <ul>
+          <li>All three read 100.0% and the box says <em>nothing in the beam</em></li>
+          <li>Then one color drops and the box names it</li>
+        </ul>
+        <p class="pull">The rails come up with the flowgraph. There is no switch on the board.</p>
+      </div>
+    </div>
+    <div class="depth">
+<pre><code>source gr-m2k/env.sh
+gnuradio-companion flowgraphs/m2k_colorimeter.grc</code></pre>
+      <p><strong>The risers are not interchangeable.</strong> <code>J5</code>
+      is LED riser 0 and it is the only one populated on this board;
+      <code>J3</code> and <code>J4</code> take the two photodiode risers, one
+      looking straight through the Reference well and one at the elbow under
+      the Sample well. Put the cuvette you care about in the well silkscreened
+      <code>Sample</code>.</p>
+      <p><strong>Nothing works without the rails.</strong> The LED common
+      anodes sit directly on V+ and the board's op amp needs both, so
+      <code>m2k_power_supply</code> is the first block in the file. Without it
+      there is no light and no gain, which looks exactly like a dead board.</p>
+      <p><strong>Blank before you believe a number.</strong> The three blank
+      constants in the flowgraph describe one afternoon's alignment. Carrying
+      the thing to a conference invalidates them silently &mdash; as a tilt in
+      every reading rather than as an error. Empty both wells, press
+      <strong>Blank</strong>, and whatever the two paths are doing now becomes
+      100%. The check that it worked is already on the screen.</p>
+      <p>One board, so this runs at the front of the room. The flowgraph, the
+      bench script and the numbers are all in the repository, so it reads
+      afterwards for people who never touched it.</p>
+    </div>
+  </div>
+</section>
+
+<section class="frame cut" id="colorimeter-bins" data-section="Sprint">
   <div class="wrap">
     <h2>The Chop Frequencies</h2>
     <div class="stage">
@@ -2270,7 +2136,7 @@ pdu vector contents =
   </div>
 </section>
 
-<section class="frame cut" id="colorimeter-lockin" data-section="Applications">
+<section class="frame cut" id="colorimeter-lockin" data-section="Sprint">
   <div class="wrap">
     <h2>Lock-In Detection</h2>
     <div class="stage">
@@ -2313,7 +2179,7 @@ pdu vector contents =
   </div>
 </section>
 
-<section class="frame cut" id="colorimeter-result" data-section="Applications">
+<section class="frame cut" id="colorimeter-result" data-section="Sprint">
   <div class="wrap">
     <h2>Transmittance Readings</h2>
     <div class="stage split">
@@ -2380,27 +2246,34 @@ pdu vector contents =
     <div class="stage">
       <div class="present">
         <ol>
-          <li><code>real = (raw + offset) &times; scale</code>, and the ABI fixes the unit.</li>
-          <li>An instrument is several IIO devices. One block writes to one.</li>
-          <li>When the hardware publishes the legal values, the list wins.</li>
-          <li>Check your decoder against one you did not write.</li>
+          <li>GNU&nbsp;Radio is a general-purpose DSP program.</li>
+          <li><code>gr-m2k</code> hands it the M2K's analog, digital and DC lines.</li>
+          <li>The four demos are four ways to combine those three.</li>
+          <li>There is a great deal more you can do with them.</li>
         </ol>
       </div>
       <div class="present callout">
-        <p>Everything in this deck is in the repository, including the bench
-        checklist that says which claims we measured and which are still
-        assumptions.</p>
+        <p>Every flowgraph, every block and every number in this deck is in the
+        repository. Open one and change a parameter.</p>
       </div>
     </div>
     <div class="depth">
-      <p>The fourth is the one that generalizes furthest beyond this hardware.
-      Encoder and decoder written from the same sentences will agree with each
-      other perfectly and can both be wrong; the only way out is an independent
-      implementation of the same spec. For SPI we used libsigrokdecode, and it
-      took an afternoon.</p>
-      <p>The block-design rules are the same idea pointed at a user interface: a
-      parameter that cannot express an illegal value cannot be set to one, and a
-      dropdown built from the hardware's own list cannot drift from it.</p>
+      <p>Nothing in this session was about DSP that GNU&nbsp;Radio could not
+      already do. An FSK link, a lock-in amplifier and a bit-banged bus are
+      ordinary flowgraphs; what was missing was a way to put the M2K's pins and
+      converters on the canvas beside them, and that is all
+      <code>gr-m2k</code> is.</p>
+      <p>So the four demos are worth reading as a table rather than as a
+      sequence. Blinky is DIO out. SPI is DIO out and DIO in together.
+      Ultrasonic is AIO out and AIO in. The colorimeter is DIO out, AIO in and
+      the DC rails at once. Three resources, four arrangements, and the
+      arrangements are not close to exhausted &mdash; a transistor curve
+      tracer, an impedance meter, a serial bus you actually talk to a chip
+      over, anything where the arithmetic carries the work and the board is
+      the front end.</p>
+      <p>The blocks are the ordinary kind of contribution: they do not make the
+      board do anything it could not do, they make it reachable from where the
+      arithmetic already lives.</p>
     </div>
   </div>
 </section>
@@ -2414,7 +2287,7 @@ pdu vector contents =
       <div class="card"><h3>Reading IIO attribute names</h3><p><code>docs/reading-iio-attributes.md</code> — the participant handout, generated by <code>iio-tools/iio_explain.py --glossary</code></p></div>
       <div class="card"><h3>The block reference</h3><p><code>gr-m2k/README.md</code> — every parameter, and what it quietly becomes</p></div>
       <div class="card"><h3>The bench checklist</h3><p><code>docs/bench-checklist.md</code> — 16 sections, what passed and what it cost</p></div>
-      <div class="card"><h3>The multi-pin sink note</h3><p><code>docs/gr-iio-multipin-sink.md</code> — why the digital sink had to be written</p></div>
+      <div class="card"><h3>The multi-pin sink note</h3><p><code>docs/gr-iio-multipin-sink.md</code> — why <code>gr-m2k</code> has a digital sink of its own</p></div>
       <div class="card"><h3>The flow graphs</h3><p><code>flowgraphs/</code> — blinky, LED PWM, loopback, scope, SPI, ultrasonic, colorimeter</p></div>
     </div>
     <p class="meta">Deck keys: <kbd>&rarr;</kbd> / <kbd>&larr;</kbd> move,
@@ -2422,6 +2295,7 @@ pdu vector contents =
     <kbd>L</kbd> laser, <kbd>S</kbd> spotlight, <kbd>F</kbd> fullscreen.</p>
   </div>
 </section>
+
 
 </main>
 
