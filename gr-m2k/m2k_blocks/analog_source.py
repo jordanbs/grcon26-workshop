@@ -19,11 +19,14 @@ are not attributes at all (the volts-per-count numbers) come from
 libm2k's getScalingFactor() and are marked below.
 """
 
+import numpy
+
 from gnuradio import blocks
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import release, write_channel_attr
+from .m2k_config import (context, release, usb_backend, write_channel_attr,
+                         write_device_attr)
 from .m2k_scale import (RANGE_VOLTS, SAMPLE_RATES, check_sample_rate,
                         volts_per_count, volts_to_raw)
 
@@ -40,6 +43,98 @@ TRIG_DELAY = "voltage6"                    # logic_mode, i.e. the source
 
 # Both are always read, whether or not both are published. See __init__.
 ADC_CHANNELS = ["voltage0", "voltage1"]
+
+
+class _adc_source(gr.sync_block):
+    """The scope input, read through pylibiio rather than gr-iio.
+
+    Not a workaround for a bug -- gr-iio's device_source reads the ADC
+    correctly. This exists because of what device_source costs over USB.
+
+    A libusb interface can be claimed by exactly one context, and
+    `usb:0.5.5` is one interface. The digital sink has no choice but to
+    stream through pylibiio, because device_sink cannot drive more than
+    one DIO pin, so on USB the pylibiio context is the one carrying
+    samples. A device_source alongside it is gr-iio opening a SECOND
+    context on that interface, and the second claim loses with
+    `Permission denied (13)`. The colorimeter is the flowgraph that
+    found this: a digital sink driving the LED, an analog source reading
+    the photodiode, and whichever was built first took the board.
+
+    So on USB every m2k block reads and writes through the one context
+    this module's `context()` hands out. The network backend multiplexes
+    contexts happily and keeps using device_source, which has far more
+    bench time on it. See `m2k_config.release`.
+
+    Unlike the digital word, the ADC's two channels really are separate
+    scan elements: one sample is two int16s side by side, channel 0
+    then channel 1. So this deinterleaves rather than unpacking bits.
+    Both channels are always enabled, for the reason analog_source's
+    __init__ gives -- reading one skews the time base.
+    """
+
+    def __init__(self, uri, ports, buffer_size):
+        gr.sync_block.__init__(
+            self, name="m2k_adc_source",
+            in_sig=[], out_sig=[numpy.int16] * len(ports))
+        self.uri = uri
+        # Which of the two interleaved channels each output port takes.
+        self.ports = list(ports)
+        self.buffer_size = int(buffer_size)
+        self._buffer = None
+        self._staged = None
+
+    def start(self):
+        """Allocate the DMA buffer with both ADC channels enabled."""
+        import iio as pyiio
+
+        device = context(self.uri).find_device(DEV_ADC)
+        if device is None:
+            raise RuntimeError("no %s at %s" % (DEV_ADC, self.uri))
+        wanted = set(ADC_CHANNELS)
+        for channel in device.channels:
+            channel.enabled = channel.id in wanted
+
+        self._buffer = pyiio.Buffer(device, self.buffer_size, False)
+        self._staged = numpy.empty((0, len(ADC_CHANNELS)), dtype=numpy.int16)
+        return True
+
+    def stop(self):
+        """Cancel the refill, then drop the buffer.
+
+        `refill` blocks until the buffer fills, and an armed trigger that
+        never fires means never. `cancel` is what gets a thread out of
+        that wait; without it, stopping the flowgraph hangs.
+        """
+        if self._buffer is not None:
+            self._buffer.cancel()
+        self._buffer = None
+        self._staged = None
+        return True
+
+    def work(self, input_items, output_items):
+        if self._buffer is None:
+            return -1
+
+        if self._staged is None or len(self._staged) == 0:
+            try:
+                self._buffer.refill()
+            except OSError:
+                # A cancelled refill is how stop() gets us out of the
+                # wait above, not a failure worth raising at the
+                # scheduler. Either way there are no more samples.
+                return -1
+            flat = numpy.frombuffer(self._buffer.read(), dtype=numpy.int16)
+            # One row per sample, one column per enabled channel.
+            self._staged = flat.reshape(-1, len(ADC_CHANNELS)).copy()
+
+        # The DMA hands over whole buffers and the scheduler asks for
+        # whatever it has room for. The remainder waits here.
+        take = min(len(output_items[0]), len(self._staged))
+        for index, channel in enumerate(self.ports):
+            output_items[index][:take] = self._staged[:take, channel]
+        self._staged = self._staged[take:]
+        return take
 
 
 class analog_source(gr.hier_block2):
@@ -90,15 +185,30 @@ class analog_source(gr.hier_block2):
         self._apply_trigger(uri, trigger_source, trigger_edge, trigger_level,
                             ch1_range, ch2_range, sample_rate)
 
-        # Configuration first, then the streaming block -- on USB these
-        # two cannot both hold the interface, and the samples win. See
-        # m2k_config.release.
-        release(uri)
-        self.source = iio.device_source(
-            uri, DEV_ADC, ADC_CHANNELS, DEV_ADC,
-            ["sampling_frequency=%d" % check_sample_rate(sample_rate)],
-            buffer_size, 0)
-        self.source.set_len_tag_key("packet_len")
+        if usb_backend(uri):
+            # One interface, one context, and a digital sink in the same
+            # flowgraph is already holding it. See _adc_source. The rate
+            # rode into device_source as `params`; with that block gone
+            # it has to be written like any other attribute, or the
+            # capture runs at whatever rate was left over and says
+            # nothing about it.
+            write_device_attr(self, self._config, uri, DEV_ADC,
+                              "sampling_frequency",
+                              check_sample_rate(sample_rate))
+            self.source = _adc_source(uri, ports, buffer_size)
+            # _adc_source publishes only the ports asked for, so the
+            # port index below is its own output index.
+            ports = list(range(len(ports)))
+        else:
+            # Configuration first, then the streaming block -- these two
+            # cannot both hold the interface, and the samples win. See
+            # m2k_config.release.
+            release(uri)
+            self.source = iio.device_source(
+                uri, DEV_ADC, ADC_CHANNELS, DEV_ADC,
+                ["sampling_frequency=%d" % check_sample_rate(sample_rate)],
+                buffer_size, 0)
+            self.source.set_len_tag_key("packet_len")
 
         for index, (port, range_name) in enumerate(zip(ports, ranges)):
             if as_volts:

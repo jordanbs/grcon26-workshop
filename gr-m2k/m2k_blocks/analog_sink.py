@@ -17,11 +17,14 @@ it differs are the places people get caught:
 All three are handled here so nobody has to know them.
 """
 
+import numpy
+
 from gnuradio import blocks
 from gnuradio import gr
 from gnuradio import iio
 
-from .m2k_config import release, write_channel_attr
+from .m2k_config import (context, release, usb_backend, write_channel_attr,
+                         write_device_attr)
 from .m2k_scale import (DAC_FULL_SCALE_V, DAC_SAMPLE_RATES,
                         check_dac_sample_rate, dac_filter_compensation,
                         volts_to_dac_raw)
@@ -33,6 +36,87 @@ OUTPUT_DEVICE = {"w1": "m2k-dac-a", "w2": "m2k-dac-b"}
 # input range -- a different device from the one taking the samples.
 DEV_FABRIC = "m2k-fabric"
 FABRIC_OUTPUT = {"w1": "voltage0", "w2": "voltage1"}
+
+
+class _dac_sink(gr.sync_block):
+    """The generator output, written through pylibiio rather than gr-iio.
+
+    Same reason as `_adc_source` on the scope side, and the same
+    non-reason: gr-iio's device_sink drives one DAC channel perfectly
+    well. It is the second CONTEXT that is the problem. A USB interface
+    takes exactly one claim, the digital sink is forced onto pylibiio
+    because device_sink cannot drive more than one DIO pin, and so on
+    USB every m2k block has to share the one pylibiio context. See
+    `m2k_config.release`.
+
+    Unlike the digital sink there is no packing to do -- one channel,
+    one int16 per sample -- so this is only the buffering.
+    """
+
+    def __init__(self, uri, device, buffer_size, cyclic):
+        gr.sync_block.__init__(
+            self, name="m2k_dac_sink",
+            in_sig=[numpy.int16], out_sig=[])
+        self.uri = uri
+        self.device = device
+        self.buffer_size = int(buffer_size)
+        self.cyclic = bool(cyclic)
+        self._buffer = None
+        self._staged = None
+        self._pushed = False
+
+    def start(self):
+        """Allocate the DMA buffer, as late as the sink does.
+
+        Allocated here rather than in __init__ for the same reason as
+        the digital sink: a block that is constructed and never started
+        must not hold the DMA.
+        """
+        import iio as pyiio
+
+        device = context(self.uri).find_device(self.device)
+        if device is None:
+            raise RuntimeError("no %s at %s" % (self.device, self.uri))
+        for channel in device.channels:
+            channel.enabled = channel.id == "voltage0"
+
+        self._buffer = pyiio.Buffer(device, self.buffer_size, self.cyclic)
+        self._staged = numpy.empty(0, dtype=numpy.int16)
+        self._pushed = False
+        return True
+
+    def stop(self):
+        """Drop the buffer.
+
+        No `cancel` needed, unlike the sources: `push` does not block.
+        Note that dropping a CYCLIC buffer stops the output, which is
+        the opposite of what the block docstring says about the hardware
+        continuing -- the waveform survives only as long as the buffer
+        does.
+        """
+        self._buffer = None
+        self._staged = None
+        return True
+
+    def work(self, input_items, output_items):
+        count = len(input_items[0])
+
+        # A cyclic buffer is already repeating on the hardware. Take the
+        # samples so upstream keeps running and throw them away.
+        if self._pushed or self._buffer is None:
+            return count
+
+        self._staged = numpy.concatenate((self._staged, input_items[0]))
+
+        # The DMA takes whole buffers only, so partial ones wait here.
+        while len(self._staged) >= self.buffer_size and not self._pushed:
+            self._buffer.write(
+                bytearray(self._staged[:self.buffer_size].tobytes()))
+            self._buffer.push()
+            self._staged = self._staged[self.buffer_size:]
+            self._pushed = self.cyclic
+
+        return count
 
 
 class analog_sink(gr.hier_block2):
@@ -60,14 +144,24 @@ class analog_sink(gr.hier_block2):
         write_channel_attr(self, self._config, uri, DEV_FABRIC,
                            FABRIC_OUTPUT[output], "powerdown", 0, output=True)
 
-        # Configuration first, then the streaming block -- on USB these
-        # two cannot both hold the interface, and the samples win. See
-        # m2k_config.release.
-        release(uri)
-        self.sink = iio.device_sink(
-            uri, device, ["voltage0"], device,
-            ["sampling_frequency=%d" % check_dac_sample_rate(sample_rate)],
-            buffer_size, 0, bool(cyclic))
+        if usb_backend(uri):
+            # One interface, one context, shared with every other m2k
+            # block in the flowgraph. See _dac_sink. The rate rode into
+            # device_sink as `params`; with that block gone it has to be
+            # written like any other attribute.
+            write_device_attr(self, self._config, uri, device,
+                              "sampling_frequency",
+                              check_dac_sample_rate(sample_rate))
+            self.sink = _dac_sink(uri, device, buffer_size, bool(cyclic))
+        else:
+            # Configuration first, then the streaming block -- these two
+            # cannot both hold the interface, and the samples win. See
+            # m2k_config.release.
+            release(uri)
+            self.sink = iio.device_sink(
+                uri, device, ["voltage0"], device,
+                ["sampling_frequency=%d" % check_dac_sample_rate(sample_rate)],
+                buffer_size, 0, bool(cyclic))
 
         if as_volts:
             # Volts in, counts out, with libm2k's conversion including its
