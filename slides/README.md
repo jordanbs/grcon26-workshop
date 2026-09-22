@@ -28,8 +28,8 @@ A frame marked `cut` shows only its `<h2>` and its `.present` blocks on screen.
 Two present blocks in one `.stage` sit side by side on a laptop and stack on a
 phone: key points beside the table or the diagram they talk to.
 
-**Titles say what the frame is.** "The IIO Model", "What Are Raw Values",
-"GR-IIO", "Sample Flow", "The 6 M2K Instruments" — a noun phrase naming the
+**Titles say what the frame is.** "The IIO Model", "The Header",
+"GR-IIO", "Sample Flow", "Analog, Digital and DC" — a noun phrase naming the
 subject, in title case. Not a claim about the slide ("Mode 0, in one
 sentence"), not a comma clause that withholds the subject until the second
 half ("Four nouns, and that is the whole model"), and not a joke. Cheekiness
@@ -68,6 +68,27 @@ that is the sentence to say out loud, not to project.
 | `frame read-only` | notes material, skipped by present mode *and* by the counter |
 | `stage split` / `split-r` | the wider track goes left / right, for a table beside a callout |
 | `present callout` | the one present block that keeps a box in both modes |
+| `figure.shot .slot` | a picture that does not exist yet — see below |
+
+## Three pictures are not in the repository
+
+`render_grc.py`, `render_spi.py` and `render_colorimeter.py` between them draw
+everything in the deck that can be computed. Three figures cannot be: a
+**photograph of the board**, a **pinout diagram of its header**, and a
+**screenshot of Scopy**. Nothing here can produce a photograph, and a pinout
+drawn from memory is the one kind of figure that fails silently in front of a
+room — it looks right and sends somebody's jumper to the wrong pin.
+
+So `m2k-board`, `m2k-pinout` and `m2k-scopy` each carry a `<div class="slot">`
+naming the file it wants. Drop the file in `img/` and replace the div with an
+`<img>` and its alt text; nothing else changes. The slot is deliberately plain,
+because a placeholder that looks finished is a placeholder that ships.
+
+| frame | file it asks for |
+| --- | --- |
+| `m2k-board` | `img/m2k-board.jpg` |
+| `m2k-pinout` | `img/m2k-pinout.png` |
+| `m2k-scopy` | `img/scopy.png` |
 
 ## The GRC figures are rendered, not screenshotted
 
@@ -212,9 +233,9 @@ present mode would send projector-sized type to A4.
 is always shown on paper: the handout carries the material the projected deck
 does not.
 
-Measured, not assumed: 48 frames print as 59 sheets — one each, plus the ten
-where a rendered canvas and its notes run past a single side. If a change ever
-makes that number 1, the print block has been overridden.
+Measured, not assumed: the deck prints as one sheet per frame, plus a second
+side for each frame where a rendered canvas and its notes run past one. If a
+change ever makes the sheet count 1, the print block has been overridden.
 
 ## Hosting it
 

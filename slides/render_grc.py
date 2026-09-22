@@ -74,6 +74,13 @@ FIGURES = {
     "m2k_scope.grc": {
         "grc-analog-source": ["m2k_analog_source_0"],
     },
+    # The stock block, drawn from a flowgraph that really does drive an M2K
+    # with it. The deck puts it beside the M2K Analog Source, and the
+    # argument is the parameter list itself rather than anything said about
+    # it -- so it has to be the real block with real values on it.
+    "m2k_loopback.grc": {
+        "grc-iio-device-source": ["iio_device_source_0"],
+    },
     # The first flowgraph anyone runs. Four blocks, and the whole point is
     # that none of them is a blink block -- so the signal path is drawn on
     # its own, without the scope leg that only exists to make it visible.
